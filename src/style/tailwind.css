@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .flex-s {
+    @apply flex justify-start items-center;
+  }
+
+  .flex-w {
+    @apply flex flex-wrap justify-start items-center;
+  }
+
+  .flex-c {
+    @apply flex justify-center items-center;
+  }
+
+  .flex-ac {
+    @apply flex justify-around items-center;
+  }
+
+  .flex-b {
+    @apply flex justify-between;
+  }
+
+  .flex-bc {
+    @apply flex justify-between items-center;
+  }
+
+  .flex-ec {
+    @apply flex justify-end items-center;
+  }
+
+  /*竖直分离*/
+  .flex-cb {
+    @apply flex flex-col items-center justify-between;
+  }
+
+  .navbar-bg-hover {
+    @apply dark:text-white dark:hover:!bg-[#242424];
+  }
+}

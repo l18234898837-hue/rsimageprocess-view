@@ -1,0 +1,19 @@
+@font-face {
+  /* 重命名字体名 */
+  font-family: YouSheBiaoTiHei;
+
+  /* 引入字体 */
+  src: url("./YouSheBiaoTiHei-2.ttf");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  /* 重命名字体名 */
+  font-family: SaDigitalNumber;
+
+  /* 引入字体 */
+  src: url("./sa-digital-number.ttf");
+  font-weight: normal;
+  font-style: normal;
+}
