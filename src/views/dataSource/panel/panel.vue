@@ -1266,9 +1266,33 @@ onMounted(() => {
   height: auto;
   // width: 420px;
   overflow-y: scroll;
-  color: #5f85c6;
-  background-color: rgb(255 255 255);
-  border-radius: 5px;
+  color: #244d66;
+  background: linear-gradient(
+    180deg,
+    rgb(246 251 254 / 97%) 0%,
+    rgb(231 243 249 / 94%) 100%
+  );
+  border-color: rgb(121 205 238 / 54%) !important;
+  border-radius: 9px;
+  box-shadow:
+    0 16px 35px rgb(0 15 29 / 28%),
+    inset 0 1px 0 rgb(255 255 255 / 75%);
+
+  > div:first-child {
+    background: linear-gradient(
+      100deg,
+      #0c4b70 0%,
+      #117ca5 58%,
+      #4fc2e9 100%
+    ) !important;
+    box-shadow: inset 0 -1px 0 rgb(255 255 255 / 22%);
+  }
+}
+
+.data_select {
+  background: rgb(220 240 250 / 78%) !important;
+  border-color: rgb(107 184 219 / 55%) !important;
+  box-shadow: inset 0 1px 2px rgb(13 66 98 / 6%);
 }
 
 :deep(.el-form-item__label) {
