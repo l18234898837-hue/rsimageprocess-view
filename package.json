@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "NODE_OPTIONS=--max-old-space-size=4096 vite",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite",
+    "map:serve": "node scripts/serve-map-data.mjs",
     "serve": "pnpm dev",
     "build": "rimraf dist && mkdir dist && set NODE_OPTIONS=--max-old-space-size=8192 && vite build",
     "build:staging": "rimraf dist && mkdir dist && vite build --mode staging",
@@ -48,13 +49,15 @@
     "url": "https://github.com/xiaoxian521"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "2.3.1",
     "@mapbox/point-geometry": "^1.1.0",
     "@mapbox/vector-tile": "^2.0.3",
     "@pureadmin/descriptions": "^1.2.1",
     "@pureadmin/table": "^3.1.2",
     "@pureadmin/utils": "^2.4.7",
-    "@turf/turf": "^7.2.0",
     "@terraformer/wkt": "^2.2.1",
+    "@turf/turf": "^7.2.0",
+    "@vue/shared": "3.4.27",
     "@vueuse/core": "^10.11.0",
     "@vueuse/motion": "^2.2.3",
     "animate.css": "^4.1.1",
@@ -67,6 +70,7 @@
     "js-cookie": "^3.0.5",
     "less": "^4.3.0",
     "localforage": "^1.10.0",
+    "lodash-es": "4.17.21",
     "mitt": "^3.0.1",
     "nprogress": "^0.2.0",
     "path": "^0.12.7",
@@ -82,7 +86,9 @@
     "terraformer-wkt-parser": "^1.2.1",
     "urijs": "^1.19.11",
     "vue": "^3.4.27",
+    "vue-demi": "0.14.8",
     "vue-router": "^4.3.3",
+    "vue-tippy": "6.7.1",
     "vue-types": "^5.1.2"
   },
   "devDependencies": {

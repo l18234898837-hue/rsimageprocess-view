@@ -26,8 +26,8 @@ export default ({ mode }: ConfigEnv): UserConfigExport => {
       // 本地跨域代理 https://cn.vitejs.dev/config/server-options.html#server-proxy
       proxy: {
         "/gdMap": {
-          // 地图瓦片由本机静态服务提供，避免将 E 盘路径写入前端配置。
-          target: "http://127.0.0.1:9000/GaoDe",
+          // 地图瓦片由本机静态服务提供，避免将本机路径写入前端配置。
+          target: "http://127.0.0.1:9000",
           changeOrigin: true, //开启代理，允许跨域
           rewrite: path => path.replace(/^\/gdMap/, "") //设置重写的路径
         },

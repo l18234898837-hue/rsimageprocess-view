@@ -154,6 +154,9 @@
           <StarAnalysisTooltip />
         </div>
       </el-tab-pane>
+      <el-tab-pane label="多源卫星数据处理" name="multi-source">
+        <MultiSourceSatelliteProcess />
+      </el-tab-pane>
     </el-tabs>
   </div>
   <div v-if="!isShow" class="absolute z-[999]">
@@ -208,6 +211,7 @@ import {
   downloadLocalDataByIds
 } from "@/api/dataSource/panel/loal";
 import StarAnalysisTooltip from "./starAnalysisTooltip.vue";
+import MultiSourceSatelliteProcess from "./MultiSourceSatelliteProcess.vue";
 
 import { imgStreamToBase64 } from "@/utils/imgToBase64";
 import { addOriginalLayer } from "@/utils/addOriginalLayer";
@@ -503,6 +507,9 @@ onUnmounted(() => {
   overflow-y: scroll;
 }
 
+/*
+ * 原双模块导航栏样式：恢复双模块时，请取消注释本规则组，
+ * 并注释其后的“三模块导航栏样式”。
 :deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
   font-family:
     Source Han Sans SC,
@@ -545,6 +552,103 @@ onUnmounted(() => {
   text-transform: none;
   border-radius: 5px 5px 0 0;
 }
+*/
+
+/* 三模块导航栏样式：保持左侧大模块 20vw × 100% 不变。 */
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__nav) {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: none;
+  background: linear-gradient(180deg, #1492f9 0%, #75c8f2 58%, #d8f0fd 100%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent 44%);
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
+  position: relative;
+  display: flex;
+  flex: 1 1 33.333%;
+  align-items: center;
+  justify-content: center;
+  width: 33.333%;
+  min-width: 0;
+  height: 40px;
+  padding: 0;
+  overflow: hidden;
+  font-family: "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(9px, 0.68vw, 12px);
+  font-weight: 500;
+  line-height: 1.25;
+  color: #fff;
+  letter-spacing: clamp(0px, 0.05vw, 1px);
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+  border: none;
+  border-radius: 0;
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+/* Element Plus 会为第二项和末项预留关闭按钮内边距，需清除以保证三项几何居中。 */
+:deep(.el-tabs--top.el-tabs--card > .el-tabs__header .el-tabs__item) {
+  padding-inline: 0 !important;
+}
+
+:deep(
+    .el-tabs--card > .el-tabs__header .el-tabs__item:not(:last-child)::before
+  ) {
+  position: absolute;
+  top: 9px;
+  right: 0;
+  width: 1px;
+  height: 22px;
+  content: "";
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255, 255, 255, 0.62),
+    transparent
+  );
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item:hover:not(.is-active)) {
+  color: #f8fdff;
+  background: rgba(24, 133, 221, 0.16);
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active) {
+  font-weight: 600;
+  color: #2863a7;
+  background: linear-gradient(
+    180deg,
+    rgba(208, 240, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.96) 100%
+  );
+  border: none;
+  border-radius: 5px 5px 0 0;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.78);
+}
+
+:deep(.el-tabs--card > .el-tabs__header .el-tabs__item.is-active::after) {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 30px;
+  height: 2px;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #1597ed 28%,
+    #1597ed 72%,
+    transparent
+  );
+  transform: translateX(-50%);
+}
 :deep(.el-table) {
   background: rgba(4, 44, 103, 0);
   padding: 0 20px;
@@ -578,6 +682,13 @@ onUnmounted(() => {
 }
 :deep(.el-tabs__content) {
   padding-top: 60px;
+}
+
+@media screen and (max-width: 1100px) {
+  :deep(.el-tabs--card > .el-tabs__header .el-tabs__item) {
+    font-size: 9px;
+    letter-spacing: 0;
+  }
 }
 // :deep(.el-select__wrapper) {
 //   background: rgb(255 255 255 / 0%);
