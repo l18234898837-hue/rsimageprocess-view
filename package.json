@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite",
+    "map:serve": "node scripts/serve-map-data.mjs",
     "serve": "pnpm dev",
     "build": "rimraf dist && mkdir dist && set NODE_OPTIONS=--max-old-space-size=8192 && vite build",
     "build:staging": "rimraf dist && mkdir dist && vite build --mode staging",

@@ -5,7 +5,8 @@ dist-ssr
 *.local
 .eslintcache
 report.html
-vite-dev.log
+vite-dev*.log
+map-tile-server.*.log
 vite.config.*.timestamp*
 
 yarn.lock
