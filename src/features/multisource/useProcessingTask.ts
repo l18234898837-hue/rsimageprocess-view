@@ -122,7 +122,7 @@ export function useProcessingTask() {
     slots[slotId] = { status: "UPLOADING", file };
     try {
       const response = responseData(await uploadStaticFile(file));
-      slots[slotId] = { status: "UPLOADED", file, sysFileId: response.fileId };
+      slots[slotId] = { status: "UPLOADED", file, sysFileId: response.id };
     } catch {
       setSlotError(slotId, "上传失败，可重试该文件");
     }

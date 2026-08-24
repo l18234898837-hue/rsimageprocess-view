@@ -6,7 +6,7 @@ import type {
 } from "@/features/multisource/productTemplates";
 
 export interface UploadStaticFileResponse {
-  fileId: string | number;
+  id: string | number;
 }
 
 export interface ProcessingAssetRequest {
