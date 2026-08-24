@@ -1,8 +1,9 @@
 /** A file role required by a product template. */
 export type ProductFileRole = "BROWSE_IMAGE" | "GEOREFERENCE" | "METADATA";
+export type SlotId = "browseImage" | "georeference" | "metadata";
 
 export interface ProductFileSlot {
-  readonly id: string;
+  readonly id: SlotId;
   readonly label: string;
   readonly role: ProductFileRole;
   readonly extensions: readonly string[];
@@ -21,7 +22,7 @@ export interface ProductTemplate {
   }>;
 }
 
-export type ProductFiles = Readonly<Record<string, File | undefined>>;
+export type ProductFiles = Readonly<Partial<Record<SlotId, File>>>;
 
 export interface InvalidProductFile {
   readonly slot: ProductFileSlot;

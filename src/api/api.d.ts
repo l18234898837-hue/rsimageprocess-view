@@ -1,6 +1,6 @@
-export type Result = {
+export type Result<T = any> = {
   success: boolean;
-  data?: any;
+  data?: T;
   rows?: any;
   total?: number;
   code: number;
