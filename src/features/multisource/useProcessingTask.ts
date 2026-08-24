@@ -175,6 +175,14 @@ export function useProcessingTask() {
     return file ? basenameWithoutExtension(file.name) : "GF6-WFV-BROWSE";
   }
 
+  async function startExistingTask(existingTaskId: number) {
+    const started = responseData(await startProcessingTask(existingTaskId));
+    taskId.value = existingTaskId;
+    taskStatus.value = started.newlySubmitted ? "RUNNING" : "CREATED";
+    schedulePoll(0);
+    return existingTaskId;
+  }
+
   async function createAndStart() {
     if (!preflight.value || !candidate.value)
       throw new Error("请先完成产品预检");
@@ -187,10 +195,7 @@ export function useProcessingTask() {
       })
     );
     taskId.value = created.taskId;
-    const started = responseData(await startProcessingTask(created.taskId));
-    taskStatus.value = started.newlySubmitted ? "RUNNING" : "CREATED";
-    schedulePoll(0);
-    return created.taskId;
+    return startExistingTask(created.taskId);
   }
 
   function schedulePoll(delay: number) {
@@ -231,7 +236,9 @@ export function useProcessingTask() {
     );
     if (!failedStage) throw new Error("当前没有可重试阶段");
     await retryProcessingStage(failedStage.stageId);
-    await createAndStart();
+    if (taskId.value === undefined)
+      throw new Error("任务标识已失效，请重新创建任务");
+    await startExistingTask(taskId.value);
   }
 
   async function downloadResult() {
@@ -239,7 +246,13 @@ export function useProcessingTask() {
       throw new Error("任务尚未完成");
     }
     const response = await downloadProcessingResult(taskId.value);
-    const blob = response instanceof Blob ? response : new Blob([response]);
+    const responseDataValue = (response as { data?: unknown })?.data;
+    const blob =
+      responseDataValue instanceof Blob
+        ? responseDataValue
+        : response instanceof Blob
+          ? response
+          : new Blob([responseDataValue ?? response]);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
