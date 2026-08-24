@@ -32,6 +32,11 @@ export type SlotStatus =
   | "FAILED";
 export type TaskStatus = ProcessingLifecycleStatus;
 
+const WORKER_ERROR_MESSAGES: Record<string, string> = {
+  "文件授权已过期，请重新点击开始处理": "文件检查已过期，系统会自动重新检查",
+  "Worker 执行失败，请稍后重试": "处理服务暂时不可用，请稍后重试"
+};
+
 export interface SlotState {
   status: SlotStatus;
   file?: File;
@@ -198,6 +203,24 @@ export function useProcessingTask() {
     return startExistingTask(created.taskId);
   }
 
+  async function startProcessing() {
+    errorMessage.value = "";
+    try {
+      if (!candidate.value || !preflight.value) {
+        await runPreflight();
+      }
+      return await createAndStart();
+    } catch (error) {
+      clearTaskContext();
+      throw error;
+    }
+  }
+
+  function translateError(error: unknown, fallback: string) {
+    const message = error instanceof Error ? error.message : "";
+    return WORKER_ERROR_MESSAGES[message] || message || fallback;
+  }
+
   function schedulePoll(delay: number) {
     stopPolling();
     if (taskId.value === undefined) return;
@@ -285,6 +308,8 @@ export function useProcessingTask() {
     removeSlot,
     runPreflight,
     createAndStart,
+    startProcessing,
+    translateError,
     cancel,
     retry,
     downloadResult,

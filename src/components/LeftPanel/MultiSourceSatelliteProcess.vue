@@ -80,10 +80,10 @@
         <span>已上传 {{ uploadedSlotCount }}/3</span>
         <el-button
           type="primary"
-          :disabled="!canPreflight"
-          @click="preflightTask"
+          :disabled="!canPreflight || isBusy"
+          @click="startTask"
         >
-          预检产品
+          开始处理
           <el-icon class="el-icon--right"><ArrowRight /></el-icon>
         </el-button>
       </footer>
@@ -106,11 +106,9 @@
         <small>状态：{{ candidate.supportStatus }}</small>
       </div>
       <footer class="multi-source-flow__page-action">
-        <span>{{ taskStatusLabel }}</span>
-        <el-button type="primary" :disabled="isTaskActive" @click="createTask">
-          {{ taskStatus ? "继续处理" : "创建并开始" }}
-          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
+        <span>{{
+          taskStatus ? taskStatusLabel : "已完成文件检查，点击上方开始处理"
+        }}</span>
       </footer>
     </section>
 
@@ -193,7 +191,8 @@ const {
   uploadSlot,
   removeSlot,
   runPreflight,
-  createAndStart,
+  startProcessing,
+  translateError,
   cancel,
   retry,
   downloadResult,
@@ -217,6 +216,7 @@ const validationMessages = computed(() => {
 const canPreflight = computed(
   () => allSlotsUploaded.value && validation.value.valid
 );
+const isBusy = ref(false);
 const isTaskActive = computed(
   () =>
     taskStatus.value === "RUNNING" || taskStatus.value === "RECOVERY_PENDING"
@@ -288,14 +288,17 @@ async function preflightTask() {
   }
 }
 
-async function createTask() {
+async function startTask() {
+  isBusy.value = true;
   try {
-    await createAndStart();
+    await startProcessing();
     message("任务已启动", { type: "success" });
   } catch (error) {
-    message(error instanceof Error ? error.message : "任务启动失败", {
+    message(translateError(error, "开始处理失败，请重试"), {
       type: "error"
     });
+  } finally {
+    isBusy.value = false;
   }
 }
 
