@@ -27,9 +27,9 @@ const store = useLayerStore();
 
 // ====================== 组件属性（你要的）======================
 interface Props {
-  minValue: number; // 最小值
-  maxValue: number; // 最大值
-  colorRamp: number[][]; // 颜色数组 [[r,g,b], [r,g,b]...]
+  minValue?: number; // 最小值
+  maxValue?: number; // 最大值
+  colorRamp?: number[][]; // 颜色数组 [[r,g,b], [r,g,b]...]
   show?: boolean; // 显示隐藏
   width?: number; // 图例宽度
   height?: number; // 图例高度

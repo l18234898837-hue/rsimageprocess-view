@@ -46,8 +46,9 @@ export interface TaskIdResponse {
   taskId: number;
 }
 
-export interface StartProcessingTaskResponse {
-  newlySubmitted: boolean;
+export interface DispatchProcessingStageResponse {
+  dispatched: boolean;
+  stageId: number | null;
 }
 
 export type ProcessingLifecycleStatus =
@@ -108,10 +109,10 @@ export const createProcessingTask = (data: CreateProcessingTaskRequest) =>
     { data }
   );
 
-export const startProcessingTask = (taskId: number) =>
-  http.request<Result<StartProcessingTaskResponse>>(
+export const dispatchProcessingTask = (taskId: number) =>
+  http.request<Result<DispatchProcessingStageResponse>>(
     "post",
-    `/api/multisource/processing-tasks/${taskId}/start`
+    `/api/multisource/processing-tasks/${taskId}/dispatch`
   );
 
 export const getProcessingProgress = (taskId: number) =>

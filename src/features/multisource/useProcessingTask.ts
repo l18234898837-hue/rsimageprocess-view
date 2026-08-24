@@ -6,7 +6,7 @@ import {
   getProcessingProgress,
   preflightProcessingTask,
   retryProcessingStage,
-  startProcessingTask,
+  dispatchProcessingTask,
   uploadStaticFile,
   type ExecutionProgressResponse,
   type PreflightCandidate,
@@ -181,9 +181,9 @@ export function useProcessingTask() {
   }
 
   async function startExistingTask(existingTaskId: number) {
-    const started = responseData(await startProcessingTask(existingTaskId));
+    const dispatch = responseData(await dispatchProcessingTask(existingTaskId));
     taskId.value = existingTaskId;
-    taskStatus.value = started.newlySubmitted ? "RUNNING" : "CREATED";
+    taskStatus.value = dispatch.dispatched ? "RUNNING" : "CREATED";
     schedulePoll(0);
     return existingTaskId;
   }
@@ -275,7 +275,7 @@ export function useProcessingTask() {
         ? responseDataValue
         : response instanceof Blob
           ? response
-          : new Blob([responseDataValue ?? response]);
+          : new Blob([responseDataValue ?? response] as BlobPart[]);
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
