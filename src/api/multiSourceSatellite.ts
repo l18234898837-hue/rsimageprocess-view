@@ -4,6 +4,7 @@ import type {
   ProductFileRole,
   SlotId
 } from "@/features/multisource/productTemplates";
+import type { Gf6L1aRole } from "@/features/multisource/gf6WfvL1aTemplate";
 
 export interface UploadStaticFileResponse {
   id: string | number;
@@ -15,6 +16,14 @@ export interface ProcessingAssetRequest {
   role: ProductFileRole;
   ordinal: 0;
   required: true;
+}
+
+export interface Gf6L1aAssetRequest {
+  sourceType: "SYS_FILE";
+  sourceId: string | number;
+  role: Gf6L1aRole;
+  ordinal: number;
+  required: boolean;
 }
 
 export interface PreflightRequest {
@@ -113,6 +122,12 @@ export const dispatchProcessingTask = (taskId: number) =>
   http.request<Result<DispatchProcessingStageResponse>>(
     "post",
     `/api/multisource/processing-tasks/${taskId}/dispatch`
+  );
+
+export const startProcessingTask = (taskId: number) =>
+  http.request<Result<{ taskId: number; status: string }>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/start`
   );
 
 export const getProcessingProgress = (taskId: number) =>
