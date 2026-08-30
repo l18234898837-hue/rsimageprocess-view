@@ -151,6 +151,12 @@ class PureHttp {
         const code = response.data.code || 200;
         const msg =
           errorCode[code] || response.data.msg || errorCode["default"];
+        const rejectWithBackendMessage = () => {
+          const backendError = new Error(msg) as PureHttpError;
+          backendError.response =
+            response as unknown as PureHttpError["response"];
+          return Promise.reject(backendError);
+        };
         // 关闭进度条动画
         NProgress.done();
 
@@ -182,14 +188,14 @@ class PureHttp {
             return response.data;
           } else {
             ElMessage({ message: msg, type: "warning" });
-            return Promise.reject("error");
+            return rejectWithBackendMessage();
           }
         } else if (code === 601) {
           ElMessage({ message: msg, type: "warning" });
-          return Promise.reject("error");
+          return rejectWithBackendMessage();
         } else if (code !== 200) {
           ElNotification.error({ title: msg });
-          return Promise.reject("error");
+          return rejectWithBackendMessage();
         }
 
         // 优先判断post/get等方法是否传入回调，否则执行初始化设置等回调
@@ -209,7 +215,18 @@ class PureHttp {
 
         console.log("err" + error);
         let { message } = error;
-        if (message == "Network Error") {
+        const responseData = error.response?.data;
+        const backendMessage =
+          responseData &&
+          typeof responseData === "object" &&
+          "msg" in responseData &&
+          typeof responseData.msg === "string" &&
+          responseData.msg.trim()
+            ? responseData.msg
+            : "";
+        if (backendMessage) {
+          message = backendMessage;
+        } else if (message == "Network Error") {
           message = "后端接口连接异常";
         } else if (message.includes("timeout")) {
           message = "系统接口请求超时";

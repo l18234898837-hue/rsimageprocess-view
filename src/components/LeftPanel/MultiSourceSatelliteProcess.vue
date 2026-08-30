@@ -1,65 +1,120 @@
 <template>
-  <section class="multi-source-flow" aria-labelledby="multi-source-title">
-    <header class="multi-source-flow__heading">
-      <span>MULTI-SOURCE DATA</span>
-      <h3 id="multi-source-title">多源卫星数据处理</h3>
+  <section
+    class="mission-panel satellite-workspace"
+    aria-labelledby="mission-panel-title"
+  >
+    <header class="mission-panel__masthead">
+      <div class="mission-panel__heading">
+        <span class="mission-panel__eyebrow"
+          >MISSION CONTROL / DATA INTAKE</span
+        >
+        <h3 id="mission-panel-title">卫星产品处理</h3>
+        <p>选择产品包，校验配置，然后下发处理任务。</p>
+      </div>
+      <div class="mission-panel__orbit" aria-hidden="true">
+        <span class="mission-panel__orbit-core" />
+        <span class="mission-panel__orbit-track is-one" />
+        <span class="mission-panel__orbit-track is-two" />
+      </div>
     </header>
 
-    <div class="multi-source-flow__selector">
-      <label for="product-template">产品类型</label>
-      <select id="product-template" v-model="selectedTemplateId">
-        <option :value="GF6_WFV_BROWSE_TEMPLATE.id">
-          {{ GF6_WFV_BROWSE_TEMPLATE.label }}
+    <div class="mission-panel__selector">
+      <label for="product-template">产品模板</label>
+      <select
+        id="product-template"
+        :value="activeTemplate.id"
+        :disabled="isTaskActive || isBusy || isUploading"
+        @change="handleTemplateChange"
+      >
+        <option
+          v-for="template in PRODUCT_TEMPLATES"
+          :key="template.id"
+          :value="template.id"
+        >
+          {{ template.label }}
         </option>
       </select>
+      <small
+        v-if="isTaskActive || isBusy || isUploading"
+        class="mission-panel__lock-note"
+      >
+        {{ templateLockMessage }}
+      </small>
     </div>
 
-    <section class="multi-source-flow__page" aria-labelledby="upload-title">
-      <div class="multi-source-flow__page-title">
-        <span>01</span>
+    <section class="mission-section" aria-labelledby="package-title">
+      <div class="mission-section__heading">
         <div>
-          <strong id="upload-title">上传产品包</strong>
-          <small>选择同一产品编号的 JPG、JGW 和 JSON 文件。</small>
+          <span class="mission-section__signal" aria-hidden="true" />
+          <strong id="package-title">产品包</strong>
         </div>
+        <span>{{ uploadedSlotCount }}/{{ activeTemplate.slots.length }}</span>
       </div>
+      <p class="mission-section__note">
+        {{ activeTemplate.packageRequirements }}
+      </p>
 
-      <div class="multi-source-flow__slots">
+      <div class="file-stack">
         <article
-          v-for="slot in GF6_WFV_BROWSE_TEMPLATE.slots"
-          :key="slot.id"
-          class="multi-source-flow__slot"
+          v-for="slot in activeTemplate.slots"
+          :key="`${activeTemplate.id}-${slot.id}`"
+          class="file-slot"
           :class="`is-${slots[slot.id].status.toLowerCase()}`"
         >
-          <div class="multi-source-flow__slot-heading">
+          <div class="file-slot__meta">
             <div>
               <strong>{{ slot.label }}</strong>
-              <small>{{ slot.extensions.join("、") }}</small>
+              <small>{{ slot.role }} · {{ slot.extensions.join(" / ") }}</small>
             </div>
             <span>{{ slotStatusLabel(slots[slot.id].status) }}</span>
           </div>
           <input
-            :id="`file-${slot.id}`"
-            class="multi-source-flow__file-input"
+            :id="`file-${activeTemplate.id}-${slot.id}`"
+            class="visually-hidden"
             type="file"
             :accept="slot.extensions.join(',')"
+            :disabled="isTaskActive || isBusy"
             @change="handleFileChange(slot.id, $event)"
           />
           <label
-            class="multi-source-flow__file-button"
-            :for="`file-${slot.id}`"
+            class="file-slot__picker"
+            :class="{ 'is-disabled': isTaskActive || isBusy }"
+            :for="`file-${activeTemplate.id}-${slot.id}`"
           >
             <el-icon><DocumentAdd /></el-icon>
             <span>{{ slots[slot.id].file?.name || "选择文件" }}</span>
           </label>
-          <small v-if="slots[slot.id].error" class="multi-source-flow__error">
+          <div
+            v-if="slots[slot.id].status === 'UPLOADING'"
+            class="file-slot__progress"
+            aria-live="polite"
+          >
+            <div
+              class="file-slot__progress-track"
+              role="progressbar"
+              :aria-label="`${slot.label}上传进度`"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-valuenow="slots[slot.id].uploadProgress ?? 0"
+            >
+              <span
+                :style="{
+                  width: `${slots[slot.id].uploadProgress ?? 0}%`
+                }"
+              />
+            </div>
+            <small>{{ slots[slot.id].uploadProgress ?? 0 }}%</small>
+          </div>
+          <small v-if="slots[slot.id].error" class="inline-error">
             {{ slots[slot.id].error }}
           </small>
           <button
             v-if="slots[slot.id].file"
-            class="multi-source-flow__remove"
+            class="file-slot__remove"
             type="button"
             title="移除文件"
-            @click="removeSlot(slot.id)"
+            :disabled="isTaskActive || isBusy"
+            @click="removeProductSlot(slot.id)"
           >
             <el-icon><Delete /></el-icon>
           </button>
@@ -68,139 +123,946 @@
 
       <div
         v-if="validationMessages.length"
-        class="multi-source-flow__diagnostics"
+        class="diagnostic-strip"
         role="alert"
       >
-        <span v-for="diagnostic in validationMessages" :key="diagnostic">{{
-          diagnostic
-        }}</span>
+        <span v-for="diagnostic in validationMessages" :key="diagnostic">
+          {{ diagnostic }}
+        </span>
       </div>
-
-      <footer class="multi-source-flow__page-action">
-        <span>已上传 {{ uploadedSlotCount }}/3</span>
-        <el-button
-          type="primary"
-          :disabled="!canPreflight || isBusy"
-          @click="startTask"
-        >
-          开始处理
-          <el-icon class="el-icon--right"><ArrowRight /></el-icon>
-        </el-button>
-      </footer>
     </section>
 
     <section
-      v-if="candidate"
-      class="multi-source-flow__page"
-      aria-labelledby="candidate-title"
+      v-if="isHy1c"
+      class="mission-section configuration-brief"
+      aria-labelledby="l2a-parameters-title"
     >
-      <div class="multi-source-flow__page-title">
-        <span>02</span>
+      <div class="configuration-brief__heading">
         <div>
-          <strong id="candidate-title">确认产品</strong>
-          <small>后端已识别唯一支持的 GF-6 WFV 产品。</small>
+          <span class="mission-section__signal is-violet" aria-hidden="true" />
+          <div>
+            <strong id="l2a-parameters-title">L2A 参数工作台</strong>
+            <small>参数会与本次任务一并保存。</small>
+          </div>
         </div>
+        <el-button
+          class="configuration-brief__open"
+          text
+          type="primary"
+          @click="isParameterDrawerOpen = true"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
+        </el-button>
       </div>
-      <div class="multi-source-flow__candidate">
-        <strong>{{ candidate.packageId }}</strong>
-        <small>状态：{{ candidate.supportStatus }}</small>
+
+      <div class="spectral-signature" aria-label="CZI 多光谱波段状态">
+        <span
+          v-for="band in HY1C_CZI_BANDS"
+          :key="band"
+          class="spectral-signature__band"
+          :class="[
+            `band-${band.toLowerCase()}`,
+            { 'is-selected': isBandSelected(band) }
+          ]"
+        >
+          <i aria-hidden="true" />
+          <strong>{{ band }}</strong>
+        </span>
       </div>
-      <footer class="multi-source-flow__page-action">
-        <span>{{
-          taskStatus ? taskStatusLabel : "已完成文件检查，点击上方开始处理"
-        }}</span>
-      </footer>
+
+      <dl class="configuration-summary">
+        <div>
+          <dt>输出波段</dt>
+          <dd>{{ l2aSummary.bands }}</dd>
+        </div>
+        <div>
+          <dt>网格定义</dt>
+          <dd>{{ l2aSummary.grid }}</dd>
+        </div>
+        <div>
+          <dt>处理范围</dt>
+          <dd>{{ l2aSummary.roi }}</dd>
+        </div>
+      </dl>
+
+      <div class="configuration-algorithms" aria-label="已选算法">
+        <span v-for="algorithm in l2aSummary.algorithms" :key="algorithm">
+          {{ algorithm }}
+        </span>
+      </div>
+    </section>
+
+    <section
+      v-if="isFy3h"
+      class="mission-section configuration-brief"
+      aria-labelledby="fy3h-parameters-title"
+    >
+      <div class="configuration-brief__heading">
+        <div>
+          <span class="mission-section__signal is-violet" aria-hidden="true" />
+          <div>
+            <strong id="fy3h-parameters-title">MERSI 参数工作台</strong>
+            <small>扫描带网格化与可选派生算法。</small>
+          </div>
+        </div>
+        <el-button
+          class="configuration-brief__open"
+          text
+          type="primary"
+          @click="isParameterDrawerOpen = true"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
+        </el-button>
+      </div>
+      <dl class="configuration-summary">
+        <div>
+          <dt>输出波段</dt>
+          <dd>{{ fy3hSummary.bands }}</dd>
+        </div>
+        <div>
+          <dt>网格定义</dt>
+          <dd>{{ fy3hSummary.grid }}</dd>
+        </div>
+        <div>
+          <dt>处理范围</dt>
+          <dd>{{ fy3hSummary.roi }}</dd>
+        </div>
+      </dl>
+      <div class="configuration-algorithms" aria-label="已选算法">
+        <span v-for="algorithm in fy3hSummary.algorithms" :key="algorithm">
+          {{ algorithm }}
+        </span>
+      </div>
+    </section>
+
+    <section
+      v-if="isHy2d"
+      class="mission-section configuration-brief"
+      aria-labelledby="hy2d-parameters-title"
+    >
+      <div class="configuration-brief__heading">
+        <div>
+          <span class="mission-section__signal is-violet" aria-hidden="true" />
+          <div>
+            <strong id="hy2d-parameters-title">高度计参数工作台</strong>
+            <small>沿轨质量、特征与异常检测配置。</small>
+          </div>
+        </div>
+        <el-button
+          class="configuration-brief__open"
+          text
+          type="primary"
+          @click="isParameterDrawerOpen = true"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
+        </el-button>
+      </div>
+      <dl class="configuration-summary">
+        <div>
+          <dt>特征窗口</dt>
+          <dd>{{ hy2dSummary.window }}</dd>
+        </div>
+        <div>
+          <dt>异常阈值</dt>
+          <dd>{{ hy2dSummary.anomaly }}</dd>
+        </div>
+        <div>
+          <dt>空间输出</dt>
+          <dd>{{ hy2dSummary.grid }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section
+      v-if="isFy4b"
+      class="mission-section configuration-brief"
+      aria-labelledby="fy4b-parameters-title"
+    >
+      <div class="configuration-brief__heading">
+        <div>
+          <span class="mission-section__signal is-violet" aria-hidden="true" />
+          <div>
+            <strong id="fy4b-parameters-title">FY-4B AGRI 参数工作台</strong>
+            <small>全圆盘名义定位与派生输出配置。</small>
+          </div>
+        </div>
+        <el-button
+          class="configuration-brief__open"
+          text
+          type="primary"
+          @click="isParameterDrawerOpen = true"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
+        </el-button>
+      </div>
+      <dl class="configuration-summary">
+        <div>
+          <dt>网格定义</dt>
+          <dd>{{ fy4bSummary.grid }}</dd>
+        </div>
+        <div>
+          <dt>处理范围</dt>
+          <dd>{{ fy4bSummary.roi }}</dd>
+        </div>
+        <div>
+          <dt>派生输出</dt>
+          <dd>{{ fy4bSummary.algorithms }}</dd>
+        </div>
+      </dl>
+      <div class="configuration-algorithms" aria-label="FY-4B 工程限制">
+        <span>NOMINAL_UNVERIFIED · 名义定位未验证</span>
+      </div>
+    </section>
+
+    <section
+      v-if="isGf6WfvL1a"
+      class="mission-section configuration-brief"
+      aria-labelledby="gf6-parameters-title"
+    >
+      <div class="configuration-brief__heading">
+        <div>
+          <span class="mission-section__signal is-violet" aria-hidden="true" />
+          <div>
+            <strong id="gf6-parameters-title">GF-6 WFV L1A 参数工作台</strong>
+            <small>固定高程名义 RPC 工程处理配置。</small>
+          </div>
+        </div>
+        <el-button
+          class="configuration-brief__open"
+          text
+          type="primary"
+          @click="isParameterDrawerOpen = true"
+        >
+          <el-icon><Setting /></el-icon>
+          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
+        </el-button>
+      </div>
+      <dl class="configuration-summary">
+        <div>
+          <dt>工程网格</dt>
+          <dd>{{ gf6Summary.grid }}</dd>
+        </div>
+        <div>
+          <dt>处理范围</dt>
+          <dd>{{ gf6Summary.roi }}</dd>
+        </div>
+        <div>
+          <dt>输出波段</dt>
+          <dd>{{ gf6Summary.bands }}</dd>
+        </div>
+        <div>
+          <dt>派生输出</dt>
+          <dd>{{ gf6Summary.algorithms }}</dd>
+        </div>
+      </dl>
+      <div class="configuration-algorithms" aria-label="GF-6 工程限制">
+        <span>NOMINAL_RPC_NO_DEM</span><span>accuracyStatus=UNVALIDATED</span
+        ><span>CANDIDATE_ONLY</span>
+      </div>
+    </section>
+
+    <section class="mission-section mission-launch" aria-label="任务启动">
+      <div>
+        <strong>{{ activeTemplate.label }}</strong>
+        <small>{{ launchSummary }}</small>
+      </div>
+      <el-button
+        type="primary"
+        :loading="isBusy"
+        :disabled="!canStart || isTaskActive"
+        @click="startTask"
+      >
+        开始处理
+        <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+      </el-button>
+    </section>
+
+    <section v-if="candidate" class="mission-section candidate-strip">
+      <div class="mission-section__heading">
+        <div>
+          <span class="mission-section__signal is-valid" aria-hidden="true" />
+          <strong>已识别配置</strong>
+        </div>
+        <span>{{ candidate.supportStatus }}</span>
+      </div>
+      <code>{{ candidate.packageId }}</code>
+      <small v-if="candidate.profileKey">
+        {{ candidate.profileKey.productCode }} /
+        {{ candidate.profileKey.profileVersion }}
+      </small>
     </section>
 
     <section
       v-if="progress"
-      class="multi-source-flow__page"
+      class="mission-section progress-console"
       aria-labelledby="progress-title"
     >
-      <div class="multi-source-flow__page-title">
-        <span>03</span>
+      <div class="mission-section__heading">
         <div>
-          <strong id="progress-title">处理进度</strong>
-          <small>任务由服务器持续执行，页面刷新不会停止任务。</small>
+          <span class="mission-section__signal" aria-hidden="true" />
+          <strong id="progress-title">任务进度</strong>
         </div>
+        <span>{{ taskStatusLabel }}</span>
       </div>
-      <div class="multi-source-flow__stages">
-        <div
+      <div class="stage-timeline">
+        <article
           v-for="stage in progress.stages"
           :key="stage.stageId"
-          class="multi-source-flow__stage"
+          class="stage-row"
+          :class="`is-${stage.status.toLowerCase()}`"
         >
-          <span>{{ stageLabel(stage.stageKey) }}</span>
-          <small>{{ stage.status }} · 第 {{ stage.attempt }} 次</small>
+          <span class="stage-row__marker" aria-hidden="true" />
+          <div class="stage-row__body">
+            <div>
+              <strong>{{
+                stageLabel(stage.stageCode || stage.stageKey)
+              }}</strong>
+              <small>{{ stage.stageCode || stage.stageKey }}</small>
+            </div>
+            <span class="stage-row__status">
+              {{ stage.status }} · {{ stage.attempt }}
+            </span>
+            <div
+              v-if="stage.errorCode || stage.errorMessage"
+              class="server-error"
+              role="alert"
+            >
+              <code v-if="stage.errorCode">{{ stage.errorCode }}</code>
+              <p v-if="stage.errorMessage">
+                {{ translateProcessingErrorMessage(stage.errorMessage) }}
+              </p>
+            </div>
+            <small v-if="stage.startedAt" class="stage-row__time">
+              {{ stage.startedAt }} → {{ stage.finishedAt || "运行中" }}
+            </small>
+          </div>
           <el-button
             v-if="canRetryStage(stage.status)"
             text
             type="warning"
-            @click="retryTask"
+            :disabled="isBusy"
+            @click="retryTask(stage.stageId)"
           >
             重试
           </el-button>
-        </div>
+        </article>
       </div>
-      <footer class="multi-source-flow__page-action">
-        <span>{{ taskStatusLabel }}</span>
-        <div class="multi-source-flow__actions">
-          <el-button v-if="canCancel" plain @click="cancelTask"
-            >取消任务</el-button
-          >
-          <el-button
-            v-if="taskStatus === 'SUCCEEDED'"
-            type="primary"
-            @click="downloadTask"
-          >
-            <el-icon><Download /></el-icon>
-            下载 ZIP
-          </el-button>
-          <el-button v-if="isTerminal" plain @click="resetTask"
-            >重新处理</el-button
-          >
-        </div>
+
+      <footer class="task-actions">
+        <el-button v-if="canCancel" plain @click="cancelTask"
+          >取消任务</el-button
+        >
+        <el-button
+          v-if="taskStatus === 'SUCCEEDED'"
+          class="final-zip-button"
+          type="primary"
+          :loading="isDownloadingResult"
+          :disabled="isDownloadingResult"
+          :aria-busy="isDownloadingResult"
+          @click="downloadTask"
+        >
+          <el-icon v-if="!isDownloadingResult"><Download /></el-icon>
+          {{ isDownloadingResult ? "正在准备 ZIP" : "下载最终 ZIP" }}
+        </el-button>
+        <el-button v-if="isTerminal" plain @click="resetTask"
+          >重新处理</el-button
+        >
       </footer>
     </section>
+
+    <el-drawer
+      v-if="isHy1c"
+      v-model="isParameterDrawerOpen"
+      class="mission-parameter-drawer product-parameter-drawer"
+      direction="rtl"
+      size="470px"
+      title="HY-1C L2A 参数工作台"
+      :lock-scroll="false"
+      :modal="true"
+      :show-close="false"
+    >
+      <template #header>
+        <div class="parameter-drawer__header">
+          <div>
+            <span>CONFIGURATION WORKSPACE</span>
+            <h2>HY-1C CZI L2A 参数</h2>
+            <p>
+              {{
+                isConfigurationLocked
+                  ? "任务已启动，当前显示已保存的参数快照。"
+                  : "参数将在任务创建时写入处理快照。"
+              }}
+            </p>
+          </div>
+          <button
+            class="parameter-drawer__close"
+            type="button"
+            aria-label="关闭参数工作台"
+            @click="isParameterDrawerOpen = false"
+          >
+            <el-icon><Close /></el-icon>
+          </button>
+        </div>
+      </template>
+
+      <div class="parameter-drawer__body">
+        <section class="parameter-drawer__signal" aria-label="当前产品配置">
+          <div>
+            <span>OUTPUT PROFILE</span>
+            <strong>{{ l2aSummary.grid }}</strong>
+          </div>
+          <div class="parameter-drawer__signal-rail" aria-hidden="true">
+            <i
+              v-for="band in HY1C_CZI_BANDS"
+              :key="band"
+              :class="[
+                `band-${band.toLowerCase()}`,
+                { 'is-selected': isBandSelected(band) }
+              ]"
+            />
+          </div>
+        </section>
+
+        <section
+          class="l2a-console"
+          aria-labelledby="l2a-drawer-controls-title"
+        >
+          <div class="l2a-console__heading">
+            <div>
+              <span
+                class="mission-section__signal is-violet"
+                aria-hidden="true"
+              />
+              <strong id="l2a-drawer-controls-title">处理参数</strong>
+            </div>
+            <span>nearest</span>
+          </div>
+
+          <fieldset
+            class="control-group spectral-fieldset"
+            :disabled="isConfigurationLocked"
+          >
+            <legend>输出波段</legend>
+            <div class="spectral-rail" aria-label="CZI 四通道波段选择">
+              <label
+                v-for="band in HY1C_CZI_BANDS"
+                :key="band"
+                class="spectral-channel"
+                :class="[
+                  `band-${band.toLowerCase()}`,
+                  { 'is-selected': isBandSelected(band) }
+                ]"
+              >
+                <input
+                  v-model="l2aForm.bands"
+                  type="checkbox"
+                  :value="band"
+                  :disabled="isConfigurationLocked"
+                />
+                <span class="spectral-channel__bar" aria-hidden="true" />
+                <strong>{{ band }}</strong>
+                <small>{{ band.slice(1) }} nm</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="control-group" :disabled="isConfigurationLocked">
+            <legend>网格</legend>
+            <div class="control-grid">
+              <label class="control-field is-wide">
+                <span>目标 CRS</span>
+                <input
+                  v-model.trim="l2aForm.grid.targetCrs"
+                  list="l2a-crs-options"
+                  placeholder="AUTO_UTM 或投影 EPSG"
+                />
+                <datalist id="l2a-crs-options">
+                  <option value="AUTO_UTM" />
+                  <option value="EPSG:32650" />
+                  <option value="EPSG:32651" />
+                </datalist>
+              </label>
+              <label class="control-field">
+                <span>分辨率（米）</span>
+                <input
+                  v-model.number="l2aForm.grid.resolutionMeters"
+                  type="number"
+                  min="0.01"
+                  step="1"
+                />
+              </label>
+              <label class="control-field">
+                <span>科学重采样</span>
+                <input value="nearest" readonly aria-readonly="true" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="control-group" :disabled="isConfigurationLocked">
+            <legend class="toggle-heading">
+              <span>WGS84 ROI</span>
+              <label class="toggle-control">
+                <input
+                  v-model="l2aForm.roi.enabled"
+                  type="checkbox"
+                  :disabled="isConfigurationLocked"
+                />
+                <span aria-hidden="true" />
+                <small>{{ l2aForm.roi.enabled ? "启用" : "关闭" }}</small>
+              </label>
+            </legend>
+            <div class="roi-grid">
+              <label v-for="field in ROI_FIELDS" :key="field.key">
+                <span>{{ field.label }}</span>
+                <input
+                  v-model.number="l2aForm.roi[field.key]"
+                  type="number"
+                  step="0.0001"
+                  :min="field.longitude ? -180 : -90"
+                  :max="field.longitude ? 180 : 90"
+                  :disabled="!l2aForm.roi.enabled || isConfigurationLocked"
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset
+            class="control-group algorithm-group"
+            :disabled="isConfigurationLocked"
+          >
+            <legend class="toggle-heading">
+              <span>特征提取</span>
+              <label class="toggle-control">
+                <input
+                  v-model="l2aForm.algorithms.features.enabled"
+                  type="checkbox"
+                  :disabled="isConfigurationLocked"
+                />
+                <span aria-hidden="true" />
+                <small>{{
+                  l2aForm.algorithms.features.enabled ? "启用" : "关闭"
+                }}</small>
+              </label>
+            </legend>
+            <div class="chip-list">
+              <label v-for="metric in FEATURE_METRICS" :key="metric.value">
+                <input
+                  v-model="l2aForm.algorithms.features.metrics"
+                  type="checkbox"
+                  :value="metric.value"
+                  :disabled="
+                    !l2aForm.algorithms.features.enabled ||
+                    isConfigurationLocked
+                  "
+                />
+                <span>{{ metric.label }}</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset
+            class="control-group algorithm-group"
+            :disabled="isConfigurationLocked"
+          >
+            <legend class="toggle-heading">
+              <span>RGB 显示融合</span>
+              <label class="toggle-control">
+                <input
+                  v-model="l2aForm.algorithms.fusion.enabled"
+                  type="checkbox"
+                  :disabled="isConfigurationLocked"
+                />
+                <span aria-hidden="true" />
+                <small>{{
+                  l2aForm.algorithms.fusion.enabled ? "启用" : "关闭"
+                }}</small>
+              </label>
+            </legend>
+            <div class="rgb-grid">
+              <label v-for="channel in RGB_CHANNELS" :key="channel.key">
+                <span>{{ channel.label }}</span>
+                <select
+                  v-model="l2aForm.algorithms.fusion[channel.key]"
+                  :disabled="
+                    !l2aForm.algorithms.fusion.enabled || isConfigurationLocked
+                  "
+                >
+                  <option
+                    v-for="band in HY1C_CZI_BANDS"
+                    :key="band"
+                    :value="band"
+                    :disabled="!isBandSelected(band)"
+                  >
+                    {{ band }}
+                  </option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset
+            class="control-group algorithm-group"
+            :disabled="isConfigurationLocked"
+          >
+            <legend class="toggle-heading">
+              <span>对比度显著性</span>
+              <label class="toggle-control">
+                <input
+                  v-model="l2aForm.algorithms.saliency.enabled"
+                  type="checkbox"
+                  :disabled="isConfigurationLocked"
+                />
+                <span aria-hidden="true" />
+                <small>{{
+                  l2aForm.algorithms.saliency.enabled ? "启用" : "关闭"
+                }}</small>
+              </label>
+            </legend>
+            <div class="control-grid">
+              <label class="control-field">
+                <span>源波段</span>
+                <select
+                  v-model="l2aForm.algorithms.saliency.source"
+                  :disabled="
+                    !l2aForm.algorithms.saliency.enabled ||
+                    isConfigurationLocked
+                  "
+                >
+                  <option
+                    v-for="band in HY1C_CZI_BANDS"
+                    :key="band"
+                    :value="band"
+                    :disabled="!isBandSelected(band)"
+                  >
+                    {{ band }}
+                  </option>
+                </select>
+              </label>
+              <label class="control-field">
+                <span>阈值</span>
+                <input
+                  v-model.number="l2aForm.algorithms.saliency.threshold"
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  :disabled="
+                    !l2aForm.algorithms.saliency.enabled ||
+                    isConfigurationLocked
+                  "
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <div
+            v-if="parameterIssues.length"
+            class="diagnostic-strip"
+            role="alert"
+          >
+            <span v-for="issue in parameterIssues" :key="issue.field">
+              {{ issue.message }}
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <template #footer>
+        <div class="parameter-drawer__footer">
+          <span :class="{ 'is-invalid': parameterIssues.length }">
+            {{
+              parameterIssues.length
+                ? `发现 ${parameterIssues.length} 项待处理`
+                : "参数校验已通过"
+            }}
+          </span>
+          <el-button type="primary" @click="isParameterDrawerOpen = false">
+            {{ isConfigurationLocked ? "关闭快照" : "完成配置" }}
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
+    <Fy3hMersiParameterDrawer
+      v-if="isFy3h"
+      v-model="isParameterDrawerOpen"
+      :form="fy3hForm"
+      :locked="isConfigurationLocked"
+      :issues="fy3hParameterIssues"
+      :summary="fy3hSummary"
+      @update-form="updateFy3hForm"
+    />
+    <Hy2dAltimeterParameterDrawer
+      v-if="isHy2d"
+      v-model="isParameterDrawerOpen"
+      :form="hy2dForm"
+      :locked="isConfigurationLocked"
+      :issues="hy2dParameterIssues"
+      :summary="hy2dSummary"
+      @update-form="updateHy2dForm"
+    />
+    <Fy4bAgriParameterDrawer
+      v-if="isFy4b"
+      v-model="isParameterDrawerOpen"
+      :form="fy4bForm"
+      :locked="isConfigurationLocked"
+      :issues="fy4bParameterIssues"
+      :summary="fy4bSummary"
+      @update-form="updateFy4bForm"
+    />
+    <Gf6WfvL1aParameterDrawer
+      v-if="isGf6WfvL1a"
+      v-model="isParameterDrawerOpen"
+      :form="gf6Form"
+      :metadata-file="slots.metadataXml.file"
+      :locked="isConfigurationLocked"
+      :issues="gf6ParameterIssues"
+      :summary="gf6Summary"
+      @update-form="updateGf6Form"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import {
   ArrowRight,
+  Close,
   Delete,
   DocumentAdd,
-  Download
+  Download,
+  Setting
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
+import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterDrawer.vue";
+import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
+import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
+import Gf6WfvL1aParameterDrawer from "@/features/multisource/Gf6WfvL1aParameterDrawer.vue";
+import { featureMetricLabel } from "@/features/multisource/featureMetricLabels";
 import {
-  GF6_WFV_BROWSE_TEMPLATE,
+  buildFy4bAgriSnapshot,
+  defaultFy4bAgriForm,
+  validateFy4bAgriForm
+} from "@/features/multisource/fy4bAgriParameters";
+import {
+  buildGf6WfvL1aSnapshot,
+  defaultGf6WfvL1aForm,
+  validateGf6WfvL1aForm
+} from "@/features/multisource/gf6WfvL1aParameters";
+import {
+  buildFy3hMersiPanelSummary,
+  buildFy3hMersiSnapshot,
+  defaultFy3hMersiForm,
+  validateFy3hMersiForm
+} from "@/features/multisource/fy3hMersiParameters";
+import {
+  buildHy2dAltimeterPanelSummary,
+  buildHy2dAltimeterSnapshot,
+  defaultHy2dAltimeterForm,
+  validateHy2dAltimeterForm
+} from "@/features/multisource/hy2dAltimeterParameters";
+import {
+  HY1C_CZI_BANDS,
+  buildHy1cCziL2aSnapshot,
+  buildHy1cCziL2aPanelSummary,
+  defaultL2aForm,
+  validateHy1cCziL2aForm,
+  type Hy1cCziBand,
+  type Hy1cFeatureMetric
+} from "@/features/multisource/hy1cCziL2aParameters";
+import {
+  processingStartSuccessMessage,
+  translateProcessingErrorMessage
+} from "@/features/multisource/processingTaskRules";
+import {
+  FY3H_MERSI_TEMPLATE,
+  FY4B_AGRI_TEMPLATE,
+  GF6_WFV_L1A_TEMPLATE,
+  HY1C_CZI_L2A_TEMPLATE,
+  HY2D_ALTIMETER_TEMPLATE,
+  PRODUCT_TEMPLATES,
   type SlotId
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
 
-const selectedTemplateId = ref(GF6_WFV_BROWSE_TEMPLATE.id);
+const FEATURE_METRICS: readonly {
+  value: Hy1cFeatureMetric;
+  label: string;
+}[] = [
+  { value: "statistics", label: "统计" },
+  { value: "gradient", label: "梯度" },
+  { value: "local_variance", label: "局部方差" }
+];
+const ROI_FIELDS = [
+  { key: "minLon", label: "最小经度", longitude: true },
+  { key: "minLat", label: "最小纬度", longitude: false },
+  { key: "maxLon", label: "最大经度", longitude: true },
+  { key: "maxLat", label: "最大纬度", longitude: false }
+] as const;
+const RGB_CHANNELS = [
+  { key: "red", label: "R" },
+  { key: "green", label: "G" },
+  { key: "blue", label: "B" }
+] as const;
+const STAGE_LABELS: Record<string, string> = {
+  VALIDATE_BROWSE: "验证浏览产品",
+  GEOREFERENCE_BROWSE: "解析地理参考",
+  EXTRACT_VISUAL_FEATURES: "提取视觉特征",
+  WRITE_BROWSE_REPORT: "生成浏览报告",
+  VALIDATE_SOURCE: "校验 L2A 产品",
+  DECODE_SCALE_AND_NODATA: "解码波段与无效值",
+  APPLY_L2_FLAGS: "应用 L2 质量标志",
+  GEOLOCATE_AND_GRID: "地理定位与网格化",
+  CROP_OPTIONAL: "按范围裁剪",
+  WRITE_STANDARD_COG: "生成标准 COG",
+  EXTRACT_CZI_FEATURES: "提取特征",
+  FUSE_CZI_BANDS: "生成显示融合",
+  DETECT_CZI_SALIENCY: "生成显著性结果",
+  STANDARDIZE_MERSI_L1: "处理 FY-3H MERSI L1 产品",
+  VALIDATE_FY3H_PAIR: "校验 1000M / GEO1K 配对",
+  DECODE_MERSI_L1: "解码 MERSI L1 通道",
+  CALIBRATE_MERSI_L1: "定标 MERSI 观测",
+  APPLY_MERSI_QUALITY: "应用 MERSI 质量掩膜",
+  GRID_MERSI_SWATH: "扫描带网格化",
+  WRITE_MERSI_STANDARD_COG: "生成 MERSI 标准 COG",
+  EXTRACT_MERSI_FEATURES: "提取 MERSI 特征",
+  FUSE_MERSI_BANDS: "生成 MERSI RGB 融合",
+  DETECT_MERSI_SALIENCY: "检测 MERSI 显著性",
+  STANDARDIZE_ALTIMETER_TRACK: "处理 HY-2D 高度计沿轨产品",
+  DECODE_ALTIMETER_TRACK: "解码高度计沿轨数据",
+  APPLY_TRACK_QUALITY: "应用沿轨质量规则",
+  CALCULATE_BASELINE_SSH: "计算基线海表高度",
+  EXTRACT_TRACK_FEATURES: "提取沿轨特征",
+  DETECT_TRACK_ANOMALIES: "检测沿轨异常",
+  WRITE_STANDARD_TRACK_OUTPUT: "生成标准沿轨产品",
+  GRID_TRACK_OPTIONAL: "生成可选网格产品",
+  STANDARDIZE_FY4B_AGRI: "处理 FY-4B AGRI 全圆盘产品",
+  STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品"
+};
+
+const l2aForm = reactive(defaultL2aForm());
+const fy3hForm = reactive(defaultFy3hMersiForm());
+const hy2dForm = reactive(defaultHy2dAltimeterForm());
+const fy4bForm = reactive(defaultFy4bAgriForm());
+const gf6Form = reactive(defaultGf6WfvL1aForm());
+const isBusy = ref(false);
+const isParameterDrawerOpen = ref(false);
 const {
+  activeTemplate,
   slots,
   validation,
   allSlotsUploaded,
+  isTaskActive,
+  isUploading,
+  isDownloadingResult,
   candidate,
   taskStatus,
   progress,
+  setTemplate,
   uploadSlot,
   removeSlot,
-  runPreflight,
   startProcessing,
   translateError,
   cancel,
   retry,
   downloadResult,
   reset
-} = useProcessingTask();
+} = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
 
+const isHy1c = computed(
+  () => activeTemplate.value.id === HY1C_CZI_L2A_TEMPLATE.id
+);
+const isFy3h = computed(
+  () => activeTemplate.value.id === FY3H_MERSI_TEMPLATE.id
+);
+const isHy2d = computed(
+  () => activeTemplate.value.id === HY2D_ALTIMETER_TEMPLATE.id
+);
+const isFy4b = computed(
+  () => activeTemplate.value.id === FY4B_AGRI_TEMPLATE.id
+);
+const isGf6WfvL1a = computed(
+  () => activeTemplate.value.id === GF6_WFV_L1A_TEMPLATE.id
+);
+const templateLockMessage = computed(() => {
+  if (isUploading.value) return "文件正在上传；上传结束后才能切换模板。";
+  if (isBusy.value) return "正在创建任务；请等待当前请求完成。";
+  return "任务正在执行；结束或取消后才能切换模板。";
+});
 const uploadedSlotCount = computed(
-  () => Object.values(slots).filter(slot => slot.status === "UPLOADED").length
+  () =>
+    activeTemplate.value.slots.filter(
+      slot => slots[slot.id].status === "UPLOADED"
+    ).length
+);
+const parameterValidation = computed(() => validateHy1cCziL2aForm(l2aForm));
+const parameterIssues = computed(() => parameterValidation.value.issues);
+const l2aSummary = computed(() => buildHy1cCziL2aPanelSummary(l2aForm));
+const fy3hParameterValidation = computed(() => validateFy3hMersiForm(fy3hForm));
+const fy3hParameterIssues = computed(
+  () => fy3hParameterValidation.value.issues
+);
+const fy3hSummary = computed(() => buildFy3hMersiPanelSummary(fy3hForm));
+const hy2dParameterValidation = computed(() =>
+  validateHy2dAltimeterForm(hy2dForm)
+);
+const hy2dParameterIssues = computed(
+  () => hy2dParameterValidation.value.issues
+);
+const hy2dSummary = computed(() => buildHy2dAltimeterPanelSummary(hy2dForm));
+const fy4bParameterValidation = computed(() => validateFy4bAgriForm(fy4bForm));
+const fy4bParameterIssues = computed(
+  () => fy4bParameterValidation.value.issues
+);
+const fy4bSummary = computed(() => ({
+  grid: fy4bForm.targetCrs,
+  roi: fy4bForm.roi ? fy4bForm.roi.join(", ") : "全圆盘",
+  algorithms: [
+    fy4bForm.features.enabled
+      ? `特征: ${fy4bForm.features.metrics.map(featureMetricLabel).join("、")}`
+      : "特征关闭",
+    fy4bForm.fusion.enabled ? "假彩色: NIR_RED_BLUE" : "假彩色关闭",
+    fy4bForm.saliency.enabled
+      ? `显著性: ${fy4bForm.saliency.source}`
+      : "显著性关闭"
+  ].join(" · ")
+}));
+const gf6ParameterValidation = computed(() => validateGf6WfvL1aForm(gf6Form));
+const gf6ParameterIssues = computed(() => gf6ParameterValidation.value.issues);
+const gf6Summary = computed(() => ({
+  grid: `${gf6Form.targetCrs} · ${gf6Form.resolution}`,
+  roi: gf6Form.roi ? gf6Form.roi.join(", ") : "全幅镶嵌",
+  bands: gf6Form.bands.map(band => `B${band}`).join(" / "),
+  algorithms: [
+    gf6Form.features.enabled
+      ? `特征: ${gf6Form.features.metrics.map(featureMetricLabel).join("、")}`
+      : "特征关闭",
+    gf6Form.fusion.enabled ? "RGB 融合" : "RGB 关闭",
+    gf6Form.saliency.enabled
+      ? `显著性: ${gf6Form.saliency.source}`
+      : "显著性关闭"
+  ].join(" · ")
+}));
+const activeParametersValid = computed(() => {
+  if (isHy1c.value) return parameterValidation.value.valid;
+  if (isFy3h.value) return fy3hParameterValidation.value.valid;
+  if (isHy2d.value) return hy2dParameterValidation.value.valid;
+  if (isFy4b.value) return fy4bParameterValidation.value.valid;
+  if (isGf6WfvL1a.value) return gf6ParameterValidation.value.valid;
+  return true;
+});
+const launchSummary = computed(() => {
+  if (isFy3h.value) return "MERSI 扫描带处理 · 参数快照将随任务保存";
+  if (isHy2d.value) return "HY-2D 基线质量策略 · 参数快照将随任务保存";
+  if (isFy4b.value) return "FY-4B 全圆盘名义处理 · 参数快照将随任务保存";
+  if (isGf6WfvL1a.value) return "GF-6 固定高程名义 RPC · 参数快照将随任务保存";
+  return "质量策略 default · 参数快照将随任务保存";
+});
+const isConfigurationLocked = computed(
+  () => isTaskActive.value || isBusy.value
 );
 const validationMessages = computed(() => {
   const result = validation.value;
@@ -210,16 +1072,15 @@ const validationMessages = computed(() => {
       item =>
         `${item.slot.label}格式错误，仅支持${item.expectedExtensions.join("、")}`
     ),
-    ...(result.mismatchedBasenames ? ["三个文件的产品编号必须一致"] : [])
+    ...(result.mismatchedBasenames ? ["GF-6 三个文件的产品编号必须一致"] : []),
+    ...result.productIssues
   ];
 });
-const canPreflight = computed(
-  () => allSlotsUploaded.value && validation.value.valid
-);
-const isBusy = ref(false);
-const isTaskActive = computed(
+const canStart = computed(
   () =>
-    taskStatus.value === "RUNNING" || taskStatus.value === "RECOVERY_PENDING"
+    allSlotsUploaded.value &&
+    validation.value.valid &&
+    activeParametersValid.value
 );
 const isTerminal = computed(() =>
   ["SUCCEEDED", "FAILED", "CANCELED"].includes(taskStatus.value || "")
@@ -236,54 +1097,92 @@ const taskStatusLabel = computed(() => {
     FAILED: "处理失败",
     CANCELED: "任务已取消"
   };
-  return labels[taskStatus.value || ""] || "等待创建任务";
+  return labels[taskStatus.value || ""] || "等待创建";
 });
 
-function slotStatusLabel(status: string) {
-  return (
-    (
-      {
-        EMPTY: "待上传",
-        SELECTED: "已选择",
-        UPLOADING: "上传中",
-        UPLOADED: "已上传",
-        FAILED: "失败"
-      } as Record<string, string>
-    )[status] || status
-  );
+function isBandSelected(band: Hy1cCziBand) {
+  return l2aForm.bands.includes(band);
 }
 
-function stageLabel(stageKey: string) {
-  return (
-    (
-      {
-        VALIDATE_BROWSE: "验证浏览产品",
-        GEOREFERENCE_BROWSE: "解析地理参考",
-        EXTRACT_VISUAL_FEATURES: "提取视觉特征",
-        WRITE_BROWSE_REPORT: "生成浏览报告"
-      } as Record<string, string>
-    )[stageKey] || stageKey
-  );
+function updateFy3hForm(value: ReturnType<typeof defaultFy3hMersiForm>) {
+  Object.assign(fy3hForm, value);
+}
+
+function updateHy2dForm(value: ReturnType<typeof defaultHy2dAltimeterForm>) {
+  Object.assign(hy2dForm, value);
+}
+
+function updateFy4bForm(value: ReturnType<typeof defaultFy4bAgriForm>) {
+  Object.assign(fy4bForm, value);
+}
+
+function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
+  Object.assign(gf6Form, value);
+}
+
+function slotStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    EMPTY: "待上传",
+    SELECTED: "已选择",
+    UPLOADING: "上传中",
+    UPLOADED: "已上传",
+    FAILED: "失败"
+  };
+  return labels[status] || status;
+}
+
+function stageLabel(stageCode: string) {
+  if (stageCode === "VALIDATE_SOURCE" && isHy2d.value) {
+    return "校验 HY-2D 产品包";
+  }
+  return STAGE_LABELS[stageCode] || stageCode;
 }
 
 function canRetryStage(status: string) {
   return status === "FAILED" || status === "RECOVERY_PENDING";
 }
 
+function handleTemplateChange(event: Event) {
+  const select = event.target as HTMLSelectElement;
+  const template = PRODUCT_TEMPLATES.find(item => item.id === select.value);
+  if (!template) return;
+  try {
+    setTemplate(template);
+    Object.assign(l2aForm, defaultL2aForm());
+    Object.assign(fy3hForm, defaultFy3hMersiForm());
+    Object.assign(hy2dForm, defaultHy2dAltimeterForm());
+    Object.assign(fy4bForm, defaultFy4bAgriForm());
+    Object.assign(gf6Form, defaultGf6WfvL1aForm());
+    isParameterDrawerOpen.value = false;
+  } catch (error) {
+    select.value = activeTemplate.value.id;
+    message(error instanceof Error ? error.message : "无法切换产品模板", {
+      type: "warning"
+    });
+  }
+}
+
 async function handleFileChange(slotId: SlotId, event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   if (!file) return;
-  await uploadSlot(slotId, file);
+  try {
+    await uploadSlot(slotId, file);
+  } catch (error) {
+    message(error instanceof Error ? error.message : "文件上传失败", {
+      type: "error"
+    });
+  } finally {
+    input.value = "";
+  }
 }
 
-async function preflightTask() {
+function removeProductSlot(slotId: SlotId) {
   try {
-    await runPreflight();
-    message("产品预检通过", { type: "success" });
+    removeSlot(slotId);
   } catch (error) {
-    message(error instanceof Error ? error.message : "产品预检失败", {
-      type: "error"
+    message(error instanceof Error ? error.message : "无法移除文件", {
+      type: "warning"
     });
   }
 }
@@ -291,10 +1190,46 @@ async function preflightTask() {
 async function startTask() {
   isBusy.value = true;
   try {
-    await startProcessing();
-    message("任务已启动", { type: "success" });
+    const snapshot = isHy1c.value
+      ? buildHy1cCziL2aSnapshot(l2aForm)
+      : isFy3h.value
+        ? buildFy3hMersiSnapshot(fy3hForm)
+        : isHy2d.value
+          ? buildHy2dAltimeterSnapshot(hy2dForm)
+          : isFy4b.value
+            ? buildFy4bAgriSnapshot(fy4bForm)
+            : isGf6WfvL1a.value
+              ? buildGf6WfvL1aSnapshot(gf6Form)
+              : activeTemplate.value.parameterSnapshot;
+    await startProcessing(snapshot);
+    message(processingStartSuccessMessage(), {
+      type: "success"
+    });
   } catch (error) {
-    message(translateError(error, "开始处理失败，请重试"), {
+    message(translateError(error, "开始处理失败，请重试"), { type: "error" });
+  } finally {
+    isBusy.value = false;
+  }
+}
+
+async function cancelTask() {
+  try {
+    await cancel();
+    message("已发送取消请求", { type: "success" });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "取消任务失败", {
+      type: "error"
+    });
+  }
+}
+
+async function retryTask(stageId: string | number) {
+  isBusy.value = true;
+  try {
+    await retry(stageId);
+    message("任务已重新启动", { type: "success" });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "任务重试失败", {
       type: "error"
     });
   } finally {
@@ -302,26 +1237,10 @@ async function startTask() {
   }
 }
 
-async function cancelTask() {
-  await cancel();
-  message("已发送取消请求", { type: "success" });
-}
-
-async function retryTask() {
-  try {
-    await retry();
-    message("任务已重新启动", { type: "success" });
-  } catch (error) {
-    message(error instanceof Error ? error.message : "任务重试失败", {
-      type: "error"
-    });
-  }
-}
-
 async function downloadTask() {
   try {
-    await downloadResult();
-    message("结果 ZIP 已开始下载", { type: "success" });
+    const started = await downloadResult();
+    if (started) message("结果 ZIP 已加入浏览器下载列表", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "结果下载失败", {
       type: "error"
@@ -330,207 +1249,2727 @@ async function downloadTask() {
 }
 
 function resetTask() {
-  reset();
+  try {
+    reset();
+  } catch (error) {
+    message(error instanceof Error ? error.message : "无法重置任务", {
+      type: "warning"
+    });
+  }
 }
 </script>
 
 <style lang="less" scoped>
-.multi-source-flow {
+.mission-panel {
+  --abyss: #0e2540;
+  --survey: #1b4671;
+  --cyan: #36c9e3;
+  --mint: #78d8b4;
+  --violet: #927de8;
+  --cloud: #f3faff;
+
   box-sizing: border-box;
-  padding: 4px 16px 26px;
-  overflow: hidden;
-  color: #2863a7;
+  height: 100%;
+  padding: 10px 13px 28px;
+  overflow-y: auto;
+  color: var(--abyss);
+  font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  scrollbar-color: #9bc8dc transparent;
+  scrollbar-width: thin;
 }
 
-.multi-source-flow__heading {
-  padding: 13px 14px 12px;
-  background: #f1f8fc;
-  border: 1px solid #c8e5f4;
-  border-radius: 4px;
-}
-
-.multi-source-flow__heading span {
-  display: block;
-  margin-bottom: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #2b9fe8;
-  letter-spacing: 1.55px;
-}
-
-.multi-source-flow__heading h3 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.multi-source-flow__selector {
-  display: grid;
-  gap: 5px;
-  margin: 14px 4px 10px;
-}
-
-.multi-source-flow__selector label,
-.multi-source-flow__selector select {
-  font-size: 13px;
-}
-
-.multi-source-flow__selector select {
-  min-height: 32px;
-  padding: 4px 8px;
-  color: #346c9e;
-  background: #fff;
-  border: 1px solid #cde6f6;
-  border-radius: 3px;
-}
-
-.multi-source-flow__page {
-  margin-top: 14px;
-}
-
-.multi-source-flow__page-title {
+.mission-panel__masthead {
   display: flex;
-  gap: 9px;
+  gap: 12px;
   align-items: flex-start;
-  padding: 0 4px 11px;
-  border-bottom: 1px solid #c9e9fb;
+  justify-content: space-between;
+  padding: 14px 15px;
+  color: #fff;
+  background: var(--abyss);
+  border-left: 3px solid var(--cyan);
 }
 
-.multi-source-flow__page-title > span {
-  font-size: 13px;
-  font-weight: 700;
-  color: #4ba9e5;
-}
-
-.multi-source-flow__page-title strong,
-.multi-source-flow__page-title small {
+.mission-panel__eyebrow {
   display: block;
+  margin-bottom: 4px;
+  color: var(--cyan);
+  font:
+    700 10px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  letter-spacing: 0.12em;
 }
 
-.multi-source-flow__page-title strong {
-  font-size: 16px;
+.mission-panel__masthead h3 {
+  margin: 0;
+  font-family: "Aptos Display", "Microsoft YaHei", sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.multi-source-flow__page-title small {
-  margin-top: 3px;
-  color: #8298b4;
+.mission-panel__profile {
+  color: #b9d9e8;
+  font:
+    10px/1.45 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  text-align: right;
 }
 
-.multi-source-flow__slots,
-.multi-source-flow__stages {
+.mission-panel__selector {
   display: grid;
-  gap: 8px;
-  margin-top: 12px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 6px 9px;
+  align-items: center;
+  padding: 12px 3px 4px;
 }
 
-.multi-source-flow__slot,
-.multi-source-flow__candidate,
-.multi-source-flow__stage {
-  position: relative;
-  padding: 10px;
-  background: #fbfeff;
-  border: 1px solid #d5ebf9;
-  border-radius: 4px;
+.mission-panel__selector label,
+.control-group legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--survey);
 }
 
-.multi-source-flow__slot-heading,
-.multi-source-flow__stage {
+.mission-panel__selector select,
+.control-field input,
+.control-field select,
+.roi-grid input,
+.rgb-grid select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 8px;
+  color: var(--abyss);
+  background: #fff;
+  border: 1px solid #b8d5e4;
+  border-radius: 2px;
+  outline: none;
+}
+
+.mission-panel__lock-note {
+  grid-column: 2;
+  color: #a05d40;
+}
+
+.mission-section {
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid #c8dfea;
+}
+
+.mission-section__heading,
+.mission-section__heading > div,
+.artifact-shelf__title {
   display: flex;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
   justify-content: space-between;
 }
 
-.multi-source-flow__slot-heading strong,
-.multi-source-flow__slot-heading small,
-.multi-source-flow__stage span,
-.multi-source-flow__stage small,
-.multi-source-flow__candidate strong,
-.multi-source-flow__candidate small {
+.mission-section__heading > div {
+  justify-content: flex-start;
+}
+
+.mission-section__heading strong {
+  font:
+    600 14px/1.3 "Aptos Display",
+    "Microsoft YaHei",
+    sans-serif;
+}
+
+.mission-section__heading > span,
+.artifact-shelf__title span {
+  color: #5b809c;
+  font:
+    10px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.mission-section__signal {
+  width: 14px;
+  height: 3px;
+  background: var(--cyan);
+}
+
+.mission-section__signal.is-violet {
+  background: var(--violet);
+}
+
+.mission-section__signal.is-valid {
+  background: var(--mint);
+}
+
+.mission-section__note {
+  margin: 6px 0 10px;
+  color: #5d7890;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.file-stack,
+.stage-timeline,
+.artifact-shelf {
+  display: grid;
+  gap: 7px;
+}
+
+.file-slot {
+  position: relative;
+  padding: 9px;
+  background: var(--cloud);
+  border: 1px solid #cde3ed;
+  border-left: 2px solid #a9c9d8;
+}
+
+.file-slot.is-uploaded {
+  border-left-color: var(--mint);
+}
+
+.file-slot.is-failed {
+  border-left-color: #d36c6c;
+}
+
+.file-slot__meta {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-right: 20px;
+}
+
+.file-slot__meta strong,
+.file-slot__meta small,
+.candidate-strip small,
+.artifact-row small {
   display: block;
 }
 
-.multi-source-flow__slot-heading strong,
-.multi-source-flow__candidate strong {
-  color: #4276ab;
-}
-
-.multi-source-flow__slot-heading small,
-.multi-source-flow__stage small,
-.multi-source-flow__candidate small {
-  margin-top: 3px;
-  color: #829ab3;
-}
-
-.multi-source-flow__slot-heading > span {
+.file-slot__meta strong {
   font-size: 12px;
-  color: #43a6e5;
 }
 
-.multi-source-flow__file-input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+.file-slot__meta small,
+.artifact-row small {
+  margin-top: 2px;
+  color: #67869c;
+  font:
+    9px/1.35 ui-monospace,
+    "Cascadia Code",
+    monospace;
 }
 
-.multi-source-flow__file-button {
+.file-slot__meta > span {
+  color: var(--survey);
+  font-size: 10px;
+}
+
+.file-slot__picker {
   display: flex;
   gap: 6px;
   align-items: center;
   min-width: 0;
-  margin-top: 8px;
-  padding: 7px 8px;
-  color: #4779af;
+  margin-top: 7px;
+  padding: 6px 7px;
+  color: var(--survey);
   cursor: pointer;
-  border: 1px dashed #78c7f3;
-  border-radius: 3px;
+  background: #fff;
+  border: 1px dashed #76bfd2;
 }
 
-.multi-source-flow__file-button span {
+.file-slot__picker span {
   overflow: hidden;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.multi-source-flow__remove {
+.file-slot__picker.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.file-slot__remove {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  color: #92afd0;
+  top: 7px;
+  right: 6px;
+  padding: 2px;
+  color: #718da2;
   cursor: pointer;
   background: transparent;
   border: 0;
 }
 
-.multi-source-flow__error,
-.multi-source-flow__diagnostics span {
+.inline-error,
+.diagnostic-strip span {
   display: block;
-  margin-top: 5px;
-  color: #d86c72;
+  color: #a94848;
+  font-size: 10px;
+  line-height: 1.45;
 }
 
-.multi-source-flow__diagnostics {
-  margin-top: 8px;
+.diagnostic-strip {
+  margin-top: 7px;
+  padding: 7px 9px;
+  background: #fff4f1;
+  border-left: 2px solid #d36c6c;
+}
+
+.l2a-console {
+  padding: 11px 10px 10px;
+  background: #edf7fb;
+  border: 1px solid #c5deea;
+}
+
+.control-group {
+  min-width: 0;
+  margin: 10px 0 0;
+  padding: 9px 0 0;
+  border: 0;
+  border-top: 1px solid #d0e3eb;
+}
+
+.control-group legend {
+  padding: 0 5px 0 0;
+}
+
+.spectral-fieldset {
+  border-top-color: transparent;
+}
+
+.spectral-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 7px;
+}
+
+.spectral-channel {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px;
+  overflow: hidden;
+  color: #647d91;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #c8dce5;
+}
+
+.spectral-channel input {
+  position: absolute;
+  opacity: 0;
+}
+
+.spectral-channel__bar {
+  height: 4px;
+  margin-bottom: 2px;
+  background: #aab7c2;
+  opacity: 0.35;
+}
+
+.spectral-channel strong,
+.spectral-channel small {
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+.spectral-channel strong {
+  font-size: 10px;
+}
+
+.spectral-channel small {
+  font-size: 8px;
+}
+
+.spectral-channel.is-selected {
+  color: var(--abyss);
+  border-color: currentcolor;
+}
+
+.spectral-channel.is-selected .spectral-channel__bar {
+  opacity: 1;
+}
+
+.band-b460 .spectral-channel__bar {
+  background: #4e86e8;
+}
+
+.band-b560 .spectral-channel__bar {
+  background: var(--mint);
+}
+
+.band-b650 .spectral-channel__bar {
+  background: #e66f78;
+}
+
+.band-b825 .spectral-channel__bar {
+  background: var(--violet);
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.control-field,
+.roi-grid label,
+.rgb-grid label {
+  display: grid;
+  gap: 4px;
+  color: #526f84;
+  font-size: 10px;
+}
+
+.control-field.is-wide {
+  grid-column: 1 / -1;
+}
+
+.control-field input:read-only {
+  color: #63788a;
+  background: #e7f0f4;
+}
+
+.toggle-heading {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toggle-control {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle-control input {
+  position: absolute;
+  opacity: 0;
+}
+
+.toggle-control > span {
+  position: relative;
+  width: 25px;
+  height: 13px;
+  background: #abc1cc;
+  border-radius: 8px;
+}
+
+.toggle-control > span::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 9px;
+  height: 9px;
+  content: "";
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 140ms ease;
+}
+
+.toggle-control input:checked + span {
+  background: var(--survey);
+}
+
+.toggle-control input:checked + span::after {
+  transform: translateX(12px);
+}
+
+.toggle-control small {
+  width: 24px;
+  color: #647f92;
+  font-size: 9px;
+}
+
+.roi-grid,
+.rgb-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 7px;
+}
+
+.rgb-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.chip-list input {
+  position: absolute;
+  opacity: 0;
+}
+
+.chip-list span {
+  display: block;
+  padding: 4px 6px;
+  color: #5c7689;
+  font-size: 9px;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #bfd5de;
+}
+
+.chip-list input:checked + span {
+  color: var(--abyss);
+  background: #e2dffc;
+  border-color: var(--violet);
+}
+
+.chip-list input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mission-launch {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mission-launch strong,
+.mission-launch small {
+  display: block;
+}
+
+.mission-launch strong {
+  color: var(--survey);
   font-size: 12px;
 }
 
-.multi-source-flow__page-action {
+.mission-launch small {
+  max-width: 180px;
+  margin-top: 3px;
+  color: #698294;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.candidate-strip code,
+.candidate-strip > small {
+  margin-top: 7px;
+  color: var(--survey);
+  font:
+    10px/1.4 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.stage-timeline {
+  margin-top: 10px;
+}
+
+.stage-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: start;
+}
+
+.stage-row:not(:last-child)::before {
+  position: absolute;
+  top: 9px;
+  bottom: -9px;
+  left: 3px;
+  width: 1px;
+  content: "";
+  background: #bfd4df;
+}
+
+.stage-row__marker {
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  background: #adc1cc;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #adc1cc;
+}
+
+.stage-row.is-running .stage-row__marker,
+.stage-row.is-created .stage-row__marker {
+  background: var(--cyan);
+  box-shadow: 0 0 0 1px var(--cyan);
+}
+
+.stage-row.is-succeeded .stage-row__marker {
+  background: var(--mint);
+  box-shadow: 0 0 0 1px #43ae89;
+}
+
+.stage-row.is-failed .stage-row__marker,
+.stage-row.is-recovery_pending .stage-row__marker {
+  background: #d36c6c;
+  box-shadow: 0 0 0 1px #d36c6c;
+}
+
+.stage-row__body {
+  min-width: 0;
+  padding-bottom: 8px;
+}
+
+.stage-row__body strong,
+.stage-row__body small {
+  display: block;
+}
+
+.stage-row__body strong {
+  font-size: 11px;
+}
+
+.stage-row__body small,
+.stage-row__status {
+  color: #698398;
+  font:
+    9px/1.4 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.stage-row__status {
+  display: block;
+  margin-top: 2px;
+}
+
+.server-error {
+  margin-top: 5px;
+  padding: 5px 7px;
+  color: #8f3d3d;
+  background: #fff1ee;
+  border-left: 2px solid #d36c6c;
+}
+
+.server-error code,
+.server-error p {
+  margin: 0;
+  font:
+    9px/1.45 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.artifact-shelf {
+  margin-top: 10px;
+  padding: 9px;
+  background: var(--cloud);
+  border: 1px solid #cbdfe8;
+}
+
+.artifact-shelf__title strong {
+  font-size: 11px;
+}
+
+.artifact-row {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
-  padding: 15px 3px 0;
+  padding-top: 6px;
+  border-top: 1px solid #d7e6ed;
 }
 
-.multi-source-flow__page-action > span {
-  color: #8ba4bb;
+.artifact-row code {
+  color: var(--survey);
+  font:
+    9px/1.3 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.final-zip-button {
+  min-width: 142px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:is(button, select, input, label):focus-visible,
+.visually-hidden:focus-visible + .file-slot__picker,
+.spectral-channel:has(input:focus-visible),
+.toggle-control:has(input:focus-visible),
+.chip-list label:has(input:focus-visible) span {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+input:disabled,
+select:disabled,
+button:disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+</style>
+
+<style lang="less" scoped>
+/* Multi-source satellite workspace — feature-scoped, so the legacy map panels stay untouched. */
+.satellite-workspace {
+  --orbit-ink: #071827;
+  --orbit-ocean: #0d3d5d;
+  --orbit-blue: #168cb7;
+  --orbit-cyan: #72d7ff;
+  --orbit-mist: #eaf5fa;
+  --orbit-mint: #6dd4ad;
+  --orbit-alert: #e27d7d;
+  --orbit-line: #c7e2ed;
+
+  min-height: 100%;
+  padding: 14px 14px 34px;
+  color: var(--orbit-ink);
+  background: radial-gradient(
+      circle at 88% 0%,
+      rgb(114 215 255 / 16%),
+      transparent 28%
+    ),
+    linear-gradient(180deg, #f8fcfe 0%, #edf7fb 100%);
+  font-family: "PingFang SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.satellite-workspace::-webkit-scrollbar {
+  width: 5px;
+}
+
+.satellite-workspace::-webkit-scrollbar-thumb {
+  background: #8ec8dd;
+  border-radius: 99px;
+}
+
+.satellite-workspace .mission-panel__masthead {
+  position: relative;
+  min-height: 122px;
+  padding: 18px 16px 16px;
+  overflow: hidden;
+  color: #f7fcff;
+  background: radial-gradient(
+      circle at 84% 25%,
+      rgb(114 215 255 / 22%),
+      transparent 22%
+    ),
+    linear-gradient(145deg, #0c2945 0%, #071827 100%);
+  border: 1px solid rgb(114 215 255 / 32%);
+  border-radius: 12px 12px 4px 4px;
+  box-shadow: 0 16px 32px rgb(7 24 39 / 18%);
+}
+
+.satellite-workspace .mission-panel__masthead::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background-image: linear-gradient(rgb(114 215 255 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(114 215 255 / 6%) 1px, transparent 1px);
+  background-size: 16px 16px;
+  mask-image: linear-gradient(90deg, #000, transparent 84%);
+}
+
+.mission-panel__heading,
+.mission-panel__profile {
+  position: relative;
+  z-index: 1;
+}
+
+.mission-panel__heading {
+  max-width: calc(100% - 72px);
+}
+
+.satellite-workspace .mission-panel__eyebrow {
+  margin-bottom: 7px;
+  color: var(--orbit-cyan);
+  font:
+    700 9px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  letter-spacing: 0.14em;
+}
+
+.satellite-workspace .mission-panel__masthead h3 {
+  color: #fff;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: clamp(22px, 1.25vw, 25px);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 18px rgb(114 215 255 / 24%);
+}
+
+.mission-panel__heading p {
+  max-width: 250px;
+  margin-top: 7px;
+  color: #b7d6e5;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.satellite-workspace .mission-panel__profile {
+  display: grid;
+  gap: 3px;
+  min-width: 72px;
+  padding: 8px 9px;
+  color: #d9f5ff;
+  text-align: right;
+  background: rgb(255 255 255 / 7%);
+  border: 1px solid rgb(114 215 255 / 20%);
+  border-radius: 7px;
+  backdrop-filter: blur(8px);
+}
+
+.mission-panel__profile > span {
+  color: #7fcbe8;
+  font:
+    700 8px/1 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  letter-spacing: 0.1em;
+}
+
+.mission-panel__profile strong,
+.mission-panel__profile small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-panel__profile strong {
+  color: #fff;
+  font:
+    700 10px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.mission-panel__profile small {
+  color: #a9cbda;
+  font:
+    9px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.mission-panel__orbit {
+  position: absolute;
+  right: -11px;
+  bottom: -36px;
+  width: 130px;
+  height: 130px;
+  pointer-events: none;
+  opacity: 0.86;
+}
+
+.mission-panel__orbit-core,
+.mission-panel__orbit-track {
+  position: absolute;
+  border: 1px solid rgb(114 215 255 / 40%);
+  border-radius: 50%;
+}
+
+.mission-panel__orbit-core {
+  top: 47px;
+  left: 47px;
+  width: 18px;
+  height: 18px;
+  background: var(--orbit-cyan);
+  border-color: #d6f8ff;
+  box-shadow:
+    0 0 0 6px rgb(114 215 255 / 12%),
+    0 0 20px var(--orbit-cyan);
+}
+
+.mission-panel__orbit-track.is-one {
+  inset: 23px 9px 29px 11px;
+  transform: rotate(-34deg);
+}
+
+.mission-panel__orbit-track.is-two {
+  inset: 8px 22px 11px 19px;
+  border-color: rgb(109 212 173 / 38%);
+  transform: rotate(37deg);
+}
+
+.satellite-workspace .mission-panel__selector {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  padding: 14px 2px 2px;
+}
+
+.satellite-workspace .mission-panel__selector label {
+  color: #456a82;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.satellite-workspace .mission-panel__selector select {
+  min-height: 38px;
+  padding: 0 30px 0 11px;
+  color: var(--orbit-ink);
+  font-weight: 700;
+  background: #fff;
+  border: 1px solid var(--orbit-line);
+  border-radius: 7px;
+  box-shadow: 0 5px 14px rgb(13 61 93 / 7%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.satellite-workspace .mission-panel__selector select:hover,
+.satellite-workspace .mission-panel__selector select:focus {
+  border-color: var(--orbit-blue);
+  box-shadow: 0 0 0 3px rgb(22 140 183 / 11%);
+}
+
+.satellite-workspace .mission-panel__lock-note {
+  grid-column: auto;
+  padding: 6px 8px;
+  color: #97553d;
+  font-size: 10px;
+  background: #fff4eb;
+  border-left: 2px solid #e89b61;
+}
+
+.satellite-workspace .mission-section {
+  margin-top: 12px;
+  padding: 14px;
+  background: rgb(255 255 255 / 84%);
+  border: 1px solid #d3e6ee;
+  border-radius: 10px;
+  box-shadow: 0 9px 22px rgb(13 61 93 / 6%);
+}
+
+.satellite-workspace .mission-section__heading,
+.satellite-workspace .mission-section__heading > div,
+.satellite-workspace .artifact-shelf__title {
+  gap: 8px;
+}
+
+.satellite-workspace .mission-section__heading strong {
+  color: #143751;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.satellite-workspace .mission-section__heading > span,
+.satellite-workspace .artifact-shelf__title span {
+  padding: 3px 6px;
+  color: #4a728a;
+  font:
+    700 9px/1 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  background: #e8f4f8;
+  border-radius: 99px;
+}
+
+.satellite-workspace .mission-section__signal {
+  width: 18px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--orbit-blue), var(--orbit-cyan));
+  box-shadow: 0 0 7px rgb(114 215 255 / 72%);
+}
+
+.satellite-workspace .mission-section__signal.is-violet {
+  background: linear-gradient(90deg, #8f76e3, #c0aaff);
+  box-shadow: 0 0 7px rgb(192 170 255 / 58%);
+}
+
+.satellite-workspace .mission-section__signal.is-valid {
+  background: linear-gradient(90deg, #43ad86, var(--orbit-mint));
+  box-shadow: 0 0 7px rgb(109 212 173 / 54%);
+}
+
+.satellite-workspace .mission-section__note {
+  margin: 7px 0 11px;
+  color: #607d90;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.satellite-workspace .file-stack {
+  gap: 8px;
+}
+
+.satellite-workspace .file-slot {
+  padding: 10px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fff 0%, #f5fbfd 100%);
+  border: 1px solid #d0e5ed;
+  border-left: 3px solid #93c5d7;
+  border-radius: 7px;
+  box-shadow: 0 4px 11px rgb(13 61 93 / 4%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.satellite-workspace .file-slot:hover {
+  border-color: #8fc9dc;
+  box-shadow: 0 9px 18px rgb(13 61 93 / 9%);
+  transform: translateY(-1px);
+}
+
+.satellite-workspace .file-slot.is-uploaded {
+  border-left-color: var(--orbit-mint);
+}
+
+.satellite-workspace .file-slot.is-uploading {
+  border-left-color: var(--orbit-cyan);
+}
+
+.satellite-workspace .file-slot.is-failed {
+  border-left-color: var(--orbit-alert);
+}
+
+.satellite-workspace .file-slot__meta {
+  padding-right: 22px;
+}
+
+.satellite-workspace .file-slot__meta strong {
+  color: #183a52;
+  font-size: 11px;
+}
+
+.satellite-workspace .file-slot__meta small,
+.satellite-workspace .artifact-row small {
+  color: #71899a;
+  font-size: 9px;
+}
+
+.satellite-workspace .file-slot__meta > span {
+  padding: 3px 5px;
+  color: #386e86;
+  font-size: 9px;
+  background: #e4f2f7;
+  border-radius: 4px;
+}
+
+.satellite-workspace .file-slot.is-uploaded .file-slot__meta > span {
+  color: #1b745c;
+  background: #e0f7ee;
+}
+
+.satellite-workspace .file-slot__picker {
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 7px 8px;
+  color: #2b6a86;
+  background: rgb(255 255 255 / 86%);
+  border: 1px dashed #8fc5d6;
+  border-radius: 5px;
+  transition:
+    color 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.satellite-workspace .file-slot__picker:hover:not(.is-disabled) {
+  color: #0d6086;
+  background: #f0fbff;
+  border-color: var(--orbit-blue);
+}
+
+.satellite-workspace .file-slot__remove {
+  top: 8px;
+  right: 7px;
+  color: #658699;
+  border-radius: 4px;
+}
+
+.satellite-workspace .file-slot__remove:hover:not(:disabled) {
+  color: #b34242;
+  background: #fff0f0;
+}
+
+.satellite-workspace .diagnostic-strip {
+  margin-top: 9px;
+  padding: 8px 9px;
+  background: #fff6f2;
+  border: 1px solid #ffd9cd;
+  border-left: 3px solid var(--orbit-alert);
+  border-radius: 5px;
+}
+
+.satellite-workspace .diagnostic-strip span,
+.satellite-workspace .inline-error {
+  color: #a44747;
+  font-size: 10px;
+}
+
+.satellite-workspace .configuration-brief {
+  position: relative;
+  padding: 15px;
+  overflow: hidden;
+  color: #eaf8ff;
+  background: radial-gradient(
+      circle at 94% 8%,
+      rgb(114 215 255 / 22%),
+      transparent 28%
+    ),
+    linear-gradient(142deg, #0e3451 0%, #09253f 100%);
+  border-color: rgb(114 215 255 / 35%);
+  box-shadow: 0 14px 28px rgb(7 24 39 / 16%);
+}
+
+.satellite-workspace .configuration-brief::after {
+  position: absolute;
+  right: -44px;
+  bottom: -82px;
+  width: 182px;
+  height: 182px;
+  content: "";
+  border: 1px solid rgb(114 215 255 / 17%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 22px rgb(114 215 255 / 3%),
+    0 0 0 43px rgb(114 215 255 / 2%);
+}
+
+.configuration-brief__heading,
+.configuration-brief__heading > div {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.configuration-brief__heading > div {
+  justify-content: flex-start;
+}
+
+.configuration-brief__heading strong {
+  display: block;
+  color: #fff;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.configuration-brief__heading small {
+  display: block;
+  margin-top: 3px;
+  color: #a7cadb;
+  font-size: 9px;
+}
+
+:deep(.configuration-brief__open) {
+  position: relative;
+  z-index: 1;
+  height: 28px;
+  padding: 0 7px;
+  color: #c8f5ff !important;
+  font-size: 10px;
+  background: rgb(114 215 255 / 10%) !important;
+  border: 1px solid rgb(114 215 255 / 26%) !important;
+  border-radius: 5px;
+}
+
+:deep(.configuration-brief__open:hover) {
+  color: #fff !important;
+  background: rgb(114 215 255 / 19%) !important;
+}
+
+.spectral-signature {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.spectral-signature__band {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  opacity: 0.28;
+  transition: opacity 160ms ease;
+}
+
+.spectral-signature__band.is-selected {
+  opacity: 1;
+}
+
+.spectral-signature__band i {
+  display: block;
+  height: 5px;
+  border-radius: 99px;
+  box-shadow: 0 0 10px currentcolor;
+}
+
+.spectral-signature__band strong {
+  color: #e8faff;
+  font:
+    700 8px/1 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  text-align: center;
+}
+
+.spectral-signature__band.band-b460 i {
+  color: #61a4ff;
+  background: currentcolor;
+}
+
+.spectral-signature__band.band-b560 i {
+  color: #6dd4ad;
+  background: currentcolor;
+}
+
+.spectral-signature__band.band-b650 i {
+  color: #ff7d89;
+  background: currentcolor;
+}
+
+.spectral-signature__band.band-b825 i {
+  color: #b29bff;
+  background: currentcolor;
+}
+
+.configuration-summary {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 7px;
+  margin: 14px 0 0;
+}
+
+.configuration-summary > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding-top: 7px;
+  border-top: 1px solid rgb(184 230 244 / 12%);
+}
+
+.configuration-summary dt {
+  color: #92bacd;
+  font-size: 9px;
+}
+
+.configuration-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #f0fbff;
+  font:
+    700 9px/1.45 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.configuration-algorithms {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.configuration-algorithms span {
+  padding: 4px 6px;
+  color: #c1e7f4;
+  font-size: 9px;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(187 235 247 / 15%);
+  border-radius: 4px;
+}
+
+.satellite-workspace .mission-launch {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 15px;
+  overflow: hidden;
+  color: #fff;
+  background: linear-gradient(135deg, #0d3d5d 0%, #0b2d48 100%);
+  border-color: #2b7394;
+}
+
+.satellite-workspace .mission-launch::after {
+  position: absolute;
+  top: -70px;
+  right: -46px;
+  width: 146px;
+  height: 146px;
+  content: "";
+  pointer-events: none;
+  border: 1px solid rgb(114 215 255 / 22%);
+  border-radius: 50%;
+}
+
+.satellite-workspace .mission-launch > div,
+.satellite-workspace .mission-launch > button {
+  position: relative;
+  z-index: 1;
+}
+
+.satellite-workspace .mission-launch strong {
+  color: #fff;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.satellite-workspace .mission-launch small {
+  max-width: 154px;
+  color: #a9cfdf;
+  font-size: 9px;
+}
+
+.satellite-workspace .mission-launch :deep(.el-button--primary) {
+  min-height: 36px;
+  padding: 0 12px;
+  color: #062137;
+  font-weight: 800;
+  background: linear-gradient(135deg, #9de6ff, var(--orbit-cyan));
+  border: 0;
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgb(0 0 0 / 17%);
+}
+
+.satellite-workspace .mission-launch :deep(.el-button--primary.is-disabled) {
+  color: #648092;
+  background: #b6cbd5;
+  box-shadow: none;
+}
+
+.satellite-workspace .candidate-strip {
+  background: linear-gradient(135deg, #effbf6, #f7fffb);
+  border-color: #bde8d6;
+}
+
+.satellite-workspace .candidate-strip code,
+.satellite-workspace .candidate-strip > small {
+  color: #23755c;
+  font-weight: 700;
+}
+
+.satellite-workspace .progress-console {
+  background: linear-gradient(145deg, #fff 0%, #f5fbfd 100%);
+}
+
+.satellite-workspace .stage-timeline {
+  gap: 2px;
+  margin-top: 12px;
+}
+
+.satellite-workspace .stage-row {
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 6px 7px;
+  border-radius: 5px;
+  transition: background 160ms ease;
+}
+
+.satellite-workspace .stage-row:hover {
+  background: #eff8fb;
+}
+
+.satellite-workspace .stage-row:not(:last-child)::before {
+  top: 15px;
+  bottom: -5px;
+  left: 5px;
+  background: #c9e1e9;
+}
+
+.satellite-workspace .stage-row__marker {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  background: #afc4cf;
+  box-shadow: 0 0 0 2px #dcecf2;
+}
+
+.satellite-workspace .stage-row.is-running .stage-row__marker,
+.satellite-workspace .stage-row.is-created .stage-row__marker {
+  background: var(--orbit-cyan);
+  box-shadow:
+    0 0 0 2px rgb(114 215 255 / 20%),
+    0 0 11px var(--orbit-cyan);
+}
+
+.satellite-workspace .stage-row.is-succeeded .stage-row__marker {
+  background: var(--orbit-mint);
+  box-shadow:
+    0 0 0 2px rgb(109 212 173 / 18%),
+    0 0 8px var(--orbit-mint);
+}
+
+.satellite-workspace .stage-row__body {
+  padding-bottom: 3px;
+}
+
+.satellite-workspace .stage-row__body strong {
+  color: #1c425a;
+  font-size: 10px;
+}
+
+.satellite-workspace .stage-row__body small,
+.satellite-workspace .stage-row__status {
+  color: #6d899b;
+  font-size: 8px;
+}
+
+.satellite-workspace .artifact-shelf {
+  padding: 10px;
+  background: #eef8fb;
+  border: 1px solid #d0e8ef;
+  border-radius: 7px;
+}
+
+.satellite-workspace .artifact-row {
+  padding-top: 8px;
+  border-top-color: #d6e9ef;
+}
+
+.satellite-workspace .task-actions {
+  gap: 6px;
+  margin-top: 13px;
+}
+
+.satellite-workspace .task-actions :deep(.el-button) {
+  min-height: 30px;
+  border-radius: 5px;
+}
+
+/* The wide parameter workspace deliberately uses the map's darker visual language. */
+:deep(.mission-parameter-drawer) {
+  --drawer-ink: #071827;
+  --drawer-ocean: #0d3d5d;
+  --drawer-cyan: #72d7ff;
+  --drawer-mint: #6dd4ad;
+
+  color: #eaf8ff;
+  background: radial-gradient(
+      circle at 93% 3%,
+      rgb(114 215 255 / 17%),
+      transparent 24%
+    ),
+    linear-gradient(180deg, #0b2944, #071827);
+  border-left: 1px solid rgb(114 215 255 / 31%);
+  box-shadow: -24px 0 48px rgb(7 24 39 / 25%);
+}
+
+:deep(.mission-parameter-drawer .el-drawer__header) {
+  padding: 19px 19px 13px;
+  margin: 0;
+  border-bottom: 1px solid rgb(114 215 255 / 14%);
+}
+
+:deep(.mission-parameter-drawer .el-drawer__body) {
+  padding: 0 19px 18px;
+  overflow-y: auto;
+}
+
+:deep(.mission-parameter-drawer .el-drawer__footer) {
+  padding: 12px 19px;
+  margin: 0;
+  background: rgb(4 19 33 / 45%);
+  border-top: 1px solid rgb(114 215 255 / 14%);
+}
+
+.parameter-drawer__header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.parameter-drawer__header > div {
+  min-width: 0;
+}
+
+.parameter-drawer__header span,
+.parameter-drawer__signal span {
+  display: block;
+  color: var(--drawer-cyan, #72d7ff);
+  font:
+    700 9px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  letter-spacing: 0.14em;
+}
+
+.parameter-drawer__header h2 {
+  margin: 6px 0 0;
+  color: #fff;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+}
+
+.parameter-drawer__header p {
+  margin: 7px 0 0;
+  color: #a9c9d9;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.parameter-drawer__close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: #b7d9e8;
+  cursor: pointer;
+  background: rgb(114 215 255 / 7%);
+  border: 1px solid rgb(114 215 255 / 19%);
+  border-radius: 6px;
+  transition:
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.parameter-drawer__close:hover {
+  color: #fff;
+  background: rgb(114 215 255 / 17%);
+}
+
+.parameter-drawer__body {
+  padding-top: 14px;
+}
+
+.parameter-drawer__signal {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: linear-gradient(
+    135deg,
+    rgb(114 215 255 / 12%),
+    rgb(114 215 255 / 3%)
+  );
+  border: 1px solid rgb(114 215 255 / 18%);
+  border-radius: 8px;
+}
+
+.parameter-drawer__signal strong {
+  display: block;
+  margin-top: 5px;
+  color: #f2fbff;
+  font:
+    700 10px/1.35 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.parameter-drawer__signal-rail {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.parameter-drawer__signal-rail i {
+  width: 5px;
+  height: 30px;
+  opacity: 0.22;
+  border-radius: 99px;
+  transition: opacity 150ms ease;
+}
+
+.parameter-drawer__signal-rail i.is-selected {
+  opacity: 1;
+  box-shadow: 0 0 11px currentcolor;
+}
+
+.parameter-drawer__signal-rail .band-b460 {
+  color: #61a4ff;
+  background: currentcolor;
+}
+
+.parameter-drawer__signal-rail .band-b560 {
+  color: #6dd4ad;
+  background: currentcolor;
+}
+
+.parameter-drawer__signal-rail .band-b650 {
+  color: #ff7d89;
+  background: currentcolor;
+}
+
+.parameter-drawer__signal-rail .band-b825 {
+  color: #b29bff;
+  background: currentcolor;
+}
+
+.l2a-console {
+  --console-ink: #deeff7;
+  --console-muted: #95b7c8;
+  --console-line: rgb(114 215 255 / 18%);
+
+  margin-top: 13px;
+  padding: 14px;
+  color: var(--console-ink);
+  background: rgb(2 17 30 / 28%);
+  border: 1px solid var(--console-line);
+  border-radius: 9px;
+}
+
+.l2a-console__heading,
+.l2a-console__heading > div {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.l2a-console__heading > div {
+  justify-content: flex-start;
+}
+
+.l2a-console__heading strong {
+  color: #fff;
+  font-family: "YouSheBiaoTiHei", "PingFang SC", sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.l2a-console__heading > span {
+  padding: 3px 6px;
+  color: #c0dfea;
+  font:
+    700 9px/1 ui-monospace,
+    "Cascadia Code",
+    monospace;
+  background: rgb(114 215 255 / 9%);
+  border-radius: 99px;
+}
+
+.l2a-console .mission-section__signal {
+  width: 15px;
+  height: 3px;
+}
+
+.l2a-console .control-group {
+  min-width: 0;
+  margin: 13px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--console-line);
+}
+
+.l2a-console .spectral-fieldset {
+  border-top-color: transparent;
+}
+
+.l2a-console .control-group legend {
+  padding-right: 5px;
+  color: #e9f8ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.l2a-console .control-group:disabled {
+  opacity: 0.64;
+}
+
+.l2a-console .control-grid,
+.l2a-console .roi-grid,
+.l2a-console .rgb-grid {
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.l2a-console .control-field,
+.l2a-console .roi-grid label,
+.l2a-console .rgb-grid label {
+  gap: 5px;
+  color: var(--console-muted);
+  font-size: 10px;
+}
+
+.l2a-console .control-field input,
+.l2a-console .control-field select,
+.l2a-console .roi-grid input,
+.l2a-console .rgb-grid select {
+  min-height: 34px;
+  color: #eaf8ff;
+  background: rgb(2 23 39 / 66%);
+  border-color: rgb(151 211 233 / 28%);
+  border-radius: 5px;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.l2a-console .control-field input:focus,
+.l2a-console .control-field select:focus,
+.l2a-console .roi-grid input:focus,
+.l2a-console .rgb-grid select:focus {
+  border-color: var(--drawer-cyan, #72d7ff);
+  box-shadow: 0 0 0 3px rgb(114 215 255 / 11%);
+}
+
+.l2a-console .control-field input:read-only {
+  color: #9db8c7;
+  background: rgb(4 24 39 / 46%);
+}
+
+.l2a-console .control-field input:disabled,
+.l2a-console .control-field select:disabled,
+.l2a-console .roi-grid input:disabled,
+.l2a-console .rgb-grid select:disabled {
+  color: #8aa5b5;
+  cursor: not-allowed;
+  background: rgb(3 18 30 / 40%);
+  border-color: rgb(151 211 233 / 12%);
+}
+
+.l2a-console .spectral-rail {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.l2a-console .spectral-channel {
+  gap: 3px;
+  padding: 7px 6px;
+  color: #89a7b6;
+  background: rgb(2 23 39 / 62%);
+  border-color: rgb(151 211 233 / 22%);
+  border-radius: 5px;
+  opacity: 0.62;
+  transition:
+    opacity 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.l2a-console .spectral-channel:hover:not(:has(input:disabled)) {
+  transform: translateY(-1px);
+}
+
+.l2a-console .spectral-channel.is-selected {
+  color: #eaf9ff;
+  border-color: rgb(114 215 255 / 58%);
+  opacity: 1;
+}
+
+.l2a-console .spectral-channel__bar {
+  height: 5px;
+  border-radius: 99px;
+}
+
+.l2a-console .spectral-channel strong {
+  font-size: 9px;
+}
+
+.l2a-console .spectral-channel small {
+  color: #91adbd;
+  font-size: 8px;
+}
+
+.l2a-console .toggle-control > span {
+  background: #58798a;
+}
+
+.l2a-console .toggle-control input:checked + span {
+  background: var(--drawer-cyan, #72d7ff);
+}
+
+.l2a-console .toggle-control small {
+  color: #a6c3d1;
+}
+
+.l2a-console .chip-list {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.l2a-console .chip-list span {
+  padding: 5px 7px;
+  color: #a4c0ce;
+  background: rgb(2 23 39 / 62%);
+  border-color: rgb(151 211 233 / 22%);
+  border-radius: 4px;
+}
+
+.l2a-console .chip-list input:checked + span {
+  color: #f2fbff;
+  background: rgb(114 215 255 / 16%);
+  border-color: rgb(114 215 255 / 58%);
+}
+
+.l2a-console .chip-list input:disabled + span {
+  opacity: 0.52;
+}
+
+.parameter-drawer__footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.parameter-drawer__footer > span {
+  color: #9ec5d7;
+  font-size: 10px;
+}
+
+.parameter-drawer__footer > span.is-invalid {
+  color: #ffb2a5;
+}
+
+.parameter-drawer__footer :deep(.el-button--primary) {
+  color: #08263d;
+  font-weight: 800;
+  background: linear-gradient(135deg, #9de6ff, var(--drawer-cyan, #72d7ff));
+  border: 0;
+  border-radius: 5px;
+}
+
+.satellite-workspace :is(button, select, input, label):focus-visible,
+.satellite-workspace .visually-hidden:focus-visible + .file-slot__picker,
+.l2a-console .spectral-channel:has(input:focus-visible),
+.l2a-console .toggle-control:has(input:focus-visible),
+.l2a-console .chip-list label:has(input:focus-visible) span,
+.parameter-drawer__close:focus-visible {
+  outline: 2px solid var(--orbit-cyan, #72d7ff);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .satellite-workspace {
+    padding-inline: 10px;
+  }
+
+  .satellite-workspace .mission-panel__masthead {
+    min-height: 108px;
+  }
+
+  .mission-panel__heading p {
+    display: none;
+  }
+
+  .satellite-workspace .mission-section,
+  .satellite-workspace .configuration-brief {
+    padding: 12px;
+  }
+
+  :deep(.mission-parameter-drawer) {
+    width: min(470px, 94vw) !important;
+  }
+
+  :deep(.mission-parameter-drawer .el-drawer__header) {
+    padding: 16px 14px 12px;
+  }
+
+  :deep(.mission-parameter-drawer .el-drawer__body) {
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .satellite-workspace *,
+  .satellite-workspace *::before,
+  .satellite-workspace *::after,
+  .mission-parameter-drawer *,
+  .mission-parameter-drawer *::before,
+  .mission-parameter-drawer *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+</style>
+
+<style lang="less" scoped>
+/* Keep the processing flow readable: one typeface, modest hierarchy, and plain form surfaces. */
+.satellite-workspace {
+  --plain-ink: #243746;
+  --plain-muted: #647585;
+  --plain-primary: #2e7da3;
+  --plain-primary-soft: #edf6fa;
+  --plain-line: #d7e1e7;
+  --plain-panel: #ffffff;
+  --plain-surface: #f5f7f8;
+  --plain-success: #338467;
+  --plain-danger: #b44c4c;
+
+  padding: 12px 12px 28px;
+  color: var(--plain-ink);
+  background: var(--plain-surface);
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+
+.satellite-workspace *,
+:deep(.mission-parameter-drawer *) {
+  box-shadow: none;
+  transition: none;
+}
+
+.satellite-workspace .mission-panel__masthead {
+  min-height: 0;
+  padding: 16px;
+  color: var(--plain-ink);
+  background: var(--plain-panel);
+  border: 1px solid var(--plain-line);
+  border-left: 3px solid var(--plain-primary);
+  border-radius: 6px;
+}
+
+.satellite-workspace .mission-panel__masthead::before,
+.satellite-workspace .mission-panel__orbit {
+  display: none;
+}
+
+.satellite-workspace .mission-panel__heading {
+  max-width: none;
+}
+
+.satellite-workspace .mission-panel__eyebrow {
+  display: none;
+}
+
+.satellite-workspace .mission-panel__masthead h3 {
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+.satellite-workspace .mission-panel__heading p {
+  margin: 5px 0 0;
+  color: var(--plain-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.satellite-workspace .mission-panel__profile {
+  gap: 2px;
+  min-width: 80px;
+  padding: 6px 8px;
+  color: var(--plain-muted);
+  text-align: left;
+  background: var(--plain-primary-soft);
+  border: 1px solid #d6e8f0;
+  border-radius: 4px;
+  backdrop-filter: none;
+}
+
+.satellite-workspace .mission-panel__profile > span {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.satellite-workspace .mission-panel__profile strong {
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.satellite-workspace .mission-panel__profile small {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.satellite-workspace .mission-panel__selector {
+  gap: 5px;
+  padding: 14px 0 2px;
+}
+
+.satellite-workspace .mission-panel__selector label {
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.satellite-workspace .mission-panel__selector select {
+  min-height: 36px;
+  color: var(--plain-ink);
+  font-size: 14px;
+  font-weight: 400;
+  background: var(--plain-panel);
+  border-color: var(--plain-line);
+  border-radius: 4px;
+}
+
+.satellite-workspace .mission-panel__selector select:hover,
+.satellite-workspace .mission-panel__selector select:focus {
+  border-color: var(--plain-primary);
+  box-shadow: 0 0 0 2px rgb(46 125 163 / 12%);
+}
+
+.satellite-workspace .mission-panel__lock-note {
+  padding: 6px 8px;
+  color: #8a563d;
+  font-size: 12px;
+  background: #fff7f1;
+  border-left: 2px solid #d88a59;
+}
+
+.satellite-workspace .mission-section {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--plain-panel);
+  border: 1px solid var(--plain-line);
+  border-radius: 6px;
+}
+
+.satellite-workspace .mission-section__heading,
+.satellite-workspace .mission-section__heading > div,
+.satellite-workspace .artifact-shelf__title {
+  gap: 7px;
+}
+
+.satellite-workspace .mission-section__heading strong,
+.satellite-workspace .configuration-brief__heading strong,
+.satellite-workspace .l2a-console__heading strong {
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.satellite-workspace .mission-section__heading > span,
+.satellite-workspace .artifact-shelf__title span,
+.satellite-workspace .l2a-console__heading > span {
+  padding: 0;
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  background: transparent;
+  border-radius: 0;
+}
+
+.satellite-workspace .mission-section__signal {
+  width: 3px;
+  height: 16px;
+  background: var(--plain-primary);
+  box-shadow: none;
+}
+
+.satellite-workspace .mission-section__signal.is-violet {
+  background: #7565a8;
+}
+
+.satellite-workspace .mission-section__signal.is-valid {
+  background: var(--plain-success);
+}
+
+.satellite-workspace .mission-section__note {
+  margin: 7px 0 11px;
+  color: var(--plain-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.satellite-workspace .file-stack {
+  gap: 8px;
+}
+
+.satellite-workspace .file-slot {
+  padding: 10px;
+  background: #fafcfd;
+  border: 1px solid #dce5ea;
+  border-left: 3px solid #9ebdcd;
+  border-radius: 4px;
+}
+
+.satellite-workspace .file-slot:hover {
+  border-color: #adc9d7;
+  border-left-color: var(--plain-primary);
+  transform: none;
+}
+
+.satellite-workspace .file-slot.is-uploaded {
+  border-left-color: var(--plain-success);
+}
+
+.satellite-workspace .file-slot.is-uploading {
+  border-left-color: var(--plain-primary);
+}
+
+.satellite-workspace .file-slot.is-failed {
+  border-left-color: var(--plain-danger);
+}
+
+.satellite-workspace .file-slot__meta {
+  padding-right: 22px;
+}
+
+.satellite-workspace .file-slot__meta strong {
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.satellite-workspace .file-slot__meta small,
+.satellite-workspace .artifact-row small {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.satellite-workspace .file-slot__meta > span {
+  padding: 0;
+  color: var(--plain-muted);
+  font-size: 11px;
+  background: transparent;
+  border-radius: 0;
+}
+
+.satellite-workspace .file-slot.is-uploaded .file-slot__meta > span {
+  color: var(--plain-success);
+  background: transparent;
+}
+
+.satellite-workspace .file-slot__picker {
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 7px 8px;
+  color: #356e89;
+  font-size: 12px;
+  background: var(--plain-panel);
+  border: 1px dashed #9fc2d3;
+  border-radius: 4px;
+}
+
+.satellite-workspace .file-slot__picker:hover:not(.is-disabled) {
+  color: var(--plain-primary);
+  background: var(--plain-primary-soft);
+  border-color: var(--plain-primary);
+}
+
+.satellite-workspace .file-slot__progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.satellite-workspace .file-slot__progress-track {
+  height: 5px;
+  overflow: hidden;
+  background: #dce7ec;
+  border-radius: 3px;
+}
+
+.satellite-workspace .file-slot__progress-track span {
+  display: block;
+  height: 100%;
+  background: var(--plain-primary);
+  border-radius: inherit;
+}
+
+.satellite-workspace .file-slot__progress small {
+  min-width: 32px;
+  color: var(--plain-primary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.satellite-workspace .file-slot__remove {
+  color: var(--plain-muted);
+  border-radius: 3px;
+}
+
+.satellite-workspace .file-slot__remove:hover:not(:disabled) {
+  color: var(--plain-danger);
+  background: #fff4f4;
+}
+
+.satellite-workspace .diagnostic-strip {
+  margin-top: 9px;
+  padding: 8px 9px;
+  background: #fff6f4;
+  border: 1px solid #f0d6d0;
+  border-left: 3px solid var(--plain-danger);
+  border-radius: 4px;
+}
+
+.satellite-workspace .diagnostic-strip span,
+.satellite-workspace .inline-error {
+  color: #9f4545;
   font-size: 12px;
 }
 
-.multi-source-flow__actions {
-  display: flex;
-  gap: 8px;
+.satellite-workspace .configuration-brief {
+  position: static;
+  color: var(--plain-ink);
+  background: var(--plain-panel);
+  border-color: var(--plain-line);
 }
+
+.satellite-workspace .configuration-brief::after {
+  display: none;
+}
+
+.satellite-workspace .configuration-brief__heading,
+.satellite-workspace .configuration-brief__heading > div {
+  gap: 8px;
+  align-items: center;
+}
+
+.satellite-workspace .configuration-brief__heading > div {
+  justify-content: flex-start;
+}
+
+.satellite-workspace .configuration-brief__heading small {
+  margin-top: 3px;
+  color: var(--plain-muted);
+  font-size: 12px;
+}
+
+:deep(.configuration-brief__open) {
+  height: 30px;
+  padding: 0 9px;
+  color: var(--plain-primary) !important;
+  font-size: 12px;
+  background: transparent !important;
+  border: 1px solid #a9cbd9 !important;
+  border-radius: 4px;
+}
+
+:deep(.configuration-brief__open:hover) {
+  color: #216889 !important;
+  background: var(--plain-primary-soft) !important;
+}
+
+.satellite-workspace .spectral-signature {
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.satellite-workspace .spectral-signature__band {
+  gap: 4px;
+  opacity: 0.45;
+}
+
+.satellite-workspace .spectral-signature__band.is-selected {
+  opacity: 1;
+}
+
+.satellite-workspace .spectral-signature__band i {
+  height: 4px;
+  border-radius: 1px;
+  box-shadow: none;
+}
+
+.satellite-workspace .spectral-signature__band strong {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.satellite-workspace .configuration-summary {
+  gap: 6px;
+  margin-top: 13px;
+}
+
+.satellite-workspace .configuration-summary > div {
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+  padding-top: 7px;
+  border-top-color: #e1e8ec;
+}
+
+.satellite-workspace .configuration-summary dt {
+  color: var(--plain-muted);
+  font-size: 12px;
+}
+
+.satellite-workspace .configuration-summary dd {
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.satellite-workspace .configuration-algorithms {
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.satellite-workspace .configuration-algorithms span {
+  padding: 4px 7px;
+  color: #526d7d;
+  font-size: 11px;
+  background: #f2f6f8;
+  border: 1px solid #dce5ea;
+  border-radius: 3px;
+}
+
+.satellite-workspace .mission-launch {
+  position: static;
+  gap: 12px;
+  color: var(--plain-ink);
+  background: var(--plain-panel);
+  border-color: #bfd5e0;
+}
+
+.satellite-workspace .mission-launch::after {
+  display: none;
+}
+
+.satellite-workspace .mission-launch strong {
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.satellite-workspace .mission-launch small {
+  max-width: none;
+  color: var(--plain-muted);
+  font-size: 12px;
+}
+
+.satellite-workspace .mission-launch :deep(.el-button--primary),
+.parameter-drawer__footer :deep(.el-button--primary) {
+  min-height: 32px;
+  padding: 0 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--plain-primary);
+  border: 1px solid var(--plain-primary);
+  border-radius: 4px;
+}
+
+.satellite-workspace .mission-launch :deep(.el-button--primary.is-disabled) {
+  color: #8b9ca7;
+  background: #e1e7ea;
+  border-color: #e1e7ea;
+}
+
+.satellite-workspace .candidate-strip,
+.satellite-workspace .progress-console {
+  background: var(--plain-panel);
+  border-color: var(--plain-line);
+}
+
+.satellite-workspace .candidate-strip code,
+.satellite-workspace .candidate-strip > small {
+  color: #3e6d59;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.satellite-workspace .stage-timeline {
+  gap: 0;
+  margin-top: 10px;
+}
+
+.satellite-workspace .stage-row {
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 8px 0;
+  border-radius: 0;
+}
+
+.satellite-workspace .stage-row:hover {
+  background: transparent;
+}
+
+.satellite-workspace .stage-row:not(:last-child)::before {
+  top: 16px;
+  bottom: -4px;
+  left: 4px;
+  background: #d8e1e6;
+}
+
+.satellite-workspace .stage-row__marker {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  background: #aebdc6;
+  box-shadow: 0 0 0 2px #e4ebee;
+}
+
+.satellite-workspace .stage-row.is-running .stage-row__marker,
+.satellite-workspace .stage-row.is-created .stage-row__marker {
+  background: var(--plain-primary);
+  box-shadow: 0 0 0 2px #dceef5;
+}
+
+.satellite-workspace .stage-row.is-succeeded .stage-row__marker {
+  background: var(--plain-success);
+  box-shadow: 0 0 0 2px #ddefe7;
+}
+
+.satellite-workspace .stage-row__body {
+  padding-bottom: 0;
+}
+
+.satellite-workspace .stage-row__body strong {
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.satellite-workspace .stage-row__body small,
+.satellite-workspace .stage-row__status {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.satellite-workspace .artifact-shelf {
+  padding: 10px;
+  background: #f8fafb;
+  border: 1px solid #dce5ea;
+  border-radius: 4px;
+}
+
+.satellite-workspace .artifact-row {
+  padding-top: 8px;
+  border-top-color: #e0e7eb;
+}
+
+.satellite-workspace .task-actions :deep(.el-button) {
+  min-height: 32px;
+  border-radius: 4px;
+}
+
+:deep(.mission-parameter-drawer) {
+  --plain-ink: #243746;
+  --plain-muted: #647585;
+  --plain-primary: #2e7da3;
+  --plain-primary-soft: #edf6fa;
+  --plain-line: #d7e1e7;
+  --plain-panel: #ffffff;
+  --plain-surface: #f5f7f8;
+  --plain-success: #338467;
+  --plain-danger: #b44c4c;
+
+  color: var(--plain-ink);
+  background: var(--plain-panel);
+  border-left: 1px solid var(--plain-line);
+  box-shadow: -8px 0 24px rgb(36 55 70 / 12%);
+}
+
+:deep(.mission-parameter-drawer .el-drawer__header) {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--plain-line);
+}
+
+:deep(.mission-parameter-drawer .el-drawer__body) {
+  padding: 0 20px 18px;
+}
+
+:deep(.mission-parameter-drawer .el-drawer__footer) {
+  padding: 12px 20px;
+  background: #fafcfd;
+  border-top: 1px solid var(--plain-line);
+}
+
+.parameter-drawer__header {
+  gap: 12px;
+}
+
+.parameter-drawer__header span,
+.parameter-drawer__signal span {
+  color: var(--plain-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.parameter-drawer__header h2 {
+  margin-top: 4px;
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.parameter-drawer__header p {
+  margin-top: 5px;
+  color: var(--plain-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.parameter-drawer__close {
+  width: 30px;
+  height: 30px;
+  color: var(--plain-muted);
+  background: #f4f7f8;
+  border: 1px solid var(--plain-line);
+  border-radius: 4px;
+}
+
+.parameter-drawer__close:hover {
+  color: var(--plain-ink);
+  background: #edf3f5;
+}
+
+.parameter-drawer__body {
+  padding-top: 14px;
+}
+
+.parameter-drawer__signal {
+  padding: 12px;
+  color: var(--plain-ink);
+  background: #f7fafb;
+  border: 1px solid #dce5ea;
+  border-radius: 4px;
+}
+
+.parameter-drawer__signal strong {
+  margin-top: 4px;
+  color: var(--plain-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.parameter-drawer__signal-rail i {
+  height: 26px;
+  border-radius: 1px;
+}
+
+.parameter-drawer__signal-rail i.is-selected {
+  box-shadow: none;
+}
+
+.l2a-console {
+  margin-top: 12px;
+  padding: 14px;
+  color: var(--plain-ink);
+  background: var(--plain-panel);
+  border: 1px solid var(--plain-line);
+  border-radius: 4px;
+}
+
+.l2a-console .mission-section__signal {
+  width: 3px;
+  height: 16px;
+}
+
+.l2a-console .control-group {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top-color: #e0e7eb;
+}
+
+.l2a-console .control-group legend {
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.l2a-console .control-field,
+.l2a-console .roi-grid label,
+.l2a-console .rgb-grid label {
+  color: var(--plain-muted);
+  font-size: 12px;
+}
+
+.l2a-console .control-field input,
+.l2a-console .control-field select,
+.l2a-console .roi-grid input,
+.l2a-console .rgb-grid select {
+  min-height: 34px;
+  color: var(--plain-ink);
+  font-size: 13px;
+  background: var(--plain-panel);
+  border-color: #cfdbe1;
+  border-radius: 4px;
+}
+
+.l2a-console .control-field input:focus,
+.l2a-console .control-field select:focus,
+.l2a-console .roi-grid input:focus,
+.l2a-console .rgb-grid select:focus {
+  border-color: var(--plain-primary);
+  box-shadow: 0 0 0 2px rgb(46 125 163 / 12%);
+}
+
+.l2a-console .control-field input:read-only {
+  color: var(--plain-muted);
+  background: #f4f7f8;
+}
+
+.l2a-console .control-field input:disabled,
+.l2a-console .control-field select:disabled,
+.l2a-console .roi-grid input:disabled,
+.l2a-console .rgb-grid select:disabled {
+  color: #8b9ca7;
+  background: #f4f7f8;
+  border-color: #e0e7eb;
+}
+
+.l2a-console .spectral-channel {
+  color: #657784;
+  background: #fff;
+  border-color: #cfdce2;
+  border-radius: 4px;
+  opacity: 1;
+}
+
+.l2a-console .spectral-channel:hover:not(:has(input:disabled)) {
+  transform: none;
+}
+
+.l2a-console .spectral-channel.is-selected {
+  color: #155d7a;
+  background: #e6f4fa;
+  border-color: var(--plain-primary);
+  box-shadow: inset 0 0 0 1px var(--plain-primary);
+}
+
+.l2a-console .spectral-channel:not(.is-selected) .spectral-channel__bar {
+  opacity: 0.28;
+}
+
+.l2a-console .spectral-channel__bar {
+  border-radius: 1px;
+}
+
+.l2a-console .spectral-channel strong {
+  font-size: 12px;
+}
+
+.l2a-console .spectral-channel small {
+  color: var(--plain-muted);
+  font-size: 11px;
+}
+
+.l2a-console .toggle-control > span {
+  background: #97aab5;
+}
+
+.l2a-console .toggle-control input:checked + span {
+  background: var(--plain-primary);
+}
+
+.l2a-console .toggle-control small {
+  color: var(--plain-muted);
+  font-size: 11px;
+}
+
+.l2a-console .chip-list span {
+  padding: 5px 7px;
+  color: #657784;
+  font-size: 12px;
+  background: #fff;
+  border-color: #cfdce2;
+  border-radius: 3px;
+}
+
+.l2a-console .chip-list input:checked + span {
+  color: #155d7a;
+  font-weight: 600;
+  background: #e6f4fa;
+  border-color: var(--plain-primary);
+  box-shadow: inset 0 0 0 1px var(--plain-primary);
+}
+
+.parameter-drawer__footer > span {
+  color: var(--plain-muted);
+  font-size: 12px;
+}
+
+.parameter-drawer__footer > span.is-invalid {
+  color: var(--plain-danger);
+}
+
+.satellite-workspace :is(button, select, input, label):focus-visible,
+.satellite-workspace .visually-hidden:focus-visible + .file-slot__picker,
+.l2a-console .spectral-channel:has(input:focus-visible),
+.l2a-console .toggle-control:has(input:focus-visible),
+.l2a-console .chip-list label:has(input:focus-visible) span,
+.parameter-drawer__close:focus-visible {
+  outline-color: var(--plain-primary);
+}
+
+@media (max-width: 760px) {
+  .satellite-workspace {
+    padding-inline: 10px;
+  }
+
+  .satellite-workspace .mission-panel__masthead {
+    align-items: flex-start;
+  }
+
+  :deep(.mission-parameter-drawer .el-drawer__header) {
+    padding: 16px 14px 12px;
+  }
+
+  :deep(.mission-parameter-drawer .el-drawer__body) {
+    padding-inline: 14px;
+  }
+}
+</style>
+
+<style lang="less">
+@import "../../features/multisource/unifiedProductParameterDrawer.less";
 </style>

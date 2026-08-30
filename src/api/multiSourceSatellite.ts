@@ -1,27 +1,21 @@
 import { http } from "@/utils/http";
+import { startBrowserDownload } from "@/utils/browserDownload";
 import type { Result } from "@/api/api";
 import type {
   ProductFileRole,
   SlotId
 } from "@/features/multisource/productTemplates";
-import type { Gf6L1aRole } from "@/features/multisource/gf6WfvL1aTemplate";
 
 export interface UploadStaticFileResponse {
   id: string | number;
 }
 
+export type UploadProgressHandler = (percentage: number) => void;
+
 export interface ProcessingAssetRequest {
   sourceType: "SYS_FILE";
   sourceId: string | number;
   role: ProductFileRole;
-  ordinal: 0;
-  required: true;
-}
-
-export interface Gf6L1aAssetRequest {
-  sourceType: "SYS_FILE";
-  sourceId: string | number;
-  role: Gf6L1aRole;
   ordinal: number;
   required: boolean;
 }
@@ -35,6 +29,17 @@ export interface PreflightCandidate {
   packageId: string;
   supportStatus: string;
   confidence: number;
+  profileKey?: ProcessingProfileKey;
+}
+
+export interface ProcessingProfileKey {
+  productCode: string;
+  profileVersion: string;
+}
+
+export interface ResultDownloadTicketResponse {
+  ticket: string;
+  expiresAt: string;
 }
 
 export interface PreflightResponse {
@@ -51,13 +56,17 @@ export interface CreateProcessingTaskRequest {
   parameterSnapshot: string;
 }
 
+// The backend serializes Java long values outside Number.MAX_SAFE_INTEGER as
+// strings. Keep both forms because small IDs remain JSON numbers.
+export type ProcessingIdentifier = string | number;
+
 export interface TaskIdResponse {
-  taskId: number;
+  taskId: ProcessingIdentifier;
 }
 
 export interface DispatchProcessingStageResponse {
   dispatched: boolean;
-  stageId: number | null;
+  stageId: ProcessingIdentifier | null;
 }
 
 export type ProcessingLifecycleStatus =
@@ -69,35 +78,56 @@ export type ProcessingLifecycleStatus =
   | "CANCELED";
 
 export interface ExecutionProgressStage {
-  stageId: number;
+  stageId: ProcessingIdentifier;
   stageKey: string;
+  stageCode?: string;
   status: string;
   attempt: number;
+  executionId?: string | number;
+  startedAt?: string;
+  finishedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 export interface ExecutionProgressArtifact {
-  stageId: number;
+  stageId: ProcessingIdentifier;
   type: string;
   uri: string;
   checksum: string;
+  sizeBytes?: number;
+  retention?: "INTERMEDIATE" | "FINAL" | string;
+  downloadable?: boolean;
 }
 
 export interface ExecutionProgressResponse {
-  taskId: number;
+  taskId: ProcessingIdentifier;
   lifecycleStatus: ProcessingLifecycleStatus;
   qualityStatus: string;
   stages: ExecutionProgressStage[];
   artifacts: ExecutionProgressArtifact[];
 }
 
-export const uploadStaticFile = (file: File) => {
+export const uploadStaticFile = (
+  file: File,
+  onProgress?: UploadProgressHandler
+) => {
   const form = new FormData();
   form.append("file", file);
   return http.request<Result<UploadStaticFileResponse>>(
     "post",
     "/system/file/uploadStatic",
     {
-      data: form
+      data: form,
+      // HY-1C L2A HDF5 files can be several gigabytes; do not apply the
+      // short global request timeout to an active file upload.
+      timeout: 0,
+      onUploadProgress: event => {
+        if (!event.total) return;
+        onProgress?.(
+          Math.min(100, Math.round((event.loaded / event.total) * 100))
+        );
+      }
     }
   );
 };
@@ -118,40 +148,58 @@ export const createProcessingTask = (data: CreateProcessingTaskRequest) =>
     { data }
   );
 
-export const dispatchProcessingTask = (taskId: number) =>
+export const dispatchProcessingTask = (taskId: ProcessingIdentifier) =>
   http.request<Result<DispatchProcessingStageResponse>>(
     "post",
-    `/api/multisource/processing-tasks/${taskId}/dispatch`
+    `/api/multisource/processing-tasks/${taskId}/dispatch`,
+    {
+      // A full-swath L2A grid can legitimately run for several minutes.
+      timeout: 0
+    }
   );
 
-export const startProcessingTask = (taskId: number) =>
-  http.request<Result<{ taskId: number; status: string }>>(
-    "post",
-    `/api/multisource/processing-tasks/${taskId}/start`
-  );
-
-export const getProcessingProgress = (taskId: number) =>
+export const getProcessingProgress = (taskId: ProcessingIdentifier) =>
   http.request<Result<ExecutionProgressResponse>>(
     "get",
     `/api/multisource/processing-tasks/${taskId}/progress`
   );
 
-export const cancelProcessingTask = (taskId: number) =>
+export const cancelProcessingTask = (taskId: ProcessingIdentifier) =>
   http.request<Result<void>>(
     "post",
     `/api/multisource/processing-tasks/${taskId}/cancel`
   );
 
-export const retryProcessingStage = (stageId: number) =>
+export const retryProcessingStage = (stageId: ProcessingIdentifier) =>
   http.request<Result<void>>(
     "post",
     `/api/multisource/processing-stages/${stageId}/retry`
   );
 
-export const downloadProcessingResult = (taskId: number) =>
+export const downloadProcessingResult = async (
+  taskId: ProcessingIdentifier,
+  fileName: string
+) => {
+  const response = await http.request<Result<ResultDownloadTicketResponse>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/result-download-ticket`,
+    { data: { fileName } }
+  );
+  const ticket = response.data?.ticket;
+  if (!ticket) throw new Error("后端未返回下载凭证");
+  startBrowserDownload(
+    `/api/multisource/processing-tasks/${taskId}/result.zip?ticket=${encodeURIComponent(ticket)}`
+  );
+  return true;
+};
+
+export const downloadProcessingArtifact = (
+  taskId: ProcessingIdentifier,
+  type: string
+) =>
   http.request<Blob>(
     "get",
-    `/api/multisource/processing-tasks/${taskId}/result.zip`,
+    `/api/multisource/processing-tasks/${taskId}/artifacts/${encodeURIComponent(type)}/download`,
     {
       responseType: "blob"
     }
