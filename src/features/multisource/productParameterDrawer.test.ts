@@ -129,10 +129,10 @@ test("FY-4B and GF-6 drawers expose their constrained engineering controls", () 
   assert.match(gf6Drawer, /<template #header="\{ titleId \}"\s*>/);
   assert.match(gf6Drawer, /<h2 :id="titleId">GF-6 WFV L1A 参数<\/h2>/);
   assert.match(gf6Drawer, /GF-6 WFV L1A 参数/);
-  assert.match(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
-  assert.match(gf6Drawer, /UNVALIDATED/);
-  assert.match(gf6Drawer, /accuracyStatus=UNVALIDATED/);
-  assert.match(gf6Drawer, /CANDIDATE_ONLY/);
+  assert.doesNotMatch(gf6Drawer, /OUTPUT PROFILE/);
+  assert.doesNotMatch(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
+  assert.doesNotMatch(gf6Drawer, /accuracyStatus=UNVALIDATED/);
+  assert.doesNotMatch(gf6Drawer, /CANDIDATE_ONLY/);
   assert.match(gf6Drawer, /rpcHeightMode/);
   assert.match(gf6Drawer, /rpcHeight/);
   assert.match(gf6Drawer, /form\.resolution/);

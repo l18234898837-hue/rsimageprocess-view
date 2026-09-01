@@ -820,7 +820,6 @@
       :metadata-file="slots.metadataXml.file"
       :locked="isConfigurationLocked"
       :issues="gf6ParameterIssues"
-      :summary="gf6Summary"
       @update-form="updateGf6Form"
     />
   </section>

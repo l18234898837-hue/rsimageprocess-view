@@ -26,17 +26,6 @@
         </button></div
     ></template>
     <div class="drawer-body">
-      <div class="profile-signal">
-        <div>
-          <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
-        </div>
-        <code>RPC HEIGHT 0m</code>
-      </div>
-      <div class="engineering-warning" role="note">
-        <strong>NOMINAL_RPC_NO_DEM</strong><span>无 DEM 名义 RPC。</span
-        ><strong>accuracyStatus=UNVALIDATED</strong><span>定位精度未验证。</span
-        ><strong>CANDIDATE_ONLY</strong><span>显著性仅为候选区域。</span>
-      </div>
       <fieldset :disabled="locked">
         <legend>工程网格</legend>
         <div class="field-grid">
@@ -278,7 +267,6 @@ const props = defineProps<{
   metadataFile?: File;
   locked: boolean;
   issues: { field: string; message: string }[];
-  summary: { grid: string };
 }>();
 const emit = defineEmits<{ "update-form": [value: Gf6WfvL1aForm] }>();
 const rpcHeightMode = "CONSTANT" as const;
