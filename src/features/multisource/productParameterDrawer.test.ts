@@ -169,3 +169,20 @@ test("workspace selects FY-4B and GF-6 parameter contracts with integrated stage
     /STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品"/
   );
 });
+
+test("GF-6 drawer limits algorithm controls to the selected processing steps", () => {
+  const drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(drawer, /visibleSteps/);
+  assert.match(drawer, /visibleSteps\.includes\(['"]feature-extraction['"]\)/);
+  assert.match(drawer, /visibleSteps\.includes\(['"]rgb-fusion['"]\)/);
+  assert.match(drawer, /visibleSteps\.includes\(['"]anomaly-detection['"]\)/);
+  assert.match(workspace, /:visible-steps="processingPlan\.resolvedSteps"/);
+});

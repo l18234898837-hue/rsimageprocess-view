@@ -826,6 +826,7 @@
       v-model="isParameterDrawerOpen"
       :form="gf6Form"
       :metadata-file="slots.metadataXml.file"
+      :visible-steps="processingPlan.resolvedSteps"
       :locked="isConfigurationLocked"
       :issues="gf6ParameterIssues"
       @update-form="updateGf6Form"

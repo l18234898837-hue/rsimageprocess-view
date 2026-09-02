@@ -83,7 +83,10 @@
           >
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('feature-extraction')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>特征提取</span
           ><label class="toggle"
@@ -120,7 +123,7 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
         <legend class="toggle-heading">
           <span>RGB 融合</span
           ><label class="toggle"
@@ -182,7 +185,10 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('anomaly-detection')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>显著性检测</span
           ><label class="toggle"
@@ -265,6 +271,7 @@ const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
   form: Gf6WfvL1aForm;
   metadataFile?: File;
+  visibleSteps: readonly string[];
   locked: boolean;
   issues: { field: string; message: string }[];
 }>();
