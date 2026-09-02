@@ -186,3 +186,17 @@ test("GF-6 drawer limits algorithm controls to the selected processing steps", (
   assert.match(drawer, /visibleSteps\.includes\(['"]anomaly-detection['"]\)/);
   assert.match(workspace, /:visible-steps="processingPlan\.resolvedSteps"/);
 });
+
+test("product parameter drawers use an inset, content-sized floating workbench", () => {
+  const styles = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(styles, /top:\s*24px;/);
+  assert.match(styles, /right:\s*24px;/);
+  assert.match(styles, /bottom:\s*24px;/);
+  assert.match(styles, /height:\s*fit-content;/);
+  assert.match(styles, /max-height:\s*calc\(100vh - 48px\);/);
+  assert.match(styles, /\.el-drawer__body\s*\{[\s\S]*?overflow-y:\s*auto;/);
+});

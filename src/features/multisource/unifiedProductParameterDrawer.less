@@ -21,15 +21,23 @@
   --drawer-font-title: 1.375rem;
   --drawer-control-height: 2.5rem;
 
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  bottom: 24px;
+  height: fit-content;
+  max-height: calc(100vh - 48px);
   min-height: 0;
+  overflow: hidden;
   font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
   font-size: var(--drawer-font-section);
   line-height: 1.5;
   color: var(--drawer-ink);
   color-scheme: light;
   background: var(--drawer-canvas);
-  border-left: 1px solid var(--drawer-line);
-  box-shadow: -14px 0 38px rgb(24 50 71 / 14%);
+  border: 1px solid var(--drawer-line);
+  border-radius: 4px;
+  box-shadow: -8px 8px 24px rgb(36 55 70 / 16%);
 }
 
 .product-parameter-drawer.mission-parameter-drawer {
@@ -195,7 +203,7 @@
   margin: 16px 0 0;
   background: var(--drawer-panel);
   border: 1px solid var(--drawer-line);
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
 .product-parameter-drawer fieldset:disabled,
@@ -721,7 +729,11 @@
 
 @media (width <= 560px) {
   .product-parameter-drawer {
-    width: 100% !important;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: calc(100vw - 32px) !important;
+    max-height: calc(100vh - 32px);
   }
 
   .product-parameter-drawer .el-drawer__header,
