@@ -24,3 +24,11 @@ test("multisource workspace integrates the plan before upload and requires a tar
   assert.match(workspace, /selectedTargets\.value\.length > 0/);
   assert.match(workspace, /function updateSelectedTargets/);
 });
+
+test("multisource workspace places file upload before processing plan selection", () => {
+  assert.ok(workspace.indexOf('aria-labelledby="package-title"') >= 0);
+  assert.ok(
+    workspace.indexOf('aria-labelledby="package-title"') <
+      workspace.indexOf("<ProcessingPlanPanel")
+  );
+});

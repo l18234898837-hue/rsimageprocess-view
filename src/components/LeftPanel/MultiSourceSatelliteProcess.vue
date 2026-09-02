@@ -42,14 +42,6 @@
       </small>
     </div>
 
-    <ProcessingPlanPanel
-      :target-steps="targetSteps"
-      :plan-steps="resolvedPlanSteps"
-      :selected-targets="selectedTargets"
-      :disabled="isTaskActive || isBusy || isUploading"
-      @update:selected-targets="updateSelectedTargets"
-    />
-
     <section class="mission-section" aria-labelledby="package-title">
       <div class="mission-section__heading">
         <div>
@@ -139,6 +131,14 @@
         </span>
       </div>
     </section>
+
+    <ProcessingPlanPanel
+      :target-steps="targetSteps"
+      :plan-steps="resolvedPlanSteps"
+      :selected-targets="selectedTargets"
+      :disabled="isTaskActive || isBusy || isUploading"
+      @update:selected-targets="updateSelectedTargets"
+    />
 
     <section
       v-if="isHy1c"
