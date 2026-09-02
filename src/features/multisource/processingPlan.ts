@@ -21,7 +21,7 @@ function assertSelectableTargets(
   for (const stepKey of targetStepKeys) {
     const step = stepsByKey.get(stepKey);
     if (!step) throw new Error(`Unsupported processing step: ${stepKey}`);
-    if (step.kind !== "target") {
+    if (step.kind !== "target" && step.selectable !== true) {
       throw new Error(`Processing step is not a selectable target: ${stepKey}`);
     }
   }

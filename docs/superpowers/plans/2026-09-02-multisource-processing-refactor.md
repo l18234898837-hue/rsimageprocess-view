@@ -265,3 +265,47 @@ Expected: changed source files remain within the multi-source module, its existi
 git add docs/superpowers src/components/LeftPanel/multisource src/components/LeftPanel/MultiSourceSatelliteProcess.vue src/features/multisource src/api/multiSourceSatellite.ts
 git commit -m "test(multisource): verify processing flow refactor"
 ```
+
+### Task 7: 可独立执行步骤与按步骤参数抽屉
+
+**Files:**
+
+- Modify: `src/features/multisource/pipelineDefinitions.ts`
+- Modify: `src/features/multisource/processingPlan.ts`
+- Modify: `src/components/LeftPanel/ProcessingPlanPanel.vue`
+- Modify: `src/components/LeftPanel/MultiSourceSatelliteProcess.vue`
+- Modify: `src/features/multisource/pipelineDefinitions.test.ts`
+- Modify: `src/features/multisource/processingPlanPanel.test.ts`
+
+**Interfaces:**
+
+- Consumes: 现有产品表单、步骤定义和依赖解析。
+- Produces: 可单独选择预处理的目标步骤；纵向选择列表；仅渲染已解析步骤对应参数区段的抽屉状态。
+
+- [ ] **Step 1: Write failing tests**
+
+断言影像产品和 HY-2D 的预处理根步骤可单独选择；断言功能区使用单行复选项；断言预处理单选时参数抽屉不会渲染特征、融合或显著性控制区段。
+
+- [ ] **Step 2: Run focused tests to verify failure**
+
+Run: `pnpm exec tsx --test src/features/multisource/pipelineDefinitions.test.ts src/features/multisource/processingPlanPanel.test.ts`
+
+Expected: FAIL because preprocessing is only a system dependency and the drawer still displays all product controls.
+
+- [ ] **Step 3: Implement selectable preprocessing and scoped drawers**
+
+将每个产品流程中的可独立预处理终点标记为可选目标，同时保留其内部依赖的自动锁定关系。处理计划面板改为单列步骤行；父组件根据解析计划为各现有参数抽屉传递可见步骤集合，抽屉仅渲染该集合对应的字段组。
+
+- [ ] **Step 4: Run focused and multisource tests**
+
+Run: `pnpm exec tsx --test src/features/multisource/pipelineDefinitions.test.ts src/features/multisource/processingPlanPanel.test.ts`
+Run: `pnpm test:multisource`
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/features/multisource src/components/LeftPanel/MultiSourceSatelliteProcess.vue src/components/LeftPanel/ProcessingPlanPanel.vue docs/superpowers
+git commit -m "feat(multisource): scope processing steps and parameters"
+```

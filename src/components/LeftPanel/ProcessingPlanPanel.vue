@@ -118,17 +118,17 @@ function toggleTarget(stepKey: string) {
 
 .processing-plan__targets {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   margin-top: 12px;
 }
 
 .processing-plan__target {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 10px;
+  padding: 11px 12px;
   color: #405665;
   background: #f7fafb;
   border: 1px solid #dce5ea;
@@ -217,8 +217,8 @@ function toggleTarget(stepKey: string) {
 }
 
 @media (max-width: 640px) {
-  .processing-plan__targets {
-    grid-template-columns: 1fr;
+  .processing-plan__header {
+    align-items: flex-start;
   }
 }
 </style>

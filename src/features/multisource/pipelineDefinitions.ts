@@ -6,6 +6,7 @@ export interface StepDefinition {
   readonly title: string;
   readonly productTitle?: string;
   readonly kind: StepKind;
+  readonly selectable?: boolean;
   readonly dependsOn: readonly string[];
   readonly configurable: boolean;
   readonly parallelGroup?: string;
@@ -29,6 +30,7 @@ const imageSystemSteps: readonly StepDefinition[] = [
     key: "preprocess",
     title: "预处理",
     kind: "system",
+    selectable: true,
     dependsOn: ["upload-validation"],
     configurable: true
   },
@@ -134,6 +136,7 @@ const PIPELINES: readonly PipelineDefinition[] = [
         key: "along-track-decode",
         title: "沿轨解码",
         kind: "system",
+        selectable: true,
         dependsOn: ["upload-validation"],
         configurable: false
       },
@@ -200,7 +203,7 @@ export function getPipelineDefinition(productId: string): PipelineDefinition {
 
 export function getTargetSteps(productId: string): readonly StepDefinition[] {
   return getPipelineDefinition(productId).steps.filter(
-    step => step.kind === "target"
+    step => step.kind === "target" || step.selectable === true
   );
 }
 

@@ -24,7 +24,7 @@ test("image products expose the shared selectable processing capabilities", () =
     assert.equal(getPipelineDefinition(template.id).pipelineType, "image");
     assert.deepEqual(
       getTargetSteps(template.id).map(step => step.key),
-      ["feature-extraction", "rgb-fusion", "anomaly-detection"]
+      ["preprocess", "feature-extraction", "rgb-fusion", "anomaly-detection"]
     );
   }
 });
@@ -36,6 +36,7 @@ test("HY-2D keeps an independent along-track pipeline", () => {
   assert.deepEqual(
     getTargetSteps(HY2D_ALTIMETER_TEMPLATE.id).map(step => step.key),
     [
+      "along-track-decode",
       "along-track-feature-extraction",
       "anomaly-detection",
       "track-gridding",
