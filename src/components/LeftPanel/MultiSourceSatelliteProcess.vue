@@ -42,6 +42,14 @@
       </small>
     </div>
 
+    <ProcessingPlanPanel
+      :target-steps="targetSteps"
+      :plan-steps="resolvedPlanSteps"
+      :selected-targets="selectedTargets"
+      :disabled="isTaskActive || isBusy || isUploading"
+      @update:selected-targets="updateSelectedTargets"
+    />
+
     <section class="mission-section" aria-labelledby="package-title">
       <div class="mission-section__heading">
         <div>
@@ -836,6 +844,7 @@ import {
   Setting
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
+import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
 import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterDrawer.vue";
 import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
 import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
@@ -876,6 +885,14 @@ import {
   processingStartSuccessMessage,
   translateProcessingErrorMessage
 } from "@/features/multisource/processingTaskRules";
+import {
+  getPipelineDefinition,
+  getTargetSteps
+} from "@/features/multisource/pipelineDefinitions";
+import {
+  resolveProcessingPlan,
+  type ProcessingPlan
+} from "@/features/multisource/processingPlan";
 import {
   FY3H_MERSI_TEMPLATE,
   FY4B_AGRI_TEMPLATE,
@@ -949,6 +966,7 @@ const fy4bForm = reactive(defaultFy4bAgriForm());
 const gf6Form = reactive(defaultGf6WfvL1aForm());
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
+const selectedTargets = ref<string[]>([]);
 const {
   activeTemplate,
   slots,
@@ -985,6 +1003,18 @@ const isFy4b = computed(
 );
 const isGf6WfvL1a = computed(
   () => activeTemplate.value.id === GF6_WFV_L1A_TEMPLATE.id
+);
+const pipelineDefinition = computed(() =>
+  getPipelineDefinition(activeTemplate.value.id)
+);
+const targetSteps = computed(() => getTargetSteps(activeTemplate.value.id));
+const processingPlan = computed<ProcessingPlan>(() =>
+  resolveProcessingPlan(pipelineDefinition.value, selectedTargets.value)
+);
+const resolvedPlanSteps = computed(() =>
+  processingPlan.value.resolvedSteps
+    .map(key => pipelineDefinition.value.steps.find(step => step.key === key))
+    .filter((step): step is NonNullable<typeof step> => Boolean(step))
 );
 const templateLockMessage = computed(() => {
   if (isUploading.value) return "文件正在上传；上传结束后才能切换模板。";
@@ -1079,7 +1109,8 @@ const canStart = computed(
   () =>
     allSlotsUploaded.value &&
     validation.value.valid &&
-    activeParametersValid.value
+    activeParametersValid.value &&
+    selectedTargets.value.length > 0
 );
 const isTerminal = computed(() =>
   ["SUCCEEDED", "FAILED", "CANCELED"].includes(taskStatus.value || "")
@@ -1119,6 +1150,24 @@ function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
   Object.assign(gf6Form, value);
 }
 
+function updateSelectedTargets(value: string[]) {
+  selectedTargets.value = value;
+  const enabled = new Set(value);
+  l2aForm.algorithms.features.enabled = enabled.has("feature-extraction");
+  l2aForm.algorithms.fusion.enabled = enabled.has("rgb-fusion");
+  l2aForm.algorithms.saliency.enabled = enabled.has("anomaly-detection");
+  fy3hForm.features.enabled = enabled.has("feature-extraction");
+  fy3hForm.fusion.enabled = enabled.has("rgb-fusion");
+  fy3hForm.saliency.enabled = enabled.has("anomaly-detection");
+  fy4bForm.features.enabled = enabled.has("feature-extraction");
+  fy4bForm.fusion.enabled = enabled.has("rgb-fusion");
+  fy4bForm.saliency.enabled = enabled.has("anomaly-detection");
+  gf6Form.features.enabled = enabled.has("feature-extraction");
+  gf6Form.fusion.enabled = enabled.has("rgb-fusion");
+  gf6Form.saliency.enabled = enabled.has("anomaly-detection");
+  hy2dForm.grid.enabled = enabled.has("track-gridding");
+}
+
 function slotStatusLabel(status: string) {
   const labels: Record<string, string> = {
     EMPTY: "待上传",
@@ -1152,6 +1201,7 @@ function handleTemplateChange(event: Event) {
     Object.assign(hy2dForm, defaultHy2dAltimeterForm());
     Object.assign(fy4bForm, defaultFy4bAgriForm());
     Object.assign(gf6Form, defaultGf6WfvL1aForm());
+    selectedTargets.value = [];
     isParameterDrawerOpen.value = false;
   } catch (error) {
     select.value = activeTemplate.value.id;
