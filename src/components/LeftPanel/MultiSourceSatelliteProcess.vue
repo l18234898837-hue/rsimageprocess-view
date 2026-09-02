@@ -1124,11 +1124,18 @@ const validationMessages = computed(() => {
     ...result.productIssues
   ];
 });
-const isPackageContentVisible = computed(
-  () =>
-    isPackageExpanded.value ||
+const hasPackageAttention = computed(() => {
+  const result = validation.value;
+  return (
     isUploading.value ||
-    validationMessages.value.length > 0
+    activeTemplate.value.slots.some(slot => Boolean(slots[slot.id].error)) ||
+    result.invalidExtensions.length > 0 ||
+    result.mismatchedBasenames ||
+    result.productIssues.length > 0
+  );
+});
+const isPackageContentVisible = computed(
+  () => isPackageExpanded.value || hasPackageAttention.value
 );
 const canStart = computed(
   () =>

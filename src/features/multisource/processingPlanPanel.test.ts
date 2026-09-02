@@ -42,12 +42,17 @@ test("multisource workspace places file upload before processing plan selection"
   );
 });
 
-test("product package starts collapsed and expands while attention is required", () => {
+test("product package stays collapsed for missing uploads but expands for actionable errors", () => {
   assert.match(workspace, /const isPackageExpanded = ref\(false\)/);
   assert.match(workspace, /const isPackageContentVisible = computed\(/);
+  assert.match(workspace, /const hasPackageAttention = computed\(/);
   assert.match(
     workspace,
-    /isPackageExpanded\.value\s*\|\|\s*isUploading\.value\s*\|\|\s*validationMessages\.value\.length\s*>\s*0/
+    /isPackageExpanded\.value\s*\|\|\s*hasPackageAttention\.value/
+  );
+  assert.doesNotMatch(
+    workspace,
+    /isPackageExpanded\.value\s*\|\|\s*isUploading\.value\s*\|\|\s*validationMessages\.value\.length/
   );
   assert.match(workspace, /@click="togglePackageExpanded"/);
   assert.match(workspace, /v-if="isPackageContentVisible"/);
