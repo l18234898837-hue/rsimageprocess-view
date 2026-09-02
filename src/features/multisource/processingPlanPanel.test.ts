@@ -18,6 +18,15 @@ test("processing plan panel exposes selectable targets and automatic prerequisit
   assert.match(panel, /:disabled="disabled"/);
 });
 
+test("selected processing targets expand their detail and configuration entry", () => {
+  assert.match(panel, /processing-plan__detail/);
+  assert.match(panel, /v-if="selectedTargets\.includes\(step\.key\)"/);
+  assert.match(panel, /getPrerequisiteSteps\(step\)/);
+  assert.match(panel, /configure:\s*\[\]/);
+  assert.match(panel, /@click="emit\('configure'\)"/);
+  assert.match(workspace, /@configure="isParameterDrawerOpen = true"/);
+});
+
 test("multisource workspace integrates the plan before upload and requires a target", () => {
   assert.match(workspace, /<ProcessingPlanPanel/);
   assert.match(workspace, /:target-steps="targetSteps"/);

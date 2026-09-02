@@ -138,6 +138,7 @@
       :selected-targets="selectedTargets"
       :disabled="isTaskActive || isBusy || isUploading"
       @update:selected-targets="updateSelectedTargets"
+      @configure="isParameterDrawerOpen = true"
     />
 
     <section
