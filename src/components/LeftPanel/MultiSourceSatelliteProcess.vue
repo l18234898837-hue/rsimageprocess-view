@@ -48,88 +48,103 @@
           <span class="mission-section__signal" aria-hidden="true" />
           <strong id="package-title">产品包</strong>
         </div>
-        <span>{{ uploadedSlotCount }}/{{ activeTemplate.slots.length }}</span>
+        <button
+          class="package-toggle"
+          type="button"
+          :aria-expanded="isPackageContentVisible"
+          :title="isPackageContentVisible ? '收起产品包' : '展开产品包'"
+          @click="togglePackageExpanded"
+        >
+          <span>{{ uploadedSlotCount }}/{{ activeTemplate.slots.length }}</span>
+          <el-icon :class="{ 'is-expanded': isPackageContentVisible }">
+            <ArrowDown />
+          </el-icon>
+        </button>
       </div>
       <p class="mission-section__note">
         {{ activeTemplate.packageRequirements }}
       </p>
 
-      <div class="file-stack">
-        <article
-          v-for="slot in activeTemplate.slots"
-          :key="`${activeTemplate.id}-${slot.id}`"
-          class="file-slot"
-          :class="`is-${slots[slot.id].status.toLowerCase()}`"
-        >
-          <div class="file-slot__meta">
-            <div>
-              <strong>{{ slot.label }}</strong>
-              <small>{{ slot.role }} · {{ slot.extensions.join(" / ") }}</small>
+      <template v-if="isPackageContentVisible">
+        <div class="file-stack">
+          <article
+            v-for="slot in activeTemplate.slots"
+            :key="`${activeTemplate.id}-${slot.id}`"
+            class="file-slot"
+            :class="`is-${slots[slot.id].status.toLowerCase()}`"
+          >
+            <div class="file-slot__meta">
+              <div>
+                <strong>{{ slot.label }}</strong>
+                <small
+                  >{{ slot.role }} · {{ slot.extensions.join(" / ") }}</small
+                >
+              </div>
+              <span>{{ slotStatusLabel(slots[slot.id].status) }}</span>
             </div>
-            <span>{{ slotStatusLabel(slots[slot.id].status) }}</span>
-          </div>
-          <input
-            :id="`file-${activeTemplate.id}-${slot.id}`"
-            class="visually-hidden"
-            type="file"
-            :accept="slot.extensions.join(',')"
-            :disabled="isTaskActive || isBusy"
-            @change="handleFileChange(slot.id, $event)"
-          />
-          <label
-            class="file-slot__picker"
-            :class="{ 'is-disabled': isTaskActive || isBusy }"
-            :for="`file-${activeTemplate.id}-${slot.id}`"
-          >
-            <el-icon><DocumentAdd /></el-icon>
-            <span>{{ slots[slot.id].file?.name || "选择文件" }}</span>
-          </label>
-          <div
-            v-if="slots[slot.id].status === 'UPLOADING'"
-            class="file-slot__progress"
-            aria-live="polite"
-          >
-            <div
-              class="file-slot__progress-track"
-              role="progressbar"
-              :aria-label="`${slot.label}上传进度`"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              :aria-valuenow="slots[slot.id].uploadProgress ?? 0"
+            <input
+              :id="`file-${activeTemplate.id}-${slot.id}`"
+              class="visually-hidden"
+              type="file"
+              :accept="slot.extensions.join(',')"
+              :disabled="isTaskActive || isBusy"
+              @change="handleFileChange(slot.id, $event)"
+            />
+            <label
+              class="file-slot__picker"
+              :class="{ 'is-disabled': isTaskActive || isBusy }"
+              :for="`file-${activeTemplate.id}-${slot.id}`"
             >
-              <span
-                :style="{
-                  width: `${slots[slot.id].uploadProgress ?? 0}%`
-                }"
-              />
+              <el-icon><DocumentAdd /></el-icon>
+              <span>{{ slots[slot.id].file?.name || "选择文件" }}</span>
+            </label>
+            <div
+              v-if="slots[slot.id].status === 'UPLOADING'"
+              class="file-slot__progress"
+              aria-live="polite"
+            >
+              <div
+                class="file-slot__progress-track"
+                role="progressbar"
+                :aria-label="`${slot.label}上传进度`"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-valuenow="slots[slot.id].uploadProgress ?? 0"
+              >
+                <span
+                  :style="{
+                    width: `${slots[slot.id].uploadProgress ?? 0}%`
+                  }"
+                />
+              </div>
+              <small>{{ slots[slot.id].uploadProgress ?? 0 }}%</small>
             </div>
-            <small>{{ slots[slot.id].uploadProgress ?? 0 }}%</small>
-          </div>
-          <small v-if="slots[slot.id].error" class="inline-error">
-            {{ slots[slot.id].error }}
-          </small>
-          <button
-            v-if="slots[slot.id].file"
-            class="file-slot__remove"
-            type="button"
-            title="移除文件"
-            :disabled="isTaskActive || isBusy"
-            @click="removeProductSlot(slot.id)"
-          >
-            <el-icon><Delete /></el-icon>
-          </button>
-        </article>
-      </div>
+            <small v-if="slots[slot.id].error" class="inline-error">
+              {{ slots[slot.id].error }}
+            </small>
+            <button
+              v-if="slots[slot.id].file"
+              class="file-slot__remove"
+              type="button"
+              title="移除文件"
+              :disabled="isTaskActive || isBusy"
+              @click="removeProductSlot(slot.id)"
+            >
+              <el-icon><Delete /></el-icon>
+            </button>
+          </article>
+        </div>
 
-      <div
-        v-if="validationMessages.length"
-        class="diagnostic-strip"
-        role="alert"
-      >
-        <span v-for="diagnostic in validationMessages" :key="diagnostic">
-          {{ diagnostic }}
-        </span>
-      </div>
+        <div
+          v-if="validationMessages.length"
+          class="diagnostic-strip"
+          role="alert"
+        >
+          <span v-for="diagnostic in validationMessages" :key="diagnostic">
+            {{ diagnostic }}
+          </span>
+        </div>
+      </template>
     </section>
 
     <ProcessingPlanPanel
@@ -843,6 +858,7 @@ import {
   Delete,
   DocumentAdd,
   Download,
+  ArrowDown,
   Setting
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
@@ -968,6 +984,7 @@ const fy4bForm = reactive(defaultFy4bAgriForm());
 const gf6Form = reactive(defaultGf6WfvL1aForm());
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
+const isPackageExpanded = ref(false);
 const selectedTargets = ref<string[]>([]);
 const {
   activeTemplate,
@@ -1107,6 +1124,12 @@ const validationMessages = computed(() => {
     ...result.productIssues
   ];
 });
+const isPackageContentVisible = computed(
+  () =>
+    isPackageExpanded.value ||
+    isUploading.value ||
+    validationMessages.value.length > 0
+);
 const canStart = computed(
   () =>
     allSlotsUploaded.value &&
@@ -1170,6 +1193,10 @@ function updateSelectedTargets(value: string[]) {
   hy2dForm.grid.enabled = enabled.has("track-gridding");
 }
 
+function togglePackageExpanded() {
+  isPackageExpanded.value = !isPackageExpanded.value;
+}
+
 function slotStatusLabel(status: string) {
   const labels: Record<string, string> = {
     EMPTY: "待上传",
@@ -1204,6 +1231,7 @@ function handleTemplateChange(event: Event) {
     Object.assign(fy4bForm, defaultFy4bAgriForm());
     Object.assign(gf6Form, defaultGf6WfvL1aForm());
     selectedTargets.value = [];
+    isPackageExpanded.value = false;
     isParameterDrawerOpen.value = false;
   } catch (error) {
     select.value = activeTemplate.value.id;
@@ -1437,6 +1465,37 @@ function resetTask() {
     10px/1.2 ui-monospace,
     "Cascadia Code",
     monospace;
+}
+
+.package-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  color: #2e7da3;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.package-toggle span {
+  font:
+    10px/1.2 ui-monospace,
+    "Cascadia Code",
+    monospace;
+}
+
+.package-toggle .el-icon {
+  transition: transform 150ms ease;
+}
+
+.package-toggle .el-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
+.package-toggle:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
 }
 
 .mission-section__signal {

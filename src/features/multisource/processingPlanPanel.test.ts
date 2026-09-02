@@ -41,3 +41,15 @@ test("multisource workspace places file upload before processing plan selection"
       workspace.indexOf("<ProcessingPlanPanel")
   );
 });
+
+test("product package starts collapsed and expands while attention is required", () => {
+  assert.match(workspace, /const isPackageExpanded = ref\(false\)/);
+  assert.match(workspace, /const isPackageContentVisible = computed\(/);
+  assert.match(
+    workspace,
+    /isPackageExpanded\.value\s*\|\|\s*isUploading\.value\s*\|\|\s*validationMessages\.value\.length\s*>\s*0/
+  );
+  assert.match(workspace, /@click="togglePackageExpanded"/);
+  assert.match(workspace, /v-if="isPackageContentVisible"/);
+  assert.match(workspace, /isPackageExpanded\.value = false;/);
+});
