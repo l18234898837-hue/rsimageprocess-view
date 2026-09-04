@@ -1,14 +1,36 @@
 <template>
   <section class="processing-plan" aria-labelledby="processing-plan-title">
     <div class="processing-plan__header">
-      <div>
-        <span class="processing-plan__eyebrow">PROCESSING PLAN</span>
-        <h4 id="processing-plan-title">选择处理功能</h4>
-        <p>先选择目标功能，系统会自动补齐必要的前置步骤。</p>
+      <div class="processing-plan__title-block">
+        <div class="processing-plan__title-row">
+          <h4 id="processing-plan-title">选择处理功能</h4>
+          <el-tooltip
+            content="先选择目标功能，系统会自动补齐必要的前置步骤。"
+            placement="top-start"
+            effect="light"
+            :show-after="180"
+          >
+            <button
+              class="processing-plan__help"
+              type="button"
+              aria-label="查看处理功能说明"
+            >
+              <el-icon><QuestionFilled /></el-icon>
+            </button>
+          </el-tooltip>
+        </div>
       </div>
-      <span class="processing-plan__count"
-        >{{ selectedTargets.length }} 项目标</span
-      >
+      <div class="processing-plan__header-meta">
+        <span
+          v-if="!selectedTargets.length"
+          class="processing-plan__empty-inline"
+          role="status"
+          >请选择至少一个处理功能</span
+        >
+        <span class="processing-plan__count"
+          >{{ selectedTargets.length }} 项目标</span
+        >
+      </div>
     </div>
 
     <div class="processing-plan__targets">
@@ -21,65 +43,95 @@
           <strong>{{ group.title }}</strong>
           <span>{{ group.steps.length }} 项</span>
         </div>
-        <label
+        <el-tooltip
           v-for="step in group.steps"
           :key="step.key"
-          class="processing-plan__target"
-          :class="{
-            'is-selected': checkedTargets.includes(step.key),
-            'is-automatic': isAutomaticTarget(step.key)
-          }"
+          class="processing-plan__target-tooltip"
+          :content="step.productTitle || step.title"
+          placement="top"
+          effect="light"
+          :offset="6"
+          :show-after="180"
         >
-          <input
-            type="checkbox"
-            :checked="checkedTargets.includes(step.key)"
-            :disabled="disabled || isLockedTarget(step.key)"
-            @change="toggleTarget(step.key)"
-          />
-          <span>
-            <strong>{{ step.title }}</strong>
-            <small v-if="step.productTitle">{{ step.productTitle }}</small>
-            <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
-              >自动依赖</small
-            >
-            <small
-              v-else-if="isLockedTarget(step.key)"
-              class="is-auto-label"
-              >必需前置</small
-            >
-          </span>
-        </label>
+          <label
+            class="processing-plan__target"
+            :class="{
+              'is-selected': checkedTargets.includes(step.key),
+              'is-automatic': isAutomaticTarget(step.key)
+            }"
+          >
+            <input
+              type="checkbox"
+              :checked="checkedTargets.includes(step.key)"
+              :disabled="disabled || isLockedTarget(step.key)"
+              @change="toggleTarget(step.key)"
+            />
+            <span>
+              <strong>{{ step.title }}</strong>
+              <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
+                >自动依赖</small
+              >
+              <small v-else-if="isLockedTarget(step.key)" class="is-auto-label"
+                >必需前置</small
+              >
+            </span>
+          </label>
+        </el-tooltip>
       </section>
     </div>
 
     <div v-if="planSteps.length" class="processing-plan__resolved">
       <div class="processing-plan__subheading">
-        <strong>执行计划</strong>
-        <span>自动依赖已补齐</span>
+        <div class="processing-plan__resolved-heading">
+          <strong>执行计划</strong>
+          <el-tooltip
+            v-if="automaticPlanSteps.length"
+            class="processing-plan__dependency-tooltip"
+            :content="automaticPlanSummary"
+            placement="top"
+            effect="light"
+            :show-after="180"
+          >
+            <button
+              class="processing-plan__dependency-summary"
+              type="button"
+              aria-label="查看自动补齐的前置步骤"
+            >
+              <el-icon><InfoFilled /></el-icon>
+              <span>已自动补齐 {{ automaticPlanSteps.length }} 个前置步骤</span>
+            </button>
+          </el-tooltip>
+        </div>
       </div>
       <div class="processing-plan__steps">
-        <template v-for="(step, index) in planSteps" :key="step.key">
-          <span v-if="index" class="processing-plan__arrow" aria-hidden="true"
-            >↓</span
-          >
+        <div
+          v-for="(step, index) in planSteps"
+          :key="step.key"
+          class="processing-plan__step-row"
+        >
           <div class="processing-plan__step" :class="`is-${step.kind}`">
             <span class="processing-plan__step-marker" aria-hidden="true" />
-            <span>
-              <strong>{{ step.title }}</strong>
-              <small>{{
-                step.kind === "target" ? "用户选择" : "系统自动添加"
-              }}</small>
+            <span class="processing-plan__step-copy">
+              <span class="processing-plan__step-title-row">
+                <strong>{{ step.title }}</strong>
+                <small class="processing-plan__step-status">{{
+                  step.kind === "target" ? "用户选择" : "系统自动添加"
+                }}</small>
+              </span>
+            </span>
+            <span class="processing-plan__step-index" aria-hidden="true">
+              {{ index + 1 }}
             </span>
           </div>
-        </template>
+        </div>
       </div>
     </div>
-    <p v-else class="processing-plan__empty">请选择至少一个处理功能。</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { InfoFilled, QuestionFilled } from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
 
 const props = defineProps<{
@@ -99,7 +151,7 @@ const emit = defineEmits<{
 const targetGroups = computed(() => {
   const groups = [
     { key: "preprocess", title: "预处理", steps: [] as StepDefinition[] },
-    { key: "derived", title: "派生处理", steps: [] as StepDefinition[] }
+    { key: "derived", title: "专题处理", steps: [] as StepDefinition[] }
   ];
   props.targetSteps.forEach(step => {
     const group = groups.find(item => item.key === (step.group || "derived"));
@@ -107,6 +159,13 @@ const targetGroups = computed(() => {
   });
   return groups.filter(group => group.steps.length);
 });
+
+const automaticPlanSteps = computed(() =>
+  props.planSteps.filter(step => step.kind === "system")
+);
+const automaticPlanSummary = computed(() =>
+  automaticPlanSteps.value.map(step => step.title).join("、")
+);
 
 function isAutomaticTarget(stepKey: string) {
   return (
@@ -145,17 +204,124 @@ function toggleTarget(stepKey: string) {
   gap: 12px;
 }
 
-.processing-plan__eyebrow,
+.processing-plan__title-block,
+.processing-plan__header-meta {
+  min-width: 0;
+}
+
+.processing-plan__title-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.processing-plan__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: #6c8490;
+  cursor: help;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+}
+
+.processing-plan__help .el-icon {
+  font-size: 14px;
+}
+
+.processing-plan__help:hover {
+  color: #206e8c;
+  background: #e6f2f6;
+}
+
+.processing-plan__help:focus-visible,
+.processing-plan__target:has(input:focus-visible) {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
 .processing-plan__subheading span,
 .processing-plan__count {
   color: #647585;
   font-size: 11px;
 }
 
+.processing-plan__subheading strong {
+  color: #314957;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.processing-plan__resolved-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.processing-plan__dependency-summary {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  color: #2e718d;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: help;
+  background: #edf7fa;
+  border: 1px solid #c7e3ea;
+  border-radius: 3px;
+}
+
+.processing-plan__dependency-summary:hover {
+  color: #1d5e79;
+  background: #e4f3f7;
+  border-color: #9fcbd8;
+}
+
+.processing-plan__dependency-summary .el-icon {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.processing-plan__dependency-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.processing-plan__dependency-summary:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
+.processing-plan__header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px 8px;
+  text-align: right;
+}
+
+.processing-plan__empty-inline {
+  color: #a66a34;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
 .processing-plan h4 {
-  margin: 4px 0;
+  margin: 0;
   color: #243746;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.25;
 }
 
 .processing-plan p {
@@ -181,9 +347,10 @@ function toggleTarget(stepKey: string) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 2px 0;
+  padding: 2px 2px 0;
   color: #243746;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .processing-plan__group-heading span {
@@ -196,12 +363,24 @@ function toggleTarget(stepKey: string) {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 11px 12px;
+  padding: 10px 11px;
   color: #405665;
   background: #f7fafb;
   border: 1px solid #dce5ea;
   border-radius: 4px;
   cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.processing-plan__target-tooltip {
+  display: block;
+}
+
+.processing-plan__target:hover:not(:has(input:disabled)) {
+  background: #f0f8fa;
+  border-color: #9fc6d4;
 }
 
 .processing-plan__target.is-selected {
@@ -227,17 +406,22 @@ function toggleTarget(stepKey: string) {
 }
 
 .processing-plan__target strong,
-.processing-plan__target small,
-.processing-plan__step strong,
-.processing-plan__step small {
+.processing-plan__target small {
   display: block;
 }
 
-.processing-plan__target small,
-.processing-plan__step small {
+.processing-plan__target strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.processing-plan__target small {
   margin-top: 3px;
   color: #647585;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.3;
 }
 
 .processing-plan__resolved {
@@ -247,33 +431,45 @@ function toggleTarget(stepKey: string) {
 }
 
 .processing-plan__steps {
-  display: flex;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 5px;
+  max-height: 132px;
   margin-top: 9px;
-  overflow-x: auto;
+  padding-right: 4px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.processing-plan__step-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
 }
 
 .processing-plan__step {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  min-width: 118px;
-  padding: 7px;
-  background: #f7fafb;
-  border: 1px solid #dce5ea;
-  border-radius: 3px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 9px;
+  background: #f8fbfc;
+  border: 1px solid #d6e2e8;
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgb(33 67 83 / 5%);
 }
 
 .processing-plan__step.is-target {
   background: #eef8f4;
   border-color: #b9daca;
+  box-shadow: 0 1px 3px rgb(51 132 103 / 10%);
 }
 
 .processing-plan__step-marker {
   width: 7px;
   height: 7px;
-  margin-top: 4px;
+  margin-top: 0;
   flex: 0 0 auto;
   background: #9eafb8;
   border-radius: 50%;
@@ -283,21 +479,66 @@ function toggleTarget(stepKey: string) {
   background: #338467;
 }
 
-.processing-plan__arrow {
-  align-self: center;
-  color: #9eafb8;
+.processing-plan__step-copy {
+  min-width: 0;
 }
 
-.processing-plan__empty {
-  margin-top: 12px !important;
-  padding: 10px;
-  background: #fafcfd;
-  border: 1px dashed #cbd9df;
+.processing-plan__step-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.processing-plan__step-title-row strong {
+  overflow: hidden;
+  color: #314957;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.processing-plan__step-status {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #71838e;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.processing-plan__step-index {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  color: #617783;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  background: #e8eef1;
+  border: 1px solid #cbd8de;
+  border-radius: 50%;
 }
 
 @media (max-width: 640px) {
   .processing-plan__header {
     align-items: flex-start;
+  }
+
+  .processing-plan__header-meta {
+    display: grid;
+    justify-items: end;
+  }
+
+  .processing-plan__resolved-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 }
 </style>

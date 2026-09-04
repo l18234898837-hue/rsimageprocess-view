@@ -1,25 +1,7 @@
-﻿<template>
-  <section
-    class="mission-panel satellite-workspace"
-    aria-labelledby="mission-panel-title"
-  >
-    <header class="mission-panel__masthead">
-      <div class="mission-panel__heading">
-        <span class="mission-panel__eyebrow"
-          >MISSION CONTROL / DATA INTAKE</span
-        >
-        <h3 id="mission-panel-title">卫星产品处理</h3>
-        <p>选择产品包，校验配置，然后下发处理任务。</p>
-      </div>
-      <div class="mission-panel__orbit" aria-hidden="true">
-        <span class="mission-panel__orbit-core" />
-        <span class="mission-panel__orbit-track is-one" />
-        <span class="mission-panel__orbit-track is-two" />
-      </div>
-    </header>
-
+<template>
+  <section class="mission-panel satellite-workspace" aria-label="卫星产品处理">
     <div class="mission-panel__selector">
-      <label for="product-template">产品模板</label>
+      <label for="product-template">卫星数据选择</label>
       <select
         id="product-template"
         :value="activeTemplate.id"
@@ -45,8 +27,22 @@
     <section class="mission-section" aria-labelledby="package-title">
       <div class="mission-section__heading">
         <div>
-          <span class="mission-section__signal" aria-hidden="true" />
           <strong id="package-title">产品包</strong>
+          <el-tooltip
+            class="package-requirements-tooltip"
+            :content="activeTemplate.packageRequirements"
+            placement="top-start"
+            effect="light"
+            :show-after="180"
+          >
+            <button
+              class="package-requirements-tooltip__trigger"
+              type="button"
+              aria-label="查看产品包要求"
+            >
+              <el-icon><QuestionFilled /></el-icon>
+            </button>
+          </el-tooltip>
         </div>
         <button
           class="package-toggle"
@@ -61,43 +57,74 @@
           </el-icon>
         </button>
       </div>
-      <p class="mission-section__note">
-        {{ activeTemplate.packageRequirements }}
-      </p>
-
       <template v-if="isPackageContentVisible">
         <div class="file-stack">
           <article
             v-for="slot in activeTemplate.slots"
             :key="`${activeTemplate.id}-${slot.id}`"
             class="file-slot"
-            :class="`is-${slots[slot.id].status.toLowerCase()}`"
+            :class="[
+              `is-${slots[slot.id].status.toLowerCase()}`,
+              {
+                'is-actionable': isSlotActionable(slots[slot.id].status)
+              }
+            ]"
+            :role="
+              isSlotActionable(slots[slot.id].status) ? 'button' : undefined
+            "
+            :tabindex="isSlotActionable(slots[slot.id].status) ? 0 : undefined"
+            :aria-label="
+              isSlotActionable(slots[slot.id].status)
+                ? `为 ${slot.label} 选择文件`
+                : undefined
+            "
+            @click="handleSlotActivate(slot.id, $event)"
+            @keydown.enter.prevent="handleSlotActivate(slot.id, $event)"
+            @keydown.space.prevent="handleSlotActivate(slot.id, $event)"
           >
             <div class="file-slot__meta">
-              <div>
-                <strong>{{ slot.label }}</strong>
-                <small
-                  >{{ slot.role }} · {{ slot.extensions.join(" / ") }}</small
+              <div class="file-slot__details">
+                <el-tooltip
+                  :content="
+                    (slots[slot.id].status === 'EMPTY'
+                      ? '缺少' + slot.label + ' · '
+                      : '') +
+                    slot.role +
+                    ' · ' +
+                    slot.extensions.join(' / ')
+                  "
+                  placement="top"
+                  effect="light"
+                  :offset="6"
+                  :show-after="180"
                 >
+                  <strong>{{ slot.label }}</strong>
+                </el-tooltip>
+                <small
+                  v-if="slots[slot.id].status === 'EMPTY'"
+                  class="file-slot__upload-hint"
+                >
+                  点击卡片上传
+                </small>
               </div>
-              <span>{{ slotStatusLabel(slots[slot.id].status) }}</span>
+              <span
+                v-if="slots[slot.id].status !== 'UPLOADED'"
+                class="file-slot__status"
+              >
+                {{ slotStatusLabel(slots[slot.id].status) }}
+                <template v-if="slots[slot.id].status === 'UPLOADING'">
+                  {{ slots[slot.id].uploadProgress ?? 0 }}%
+                </template>
+              </span>
+              <input
+                :id="`file-${activeTemplate.id}-${slot.id}`"
+                class="visually-hidden"
+                type="file"
+                :accept="slot.extensions.join(',')"
+                :disabled="isTaskActive || isBusy"
+                @change="handleFileChange(slot.id, $event)"
+              />
             </div>
-            <input
-              :id="`file-${activeTemplate.id}-${slot.id}`"
-              class="visually-hidden"
-              type="file"
-              :accept="slot.extensions.join(',')"
-              :disabled="isTaskActive || isBusy"
-              @change="handleFileChange(slot.id, $event)"
-            />
-            <label
-              class="file-slot__picker"
-              :class="{ 'is-disabled': isTaskActive || isBusy }"
-              :for="`file-${activeTemplate.id}-${slot.id}`"
-            >
-              <el-icon><DocumentAdd /></el-icon>
-              <span>{{ slots[slot.id].file?.name || "选择文件" }}</span>
-            </label>
             <div
               v-if="slots[slot.id].status === 'UPLOADING'"
               class="file-slot__progress"
@@ -117,7 +144,6 @@
                   }"
                 />
               </div>
-              <small>{{ slots[slot.id].uploadProgress ?? 0 }}%</small>
             </div>
             <small v-if="slots[slot.id].error" class="inline-error">
               {{ slots[slot.id].error }}
@@ -128,21 +154,11 @@
               type="button"
               title="移除文件"
               :disabled="isTaskActive || isBusy"
-              @click="removeProductSlot(slot.id)"
+              @click.stop="removeProductSlot(slot.id)"
             >
               <el-icon><Delete /></el-icon>
             </button>
           </article>
-        </div>
-
-        <div
-          v-if="validationMessages.length"
-          class="diagnostic-strip"
-          role="alert"
-        >
-          <span v-for="diagnostic in validationMessages" :key="diagnostic">
-            {{ diagnostic }}
-          </span>
         </div>
       </template>
     </section>
@@ -157,16 +173,6 @@
       @update:selected-targets="updateSelectedTargets"
       @configure="isParameterDrawerOpen = true"
     />
-
-    <MultisourceDialog
-      v-model="dependencyDialogOpen"
-      title="已自动添加前置处理"
-    >
-      <p>当前功能依赖以下前置步骤，这些步骤将随本次任务一起执行：</p>
-      <div class="dependency-dialog__steps">
-        <span v-for="step in dependencyDialogSteps" :key="step">{{ step }}</span>
-      </div>
-    </MultisourceDialog>
 
     <section
       v-if="isHy1c && selectedTargets.length"
@@ -316,11 +322,14 @@
           <dd>{{ hy2dSummary.grid }}</dd>
         </div>
       </dl>
-      <DerivedOutputChecklist :visible-steps="selectedTargets" :items="[
-        { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
-        { key: 'anomaly-detection', label: '异常检测' },
-        { key: 'track-gridding', label: '网格化输出' }
-      ]" />
+      <DerivedOutputChecklist
+        :visible-steps="selectedTargets"
+        :items="[
+          { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
+          { key: 'anomaly-detection', label: '异常检测' },
+          { key: 'track-gridding', label: '网格化输出' }
+        ]"
+      />
     </section>
 
     <section
@@ -373,7 +382,9 @@
       :roi="gf6Summary.roi"
       :rgb-bands="`B${gf6Form.fusion.red} / B${gf6Form.fusion.green} / B${gf6Form.fusion.blue}`"
       :stretch="`${gf6Form.fusion.lowPercentile}% - ${gf6Form.fusion.highPercentile}%`"
-      :feature-metrics="gf6Form.features.metrics.map(featureMetricLabel).join('、')"
+      :feature-metrics="
+        gf6Form.features.metrics.map(featureMetricLabel).join('、')
+      "
       :saliency="`${gf6Form.saliency.source} · 阈值 ${gf6Form.saliency.threshold}`"
       :locked="isConfigurationLocked"
       @configure="isParameterDrawerOpen = true"
@@ -640,7 +651,13 @@
                   :disabled="isConfigurationLocked"
                 />
                 <span aria-hidden="true" />
-                <small>{{ l2aForm.roi.enabled ? "启用" : "关闭" }}</small>
+                <small>{{
+                  l2aForm.roi.enabled
+                    ? "启用"
+                    : hy1cRoiSuggestion
+                      ? "建议范围已填充"
+                      : "关闭"
+                }}</small>
               </label>
             </legend>
             <div class="roi-grid">
@@ -670,7 +687,6 @@
                   :checked="selectedTargets.includes('feature-extraction')"
                   disabled
                   type="checkbox"
-                  :disabled="isConfigurationLocked"
                 />
                 <span aria-hidden="true" />
                 <small>{{
@@ -706,7 +722,6 @@
                   :checked="selectedTargets.includes('rgb-fusion')"
                   disabled
                   type="checkbox"
-                  :disabled="isConfigurationLocked"
                 />
                 <span aria-hidden="true" />
                 <small>{{
@@ -748,7 +763,6 @@
                   :checked="selectedTargets.includes('anomaly-detection')"
                   disabled
                   type="checkbox"
-                  :disabled="isConfigurationLocked"
                 />
                 <span aria-hidden="true" />
                 <small>{{
@@ -869,10 +883,10 @@ import {
   ArrowRight,
   Close,
   Delete,
-  DocumentAdd,
   Download,
   ArrowDown,
-  Setting
+  Setting,
+  QuestionFilled
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
@@ -882,7 +896,6 @@ import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDra
 import Gf6WfvL1aParameterDrawer from "@/features/multisource/Gf6WfvL1aParameterDrawer.vue";
 import Gf6ProcessingWorkbench from "@/features/multisource/Gf6ProcessingWorkbench.vue";
 import { getVisibleParameterGroups } from "@/features/multisource/parameterVisibility";
-import MultisourceDialog from "@/features/multisource/MultisourceDialog.vue";
 import DerivedOutputChecklist from "@/features/multisource/DerivedOutputChecklist.vue";
 import { featureMetricLabel } from "@/features/multisource/featureMetricLabels";
 import {
@@ -916,6 +929,10 @@ import {
   type Hy1cCziBand,
   type Hy1cFeatureMetric
 } from "@/features/multisource/hy1cCziL2aParameters";
+import {
+  hy1cRoiStateAfterMetadataChange,
+  type Hy1cCziL2aRoi
+} from "@/features/multisource/hy1cCziL2aRoi";
 import {
   processingStartSuccessMessage,
   translateProcessingErrorMessage
@@ -996,6 +1013,7 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const l2aForm = reactive(defaultL2aForm());
+const hy1cRoiSuggestion = ref<Hy1cCziL2aRoi | null>(null);
 const fy3hForm = reactive(defaultFy3hMersiForm());
 const hy2dForm = reactive(defaultHy2dAltimeterForm());
 const fy4bForm = reactive(defaultFy4bAgriForm());
@@ -1051,8 +1069,6 @@ const processingPlan = computed<ProcessingPlan>(() =>
 const visibleParameterGroups = computed(() =>
   getVisibleParameterGroups(activeTemplate.value.id, selectedTargets.value)
 );
-const dependencyDialogOpen = ref(false);
-const dependencyDialogSteps = ref<string[]>([]);
 const resolvedPlanSteps = computed(() =>
   processingPlan.value.resolvedSteps
     .map(key => pipelineDefinition.value.steps.find(step => step.key === key))
@@ -1086,7 +1102,9 @@ const fy3hParameterIssues = computed(
   () => fy3hParameterValidation.value.issues
 );
 const fy3hSummary = computed(() => buildFy3hMersiPanelSummary(fy3hForm));
-const fy3hOutputBands = computed(() => fy3hForm.bands.map(band => `CH${String(band).padStart(2, "0")}`));
+const fy3hOutputBands = computed(() =>
+  fy3hForm.bands.map(band => `CH${String(band).padStart(2, "0")}`)
+);
 const hy2dParameterValidation = computed(() =>
   validateHy2dAltimeterForm(hy2dForm)
 );
@@ -1146,18 +1164,6 @@ const launchSummary = computed(() => {
 const isConfigurationLocked = computed(
   () => isTaskActive.value || isBusy.value
 );
-const validationMessages = computed(() => {
-  const result = validation.value;
-  return [
-    ...result.missingSlots.map(slot => `缺少${slot.label}`),
-    ...result.invalidExtensions.map(
-      item =>
-        `${item.slot.label}格式错误，仅支持${item.expectedExtensions.join("、")}`
-    ),
-    ...(result.mismatchedBasenames ? ["GF-6 三个文件的产品编号必须一致"] : []),
-    ...result.productIssues
-  ];
-});
 const hasPackageAttention = computed(() => {
   const result = validation.value;
   return (
@@ -1217,16 +1223,7 @@ function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
 }
 
 function updateSelectedTargets(value: string[]) {
-  const previousChecked = new Set(checkedTargetKeys.value);
   selectedTargets.value = value;
-  const automaticSteps = resolvedPlanSteps.value
-    .filter(step => checkedTargetKeys.value.includes(step.key))
-    .filter(step => !value.includes(step.key) && !previousChecked.has(step.key))
-    .map(step => step.title);
-  if (automaticSteps.length) {
-    dependencyDialogSteps.value = automaticSteps;
-    dependencyDialogOpen.value = true;
-  }
   const enabled = new Set(value);
   l2aForm.algorithms.features.enabled = enabled.has("feature-extraction");
   l2aForm.algorithms.fusion.enabled = enabled.has("rgb-fusion");
@@ -1249,13 +1246,27 @@ function togglePackageExpanded() {
 
 function slotStatusLabel(status: string) {
   const labels: Record<string, string> = {
-    EMPTY: "待上传",
+    EMPTY: "未上传",
     SELECTED: "已选择",
     UPLOADING: "上传中",
     UPLOADED: "已上传",
     FAILED: "失败"
   };
   return labels[status] || status;
+}
+
+function isSlotActionable(status: string) {
+  return (
+    !isTaskActive.value &&
+    !isBusy.value &&
+    (status === "EMPTY" || status === "FAILED")
+  );
+}
+
+function handleSlotActivate(slotId: SlotId, event: Event) {
+  if (!isSlotActionable(slots[slotId].status)) return;
+  if ((event.target as HTMLElement | null)?.closest("button")) return;
+  document.getElementById(`file-${activeTemplate.value.id}-${slotId}`)?.click();
 }
 
 function stageLabel(stageCode: string) {
@@ -1276,6 +1287,7 @@ function handleTemplateChange(event: Event) {
   try {
     setTemplate(template);
     Object.assign(l2aForm, defaultL2aForm());
+    hy1cRoiSuggestion.value = null;
     Object.assign(fy3hForm, defaultFy3hMersiForm());
     Object.assign(hy2dForm, defaultHy2dAltimeterForm());
     Object.assign(fy4bForm, defaultFy4bAgriForm());
@@ -1297,6 +1309,13 @@ async function handleFileChange(slotId: SlotId, event: Event) {
   if (!file) return;
   try {
     await uploadSlot(slotId, file);
+    if (
+      isHy1c.value &&
+      slotId === "metadata" &&
+      slots.metadata.status === "UPLOADED"
+    ) {
+      applyHy1cMetadataRoi(await file.text());
+    }
   } catch (error) {
     message(error instanceof Error ? error.message : "文件上传失败", {
       type: "error"
@@ -1306,9 +1325,22 @@ async function handleFileChange(slotId: SlotId, event: Event) {
   }
 }
 
+function applyHy1cMetadataRoi(xmlText: string) {
+  const { roi, suggestion } = hy1cRoiStateAfterMetadataChange(xmlText);
+  l2aForm.roi.enabled = false;
+  l2aForm.roi.minLon = roi.minLon;
+  l2aForm.roi.minLat = roi.minLat;
+  l2aForm.roi.maxLon = roi.maxLon;
+  l2aForm.roi.maxLat = roi.maxLat;
+  hy1cRoiSuggestion.value = suggestion;
+}
+
 function removeProductSlot(slotId: SlotId) {
   try {
     removeSlot(slotId);
+    if (isHy1c.value && slotId === "metadata") {
+      applyHy1cMetadataRoi("");
+    }
   } catch (error) {
     message(error instanceof Error ? error.message : "无法移除文件", {
       type: "warning"
@@ -1545,6 +1577,39 @@ function resetTask() {
 
 .package-toggle:focus-visible {
   outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
+.package-requirements-tooltip {
+  display: inline-flex;
+  align-items: center;
+}
+
+.package-requirements-tooltip__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  color: #6c8490;
+  cursor: help;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+}
+
+.package-requirements-tooltip__trigger .el-icon {
+  font-size: 14px;
+}
+
+.package-requirements-tooltip__trigger:hover {
+  color: #206e8c;
+  background: #e6f2f6;
+}
+
+.package-requirements-tooltip__trigger:focus-visible {
+  outline: 2px solid var(--plain-primary, #2e7da3);
   outline-offset: 2px;
 }
 
@@ -2427,7 +2492,7 @@ button:disabled {
 }
 
 .satellite-workspace .file-slot__meta {
-  padding-right: 22px;
+  padding-right: 0;
 }
 
 .satellite-workspace .file-slot__meta strong {
@@ -3380,7 +3445,7 @@ button:disabled {
   --plain-primary-soft: #edf6fa;
   --plain-line: #d7e1e7;
   --plain-panel: #ffffff;
-  --plain-surface: #f5f7f8;
+  --plain-surface: #ffffff;
   --plain-success: #338467;
   --plain-danger: #b44c4c;
 
@@ -3469,6 +3534,7 @@ button:disabled {
 }
 
 .satellite-workspace .mission-panel__selector {
+  grid-template-columns: 84px minmax(0, 1fr);
   gap: 5px;
   padding: 14px 0 2px;
 }
@@ -3497,11 +3563,20 @@ button:disabled {
 }
 
 .satellite-workspace .mission-panel__lock-note {
-  padding: 6px 8px;
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 8px;
   color: #8a563d;
-  font-size: 12px;
+  font-size: 11px;
   background: #fff7f1;
   border-left: 2px solid #d88a59;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .satellite-workspace .mission-section {
@@ -3563,15 +3638,35 @@ button:disabled {
 }
 
 .satellite-workspace .file-stack {
-  gap: 8px;
+  gap: 6px;
 }
 
 .satellite-workspace .file-slot {
-  padding: 10px;
+  padding: 8px 9px;
   background: #fafcfd;
   border: 1px solid #dce5ea;
   border-left: 3px solid #9ebdcd;
   border-radius: 4px;
+}
+
+.satellite-workspace .file-slot.is-actionable {
+  cursor: pointer;
+}
+
+.satellite-workspace .file-slot.is-actionable:hover {
+  border-color: #8fbccc;
+  border-left-color: var(--plain-primary);
+  box-shadow: 0 4px 10px rgb(13 61 93 / 7%);
+  transform: translateY(-1px);
+}
+
+.satellite-workspace .file-slot.is-actionable:focus-visible {
+  outline: 2px solid var(--plain-primary);
+  outline-offset: 2px;
+}
+
+.satellite-workspace .file-slot.is-uploaded {
+  cursor: default;
 }
 
 .satellite-workspace .file-slot:hover {
@@ -3593,28 +3688,87 @@ button:disabled {
 }
 
 .satellite-workspace .file-slot__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 0;
+  min-height: 24px;
+}
+
+.satellite-workspace .file-slot:has(.file-slot__remove) .file-slot__meta {
   padding-right: 22px;
 }
 
+.satellite-workspace .file-slot__details {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.satellite-workspace .file-slot__upload-hint {
+  flex: 0 0 auto;
+  color: #71899a;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.satellite-workspace .file-slot__details .el-tooltip {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.satellite-workspace .file-slot__meta strong,
+.satellite-workspace .file-slot__meta small {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .satellite-workspace .file-slot__meta strong {
+  flex: 0 1 auto;
   color: var(--plain-ink);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .satellite-workspace .file-slot__meta small,
 .satellite-workspace .artifact-row small {
+  flex: 1 1 auto;
   color: var(--plain-muted);
   font-family: inherit;
   font-size: 11px;
 }
 
+.satellite-workspace .file-slot__meta small.file-slot__upload-hint {
+  flex: 0 0 auto;
+  color: #71899a;
+  font-size: 10px;
+}
+
 .satellite-workspace .file-slot__meta > span {
+  flex: 0 0 auto;
   padding: 0;
   color: var(--plain-muted);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   background: transparent;
   border-radius: 0;
+}
+
+.satellite-workspace .file-slot.is-empty .file-slot__status {
+  color: #b44c4c;
+  font-weight: 600;
+}
+
+.satellite-workspace .file-slot.is-uploading .file-slot__status {
+  color: var(--plain-primary);
+  font-weight: 600;
 }
 
 .satellite-workspace .file-slot.is-uploaded .file-slot__meta > span {
@@ -3622,61 +3776,58 @@ button:disabled {
   background: transparent;
 }
 
-.satellite-workspace .file-slot__picker {
-  min-height: 34px;
-  margin-top: 8px;
-  padding: 7px 8px;
-  color: #356e89;
-  font-size: 12px;
-  background: var(--plain-panel);
-  border: 1px dashed #9fc2d3;
-  border-radius: 4px;
-}
-
-.satellite-workspace .file-slot__picker:hover:not(.is-disabled) {
-  color: var(--plain-primary);
-  background: var(--plain-primary-soft);
-  border-color: var(--plain-primary);
-}
-
 .satellite-workspace .file-slot__progress {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  margin-top: 8px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  margin: 0;
+  overflow: hidden;
+  background: #dce7ec;
 }
 
 .satellite-workspace .file-slot__progress-track {
-  height: 5px;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: #dce7ec;
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 0;
 }
 
 .satellite-workspace .file-slot__progress-track span {
   display: block;
   height: 100%;
   background: var(--plain-primary);
-  border-radius: inherit;
-}
-
-.satellite-workspace .file-slot__progress small {
-  min-width: 32px;
-  color: var(--plain-primary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+  border-radius: 0;
+  transition: width 180ms ease-out;
 }
 
 .satellite-workspace .file-slot__remove {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   color: var(--plain-muted);
+  background: #fff;
+  border: 1px solid #cbdde5;
   border-radius: 3px;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
 }
 
 .satellite-workspace .file-slot__remove:hover:not(:disabled) {
   color: var(--plain-danger);
   background: #fff4f4;
+  border-color: #e4aaaa;
+}
+
+.satellite-workspace .file-slot__remove .el-icon {
+  font-size: 13px;
 }
 
 .satellite-workspace .diagnostic-strip {
@@ -3841,14 +3992,18 @@ button:disabled {
   padding-bottom: 12px;
 }
 
-.satellite-workspace .configuration-section--outputs :deep(.derived-output-checklist) {
+.satellite-workspace
+  .configuration-section--outputs
+  :deep(.derived-output-checklist) {
   padding: 0;
   margin: 0;
   background: transparent;
   border: 0;
 }
 
-.satellite-workspace .configuration-section--outputs :deep(.derived-output-checklist__heading) {
+.satellite-workspace
+  .configuration-section--outputs
+  :deep(.derived-output-checklist__heading) {
   margin-bottom: 9px;
 }
 
