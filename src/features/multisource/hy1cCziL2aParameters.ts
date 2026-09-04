@@ -90,11 +90,7 @@ export function defaultL2aForm(): Hy1cCziL2aForm {
       scienceResampling: "nearest"
     },
     roi: {
-      enabled: true,
-      minLon: 115.8,
-      minLat: 14.8,
-      maxLon: 117.1,
-      maxLat: 15.8
+      enabled: false
     },
     quality: { policy: "default" },
     algorithms: {

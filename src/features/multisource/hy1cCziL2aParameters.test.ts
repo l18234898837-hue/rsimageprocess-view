@@ -17,12 +17,6 @@ test("default HY-1C form builds exactly the public STANDARDIZE_L2A snapshot", ()
       resolutionMeters: 50,
       scienceResampling: "nearest"
     },
-    roiWgs84: {
-      minLon: 115.8,
-      minLat: 14.8,
-      maxLon: 117.1,
-      maxLat: 15.8
-    },
     quality: { policy: "default" },
     algorithms: {
       features: {
@@ -174,11 +168,11 @@ test("panel summary reflects the selected satellite processing configuration", (
   assert.deepEqual(buildHy1cCziL2aPanelSummary(form), expectedSummary);
 });
 
-test("panel summary reflects the screenshot HY-1C defaults", () => {
+test("default HY-1C form keeps the full product extent", () => {
   assert.deepEqual(buildHy1cCziL2aPanelSummary(defaultL2aForm()), {
     bands: "B460 / B560 / B650 / B825",
     grid: "AUTO_UTM · 50 m",
-    roi: "已启用 ROI 裁剪",
+    roi: "全幅产品",
     algorithms: [
       "特征提取 · 3 项",
       "RGB 融合 · B650/B560/B460",
