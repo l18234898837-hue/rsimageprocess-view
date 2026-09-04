@@ -62,45 +62,6 @@ function imageSystemSteps(
   return steps;
 }
 
-const legacyImageSystemSteps: readonly StepDefinition[] = [
-  {
-    key: "upload-validation",
-    title: "上传与文件校验",
-    kind: "system",
-    dependsOn: [],
-    configurable: false
-  },
-  {
-    key: "preprocess",
-    title: "预处理",
-    kind: "system",
-    selectable: true,
-    dependsOn: ["upload-validation"],
-    configurable: true
-  },
-  {
-    key: "quality-control",
-    title: "质量控制",
-    kind: "system",
-    dependsOn: ["preprocess"],
-    configurable: true
-  },
-  {
-    key: "spatial-standardization",
-    title: "定位、投影与网格化",
-    kind: "system",
-    dependsOn: ["quality-control"],
-    configurable: true
-  },
-  {
-    key: "standard-product",
-    title: "标准产品",
-    kind: "system",
-    dependsOn: ["spatial-standardization"],
-    configurable: false
-  }
-];
-
 function imagePipeline(
   productId: string,
   titles: Pick<
