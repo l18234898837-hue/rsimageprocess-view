@@ -91,9 +91,11 @@
         <legend class="toggle-heading">
           <span>特征提取</span
           ><label class="toggle"
-            ><input :checked="visibleSteps.includes('feature-extraction')" disabled type="checkbox" /><i
-              aria-hidden="true"
-            /><small>{{
+            ><input
+              :checked="visibleSteps.includes('feature-extraction')"
+              disabled
+              type="checkbox"
+            /><i aria-hidden="true" /><small>{{
               form.features.enabled ? "启用" : "关闭"
             }}</small></label
           >
@@ -128,9 +130,13 @@
         <legend class="toggle-heading">
           <span>RGB 融合</span
           ><label class="toggle"
-            ><input :checked="visibleSteps.includes('rgb-fusion')" disabled type="checkbox" /><i
-              aria-hidden="true"
-            /><small>{{ form.fusion.enabled ? "启用" : "关闭" }}</small></label
+            ><input
+              :checked="visibleSteps.includes('rgb-fusion')"
+              disabled
+              type="checkbox"
+            /><i aria-hidden="true" /><small>{{
+              form.fusion.enabled ? "启用" : "关闭"
+            }}</small></label
           >
         </legend>
         <div class="rgb-grid">
@@ -193,9 +199,11 @@
         <legend class="toggle-heading">
           <span>显著性检测</span
           ><label class="toggle"
-            ><input :checked="visibleSteps.includes('anomaly-detection')" disabled type="checkbox" /><i
-              aria-hidden="true"
-            /><small>{{
+            ><input
+              :checked="visibleSteps.includes('anomaly-detection')"
+              disabled
+              type="checkbox"
+            /><i aria-hidden="true" /><small>{{
               form.saliency.enabled ? "启用" : "关闭"
             }}</small></label
           >

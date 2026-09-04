@@ -149,61 +149,77 @@ function imagePipeline(
 }
 
 const PIPELINES: readonly PipelineDefinition[] = [
-  imagePipeline("gf6-wfv-l1a-v1", {
-    feature: "WFV 影像空间特征",
-    rgb: "WFV 多波段融合",
-    anomaly: "WFV 显著性检测"
-  }, [
-    { key: "tile-mosaic", title: "三层拼接" },
-    { key: "rpc-geolocation", title: "RPC/导航定位" },
+  imagePipeline(
+    "gf6-wfv-l1a-v1",
     {
-      key: "projection-standardization",
-      title: "投影与标准影像",
-      configurable: true
-    }
-  ]),
-  imagePipeline("fy4b-agri-v1", {
-    feature: "AGRI 通道特征",
-    rgb: "AGRI 假彩色融合",
-    anomaly: "AGRI 显著性检测"
-  }, [
-    { key: "geo-grid-construction", title: "GEO 网格构建" },
-    { key: "radiometric-calibration", title: "辐射定标" },
-    { key: "quality-mask", title: "质量掩膜" },
+      feature: "WFV 影像空间特征",
+      rgb: "WFV 多波段融合",
+      anomaly: "WFV 显著性检测"
+    },
+    [
+      { key: "tile-mosaic", title: "三层拼接" },
+      { key: "rpc-geolocation", title: "RPC/导航定位" },
+      {
+        key: "projection-standardization",
+        title: "投影与标准影像",
+        configurable: true
+      }
+    ]
+  ),
+  imagePipeline(
+    "fy4b-agri-v1",
     {
-      key: "projection-standardization",
-      title: "投影与 ROI",
-      configurable: true
-    }
-  ]),
-  imagePipeline("hy1c-czi-l2a-v1", {
-    feature: "CZI 水色特征",
-    rgb: "CZI RGB 融合",
-    anomaly: "CZI 显著性检测"
-  }, [
-    { key: "band-metadata-decode", title: "波段与元数据解码" },
-    { key: "scale-factor-processing", title: "比例因子处理" },
-    { key: "l2-quality-control", title: "L2 质量控制" },
+      feature: "AGRI 通道特征",
+      rgb: "AGRI 假彩色融合",
+      anomaly: "AGRI 显著性检测"
+    },
+    [
+      { key: "geo-grid-construction", title: "GEO 网格构建" },
+      { key: "radiometric-calibration", title: "辐射定标" },
+      { key: "quality-mask", title: "质量掩膜" },
+      {
+        key: "projection-standardization",
+        title: "投影与 ROI",
+        configurable: true
+      }
+    ]
+  ),
+  imagePipeline(
+    "hy1c-czi-l2a-v1",
     {
-      key: "projection-standardization",
-      title: "定位、投影与 ROI",
-      configurable: true
-    }
-  ]),
-  imagePipeline("fy3h-mersi-l1-1000m-geo1k-v1", {
-    feature: "MERSI 通道特征",
-    rgb: "MERSI RGB 融合",
-    anomaly: "MERSI 显著性检测"
-  }, [
-    { key: "data-decode", title: "数据解码" },
-    { key: "radiometric-calibration", title: "辐射定标" },
-    { key: "quality-control", title: "质量控制" },
+      feature: "CZI 水色特征",
+      rgb: "CZI RGB 融合",
+      anomaly: "CZI 显著性检测"
+    },
+    [
+      { key: "band-metadata-decode", title: "波段与元数据解码" },
+      { key: "scale-factor-processing", title: "比例因子处理" },
+      { key: "l2-quality-control", title: "L2 质量控制" },
+      {
+        key: "projection-standardization",
+        title: "定位、投影与 ROI",
+        configurable: true
+      }
+    ]
+  ),
+  imagePipeline(
+    "fy3h-mersi-l1-1000m-geo1k-v1",
     {
-      key: "swath-standardization",
-      title: "扫描带网格化、投影与 ROI",
-      configurable: true
-    }
-  ]),
+      feature: "MERSI 通道特征",
+      rgb: "MERSI RGB 融合",
+      anomaly: "MERSI 显著性检测"
+    },
+    [
+      { key: "data-decode", title: "数据解码" },
+      { key: "radiometric-calibration", title: "辐射定标" },
+      { key: "quality-control", title: "质量控制" },
+      {
+        key: "swath-standardization",
+        title: "扫描带网格化、投影与 ROI",
+        configurable: true
+      }
+    ]
+  ),
   {
     productId: "hy2d-altimeter-v1",
     pipelineType: "altimeter",

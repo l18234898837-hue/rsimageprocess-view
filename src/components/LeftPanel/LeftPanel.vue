@@ -681,7 +681,8 @@ onUnmounted(() => {
   border-radius: 5px 5px 0 0;
 }
 :deep(.el-tabs__content) {
-  padding-top: 60px;
+  /* Keep fixed tabs from covering the pane while avoiding an oversized top gap. */
+  padding-top: 40px;
 }
 
 @media screen and (max-width: 1100px) {

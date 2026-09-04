@@ -3536,7 +3536,7 @@ button:disabled {
 .satellite-workspace .mission-panel__selector {
   grid-template-columns: 84px minmax(0, 1fr);
   gap: 5px;
-  padding: 14px 0 2px;
+  padding: 6px 0 2px;
 }
 
 .satellite-workspace .mission-panel__selector label {
@@ -4171,6 +4171,32 @@ button:disabled {
 .satellite-workspace .task-actions :deep(.el-button) {
   min-height: 32px;
   border-radius: 4px;
+}
+
+.satellite-workspace > .mission-section {
+  margin-top: 8px;
+  padding: 10px 12px 12px;
+  background: #fff;
+  border-color: #dce5ea;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.satellite-workspace > .mission-section[aria-labelledby="package-title"] {
+  border-top: 2px solid #c7e0eb;
+}
+
+.satellite-workspace > .mission-section.configuration-brief {
+  background: #fbfcfd;
+  border-top: 2px solid #d8d0f0;
+}
+
+.satellite-workspace > .processing-plan {
+  margin-top: 8px;
+  padding: 12px;
+  background: #f7fafb;
+  border-color: #dce5ea;
+  border-radius: 6px;
 }
 
 :deep(.mission-parameter-drawer) {

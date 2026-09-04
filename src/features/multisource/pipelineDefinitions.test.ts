@@ -27,7 +27,9 @@ test("image products expose product-specific preprocessing subfunctions", () => 
     ]
   );
   assert.deepEqual(
-    getTargetSteps(FY4B_AGRI_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    getTargetSteps(FY4B_AGRI_TEMPLATE.id)
+      .map(step => step.key)
+      .slice(0, 4),
     [
       "geo-grid-construction",
       "radiometric-calibration",
@@ -36,7 +38,9 @@ test("image products expose product-specific preprocessing subfunctions", () => 
     ]
   );
   assert.deepEqual(
-    getTargetSteps(HY1C_CZI_L2A_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    getTargetSteps(HY1C_CZI_L2A_TEMPLATE.id)
+      .map(step => step.key)
+      .slice(0, 4),
     [
       "band-metadata-decode",
       "scale-factor-processing",
@@ -45,7 +49,9 @@ test("image products expose product-specific preprocessing subfunctions", () => 
     ]
   );
   assert.deepEqual(
-    getTargetSteps(FY3H_MERSI_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    getTargetSteps(FY3H_MERSI_TEMPLATE.id)
+      .map(step => step.key)
+      .slice(0, 4),
     [
       "data-decode",
       "radiometric-calibration",

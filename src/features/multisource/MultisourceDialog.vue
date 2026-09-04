@@ -18,10 +18,9 @@
 </template>
 
 <script setup lang="ts">
-withDefaults(
-  defineProps<{ title: string; width?: string }>(),
-  { width: "420px" }
-);
+withDefaults(defineProps<{ title: string; width?: string }>(), {
+  width: "420px"
+});
 const open = defineModel<boolean>({ required: true });
 </script>
 

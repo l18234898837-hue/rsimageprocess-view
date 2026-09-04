@@ -36,12 +36,19 @@ test("selected processing targets stay compact and open the workbench below", ()
 });
 
 test("execution plan keeps three compact rows visible and scrolls remaining steps", () => {
-  assert.match(panel, /class="processing-plan__steps"/);
+  assert.match(
+    panel,
+    /class="processing-plan__steps"[\s\S]*?:class="\{ 'is-scrollable': planSteps\.length > 3 \}"/
+  );
   assert.match(panel, /class="processing-plan__step-title-row"/);
   assert.match(panel, /class="processing-plan__step-status"/);
   assert.match(
     panel,
-    /\.processing-plan__steps\s*\{[\s\S]*?max-height:\s*132px;[\s\S]*?overflow-y:\s*auto;/
+    /\.processing-plan__steps\.is-scrollable\s*\{[\s\S]*?max-height:\s*132px;[\s\S]*?overflow-y:\s*auto;/
+  );
+  assert.match(
+    panel,
+    /\.processing-plan__target-copy\s*\{[\s\S]*?justify-content:\s*space-between;/
   );
   assert.match(
     panel,
@@ -192,4 +199,34 @@ test("product package stays collapsed for missing uploads but expands for action
   assert.match(workspace, /@click="togglePackageExpanded"/);
   assert.match(workspace, /v-if="isPackageContentVisible"/);
   assert.match(workspace, /isPackageExpanded\.value = false;/);
+});
+
+test("multisource workspace keeps a compact, layered section rhythm", () => {
+  assert.match(
+    workspace,
+    /\.satellite-workspace \.mission-panel__selector\s*\{[\s\S]*?padding:\s*6px 0 2px;/
+  );
+  assert.match(
+    workspace,
+    /\.satellite-workspace \.mission-section\s*\{[\s\S]*?margin-top:\s*8px;[\s\S]*?padding:\s*10px 12px 12px;[\s\S]*?box-shadow:\s*none;/
+  );
+  assert.match(
+    workspace,
+    /\.satellite-workspace > \.processing-plan\s*\{[\s\S]*?margin-top:\s*8px;[\s\S]*?background:\s*#f7fafb;/
+  );
+});
+
+test("left panel tabs reserve only the tab header height above content", () => {
+  const leftPanel = readFileSync(
+    "src/components/LeftPanel/LeftPanel.vue",
+    "utf8"
+  );
+  assert.match(
+    leftPanel,
+    /:deep\(\.el-tabs__content\)\s*\{[\s\S]*?padding-top:\s*40px;/
+  );
+  assert.doesNotMatch(
+    leftPanel,
+    /:deep\(\.el-tabs__content\)\s*\{[\s\S]*?padding-top:\s*60px;/
+  );
 });

@@ -88,11 +88,18 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset v-if="visibleSteps.includes('track-gridding')" :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('track-gridding')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>可选网格输出</span>
           <label class="toggle">
-            <input :checked="visibleSteps.includes('track-gridding')" disabled type="checkbox" />
+            <input
+              :checked="visibleSteps.includes('track-gridding')"
+              disabled
+              type="checkbox"
+            />
             <i aria-hidden="true" />
             <small>{{ form.grid.enabled ? "启用" : "关闭" }}</small>
           </label>

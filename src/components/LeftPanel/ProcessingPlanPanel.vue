@@ -66,7 +66,7 @@
               :disabled="disabled || isLockedTarget(step.key)"
               @change="toggleTarget(step.key)"
             />
-            <span>
+            <span class="processing-plan__target-copy">
               <strong>{{ step.title }}</strong>
               <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
                 >自动依赖</small
@@ -103,7 +103,10 @@
           </el-tooltip>
         </div>
       </div>
-      <div class="processing-plan__steps">
+      <div
+        class="processing-plan__steps"
+        :class="{ 'is-scrollable': planSteps.length > 3 }"
+      >
         <div
           v-for="(step, index) in planSteps"
           :key="step.key"
@@ -410,18 +413,32 @@ function toggleTarget(stepKey: string) {
   display: block;
 }
 
+.processing-plan__target-copy {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .processing-plan__target strong {
   color: inherit;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .processing-plan__target small {
-  margin-top: 3px;
+  flex: 0 0 auto;
+  margin-top: 0;
   color: #647585;
   font-size: 10px;
   line-height: 1.3;
+  white-space: nowrap;
 }
 
 .processing-plan__resolved {
@@ -434,8 +451,11 @@ function toggleTarget(stepKey: string) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 5px;
-  max-height: 132px;
   margin-top: 9px;
+}
+
+.processing-plan__steps.is-scrollable {
+  max-height: 132px;
   padding-right: 4px;
   overflow-y: auto;
   scrollbar-gutter: stable;

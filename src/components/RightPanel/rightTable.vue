@@ -55,7 +55,7 @@
       align-center
       @closed="clearPreviewUrl"
     >
-      <div class="preview-img-wrap" v-loading="previewLoading">
+      <div v-loading="previewLoading" class="preview-img-wrap">
         <img v-if="previewUrl" :src="previewUrl" alt="预览" />
       </div>
     </el-dialog>

@@ -35,10 +35,7 @@
       </el-select>
     </div> -->
   </div>
-  <div
-    v-show="rollingShow && layerList.length >= 2"
-    class="map-layer-names"
-  >
+  <div v-show="rollingShow && layerList.length >= 2" class="map-layer-names">
     <div class="layer-name-side layer-name-side-left">
       <div class="layer-name layer-name-left">
         {{ getLayerDisplayName(layerList[0]) }}
