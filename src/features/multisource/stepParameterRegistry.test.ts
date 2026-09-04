@@ -19,7 +19,7 @@ test("GF-6 keeps one existing form while exposing selected configurable steps", 
       getPipelineDefinition("gf6-wfv-l1a-v1"),
       registry
     ),
-    ["spatial-standardization", "feature-extraction"]
+    ["projection-standardization", "feature-extraction"]
   );
   assert.deepEqual(registry.validate(registry.createDefault()), []);
   assert.equal(

@@ -26,7 +26,8 @@
         </button></div
     ></template>
     <div class="drawer-body">
-      <fieldset :disabled="locked">
+      <DerivedOutputChecklist :visible-steps="visibleSteps" />
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>工程网格</legend>
         <div class="field-grid">
           <label
@@ -69,7 +70,7 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>输出波段</legend>
         <div class="band-grid">
           <label
@@ -90,7 +91,7 @@
         <legend class="toggle-heading">
           <span>特征提取</span
           ><label class="toggle"
-            ><input v-model="form.features.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('feature-extraction')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{
               form.features.enabled ? "启用" : "关闭"
@@ -127,7 +128,7 @@
         <legend class="toggle-heading">
           <span>RGB 融合</span
           ><label class="toggle"
-            ><input v-model="form.fusion.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('rgb-fusion')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{ form.fusion.enabled ? "启用" : "关闭" }}</small></label
           >
@@ -192,7 +193,7 @@
         <legend class="toggle-heading">
           <span>显著性检测</span
           ><label class="toggle"
-            ><input v-model="form.saliency.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('anomaly-detection')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{
               form.saliency.enabled ? "启用" : "关闭"
@@ -257,6 +258,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
+import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
 import { featureMetricLabel } from "./featureMetricLabels";
 import {
   GF6_WFV_L1A_BANDS,

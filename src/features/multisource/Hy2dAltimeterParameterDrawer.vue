@@ -28,12 +28,26 @@
     </template>
 
     <div class="drawer-body">
-      <div class="profile-signal">
+      <DerivedOutputChecklist
+        :visible-steps="visibleSteps"
+        :items="[
+          { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
+          { key: 'anomaly-detection', label: '异常检测' },
+          { key: 'track-gridding', label: '网格化输出' }
+        ]"
+      />
+      <div
+        v-if="visibleSteps.includes('along-track-decode')"
+        class="profile-signal"
+      >
         <div>
           <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
         </div>
       </div>
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('along-track-feature-extraction')"
+        :disabled="locked"
+      >
         <legend>质量与特征</legend>
         <div class="field-grid">
           <label class="is-wide"
@@ -50,7 +64,10 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('anomaly-detection')"
+        :disabled="locked"
+      >
         <legend>异常检测</legend>
         <div class="field-grid">
           <label
@@ -71,11 +88,11 @@
           /></label>
         </div>
       </fieldset>
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('track-gridding')" :disabled="locked">
         <legend class="toggle-heading">
           <span>可选网格输出</span>
           <label class="toggle">
-            <input v-model="form.grid.enabled" type="checkbox" />
+            <input :checked="visibleSteps.includes('track-gridding')" disabled type="checkbox" />
             <i aria-hidden="true" />
             <small>{{ form.grid.enabled ? "启用" : "关闭" }}</small>
           </label>
@@ -116,11 +133,13 @@
 <script setup lang="ts">
 import { reactive, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
+import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
 import type { Hy2dAltimeterForm } from "./hy2dAltimeterParameters";
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
   form: Hy2dAltimeterForm;
+  visibleSteps: readonly string[];
   locked: boolean;
   issues: { field: string; message: string }[];
   summary: { window: string; anomaly: string; grid: string };

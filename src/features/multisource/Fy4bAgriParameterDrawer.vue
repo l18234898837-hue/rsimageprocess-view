@@ -28,17 +28,22 @@
     </template>
 
     <div class="drawer-body">
-      <div class="profile-signal">
+      <DerivedOutputChecklist :visible-steps="visibleSteps" />
+      <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
         <div>
           <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
         </div>
         <code>NOMINAL_UNVERIFIED</code>
       </div>
-      <p class="engineering-warning" role="note">
+      <p
+        v-if="visibleSteps.includes('preprocess')"
+        class="engineering-warning"
+        role="note"
+      >
         <strong>NOMINAL_UNVERIFIED</strong>：名义定位尚未完成测绘级验证。
       </p>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>空间范围</legend>
         <div class="field-grid">
           <label
@@ -65,11 +70,14 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('feature-extraction')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>特征提取</span
           ><label class="toggle"
-            ><input v-model="form.features.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('feature-extraction')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{
               form.features.enabled ? "启用" : "关闭"
@@ -102,11 +110,11 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
         <legend class="toggle-heading">
           <span>伪彩融合</span
           ><label class="toggle"
-            ><input v-model="form.fusion.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('rgb-fusion')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{ form.fusion.enabled ? "启用" : "关闭" }}</small></label
           >
@@ -138,11 +146,14 @@
         >
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('anomaly-detection')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>显著性检测</span
           ><label class="toggle"
-            ><input v-model="form.saliency.enabled" type="checkbox" /><i
+            ><input :checked="visibleSteps.includes('anomaly-detection')" disabled type="checkbox" /><i
               aria-hidden="true"
             /><small>{{
               form.saliency.enabled ? "启用" : "关闭"
@@ -208,6 +219,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
+import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
 import { featureMetricLabel } from "./featureMetricLabels";
 import {
   FY4B_AGRI_DEFAULT_ROI,
@@ -220,6 +232,7 @@ import {
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
   form: Fy4bAgriForm;
+  visibleSteps: readonly string[];
   locked: boolean;
   issues: Fy4bAgriValidationIssue[];
   summary: { grid: string };

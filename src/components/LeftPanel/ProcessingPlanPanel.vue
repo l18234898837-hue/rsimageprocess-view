@@ -12,61 +12,44 @@
     </div>
 
     <div class="processing-plan__targets">
-      <div
-        v-for="step in targetSteps"
-        :key="step.key"
-        class="processing-plan__target-group"
+      <section
+        v-for="group in targetGroups"
+        :key="group.key"
+        class="processing-plan__group"
       >
+        <div class="processing-plan__group-heading">
+          <strong>{{ group.title }}</strong>
+          <span>{{ group.steps.length }} 项</span>
+        </div>
         <label
+          v-for="step in group.steps"
+          :key="step.key"
           class="processing-plan__target"
-          :class="{ 'is-selected': selectedTargets.includes(step.key) }"
+          :class="{
+            'is-selected': checkedTargets.includes(step.key),
+            'is-automatic': isAutomaticTarget(step.key)
+          }"
         >
           <input
             type="checkbox"
-            :checked="selectedTargets.includes(step.key)"
-            :disabled="disabled"
+            :checked="checkedTargets.includes(step.key)"
+            :disabled="disabled || isLockedTarget(step.key)"
             @change="toggleTarget(step.key)"
           />
           <span>
             <strong>{{ step.title }}</strong>
             <small v-if="step.productTitle">{{ step.productTitle }}</small>
+            <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
+              >自动依赖</small
+            >
+            <small
+              v-else-if="isLockedTarget(step.key)"
+              class="is-auto-label"
+              >必需前置</small
+            >
           </span>
         </label>
-        <div
-          v-if="selectedTargets.includes(step.key)"
-          class="processing-plan__detail"
-        >
-          <div class="processing-plan__detail-header">
-            <strong>处理细节</strong>
-            <button
-              type="button"
-              :disabled="disabled"
-              @click="emit('configure')"
-            >
-              <el-icon><Setting /></el-icon>
-              <span>配置参数</span>
-            </button>
-          </div>
-          <dl class="processing-plan__detail-list">
-            <div>
-              <dt>处理内容</dt>
-              <dd>{{ step.productTitle || step.title }}</dd>
-            </div>
-            <div>
-              <dt>自动补齐</dt>
-              <dd>
-                <span
-                  v-for="prerequisite in getPrerequisiteSteps(step)"
-                  :key="prerequisite.key"
-                  class="processing-plan__dependency"
-                  >{{ prerequisite.title }}</span
-                >
-                <span v-if="!getPrerequisiteSteps(step).length">无</span>
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
+      </section>
     </div>
 
     <div v-if="planSteps.length" class="processing-plan__resolved">
@@ -97,13 +80,14 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Setting } from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
 
 const props = defineProps<{
   targetSteps: readonly StepDefinition[];
   planSteps: readonly StepDefinition[];
   selectedTargets: readonly string[];
+  checkedTargets: readonly string[];
+  lockedTargets: readonly string[];
   disabled?: boolean;
 }>();
 
@@ -112,28 +96,32 @@ const emit = defineEmits<{
   configure: [];
 }>();
 
-const planStepsByKey = computed(
-  () => new Map(props.planSteps.map(step => [step.key, step]))
-);
+const targetGroups = computed(() => {
+  const groups = [
+    { key: "preprocess", title: "预处理", steps: [] as StepDefinition[] },
+    { key: "derived", title: "派生处理", steps: [] as StepDefinition[] }
+  ];
+  props.targetSteps.forEach(step => {
+    const group = groups.find(item => item.key === (step.group || "derived"));
+    group?.steps.push(step);
+  });
+  return groups.filter(group => group.steps.length);
+});
 
-function getPrerequisiteSteps(step: StepDefinition): StepDefinition[] {
-  const prerequisites: StepDefinition[] = [];
-  const visited = new Set<string>();
-  const visit = (stepKey: string) => {
-    if (visited.has(stepKey)) return;
-    visited.add(stepKey);
-    const prerequisite = planStepsByKey.value.get(stepKey);
-    if (!prerequisite) return;
-    prerequisite.dependsOn.forEach(visit);
-    prerequisites.push(prerequisite);
-  };
+function isAutomaticTarget(stepKey: string) {
+  return (
+    props.checkedTargets.includes(stepKey) &&
+    !props.selectedTargets.includes(stepKey)
+  );
+}
 
-  step.dependsOn.forEach(visit);
-  return prerequisites;
+function isLockedTarget(stepKey: string) {
+  return props.lockedTargets.includes(stepKey);
 }
 
 function toggleTarget(stepKey: string) {
   if (props.disabled) return;
+  if (isLockedTarget(stepKey)) return;
   const next = props.selectedTargets.includes(stepKey)
     ? props.selectedTargets.filter(key => key !== stepKey)
     : [...props.selectedTargets, stepKey];
@@ -184,6 +172,25 @@ function toggleTarget(stepKey: string) {
   margin-top: 12px;
 }
 
+.processing-plan__group {
+  display: grid;
+  gap: 7px;
+}
+
+.processing-plan__group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 2px 0;
+  color: #243746;
+  font-size: 12px;
+}
+
+.processing-plan__group-heading span {
+  color: #647585;
+  font-size: 11px;
+}
+
 .processing-plan__target {
   display: flex;
   align-items: center;
@@ -197,91 +204,21 @@ function toggleTarget(stepKey: string) {
   cursor: pointer;
 }
 
-.processing-plan__detail {
-  padding: 10px 12px 12px 33px;
-  background: #f8fbfc;
-  border: 1px solid #b8d5e1;
-  border-top: 0;
-  border-radius: 0 0 4px 4px;
-}
-
-.processing-plan__target-group:has(.processing-plan__detail)
-  .processing-plan__target {
-  border-radius: 4px 4px 0 0;
-}
-
-.processing-plan__detail-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: #243746;
-  font-size: 12px;
-}
-
-.processing-plan__detail-header button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 7px;
-  color: #155d7a;
-  font-size: 11px;
-  background: #fff;
-  border: 1px solid #9fc3d2;
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.processing-plan__detail-header button:disabled {
-  color: #8a9ba6;
-  cursor: not-allowed;
-  background: #f1f5f7;
-  border-color: #d5e0e5;
-}
-
-.processing-plan__detail-list {
-  display: grid;
-  gap: 8px;
-  padding: 9px 0 0;
-  margin: 0;
-}
-
-.processing-plan__detail-list div {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-}
-
-.processing-plan__detail-list dt,
-.processing-plan__detail-list dd {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.processing-plan__detail-list dt {
-  color: #647585;
-}
-
-.processing-plan__detail-list dd {
-  color: #405665;
-}
-
-.processing-plan__dependency {
-  display: inline-block;
-  margin: 0 4px 4px 0;
-  padding: 2px 5px;
-  color: #315a6d;
-  background: #edf4f7;
-  border: 1px solid #d4e2e8;
-  border-radius: 3px;
-}
-
 .processing-plan__target.is-selected {
   color: #155d7a;
   background: #e6f4fa;
   border-color: #2e7da3;
+}
+
+.processing-plan__target.is-automatic {
+  color: #5d7280;
+  background: #eef4f6;
+  border-color: #c4d2d8;
+  cursor: not-allowed;
+}
+
+.processing-plan__target .is-auto-label {
+  color: #738993;
 }
 
 .processing-plan__target input {

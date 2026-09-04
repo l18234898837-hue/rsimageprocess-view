@@ -13,6 +13,26 @@ export interface ProcessingPlan {
   readonly invalidatedSteps: readonly string[];
 }
 
+export function getRequiredSelectableSteps(
+  definition: PipelineDefinition,
+  selectedTargets: readonly string[]
+): string[] {
+  const byKey = new Map(definition.steps.map(step => [step.key, step]));
+  const required = new Set<string>();
+  const visit = (stepKey: string) => {
+    const step = byKey.get(stepKey);
+    if (!step) return;
+    step.dependsOn.forEach(dependency => {
+      required.add(dependency);
+      visit(dependency);
+    });
+  };
+  selectedTargets.forEach(visit);
+  return definition.steps
+    .filter(step => step.selectable === true && required.has(step.key))
+    .map(step => step.key);
+}
+
 function assertSelectableTargets(
   definition: PipelineDefinition,
   targetStepKeys: readonly string[]

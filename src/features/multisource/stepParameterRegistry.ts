@@ -64,7 +64,7 @@ function createRegistry<T>(
 }
 
 const IMAGE_EDITABLE_STEPS = [
-  "spatial-standardization",
+  "projection-standardization",
   "feature-extraction",
   "rgb-fusion",
   "anomaly-detection"

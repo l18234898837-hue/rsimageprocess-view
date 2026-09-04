@@ -9,6 +9,7 @@ export interface StepDefinition {
   readonly selectable?: boolean;
   readonly dependsOn: readonly string[];
   readonly configurable: boolean;
+  readonly group?: "preprocess" | "derived";
   readonly parallelGroup?: string;
 }
 
@@ -18,7 +19,50 @@ export interface PipelineDefinition {
   readonly steps: readonly StepDefinition[];
 }
 
-const imageSystemSteps: readonly StepDefinition[] = [
+const uploadValidationStep: StepDefinition = {
+  key: "upload-validation",
+  title: "上传与文件校验",
+  kind: "system",
+  dependsOn: [],
+  configurable: false
+};
+
+interface ImagePreprocessStep {
+  readonly key: string;
+  readonly title: string;
+  readonly configurable?: boolean;
+}
+
+function imageSystemSteps(
+  preprocessSteps: readonly ImagePreprocessStep[]
+): readonly StepDefinition[] {
+  const steps: StepDefinition[] = [uploadValidationStep];
+  let dependency = uploadValidationStep.key;
+
+  for (const step of preprocessSteps) {
+    steps.push({
+      key: step.key,
+      title: step.title,
+      kind: "system",
+      selectable: true,
+      dependsOn: [dependency],
+      configurable: step.configurable === true,
+      group: "preprocess"
+    });
+    dependency = step.key;
+  }
+
+  steps.push({
+    key: "standard-product",
+    title: "标准产品",
+    kind: "system",
+    dependsOn: [dependency],
+    configurable: false
+  });
+  return steps;
+}
+
+const legacyImageSystemSteps: readonly StepDefinition[] = [
   {
     key: "upload-validation",
     title: "上传与文件校验",
@@ -62,13 +106,14 @@ function imagePipeline(
   titles: Pick<
     Record<"feature" | "rgb" | "anomaly", string>,
     "feature" | "rgb" | "anomaly"
-  >
+  >,
+  preprocessSteps: readonly ImagePreprocessStep[]
 ): PipelineDefinition {
   return {
     productId,
     pipelineType: "image",
     steps: [
-      ...imageSystemSteps,
+      ...imageSystemSteps(preprocessSteps),
       {
         key: "feature-extraction",
         title: "特征提取",
@@ -76,6 +121,7 @@ function imagePipeline(
         kind: "target",
         dependsOn: ["standard-product"],
         configurable: true,
+        group: "derived",
         parallelGroup: "image-analysis"
       },
       {
@@ -85,6 +131,7 @@ function imagePipeline(
         kind: "target",
         dependsOn: ["standard-product"],
         configurable: true,
+        group: "derived",
         parallelGroup: "image-analysis"
       },
       {
@@ -94,6 +141,7 @@ function imagePipeline(
         kind: "target",
         dependsOn: ["standard-product"],
         configurable: true,
+        group: "derived",
         parallelGroup: "image-analysis"
       }
     ]
@@ -105,22 +153,57 @@ const PIPELINES: readonly PipelineDefinition[] = [
     feature: "WFV 影像空间特征",
     rgb: "WFV 多波段融合",
     anomaly: "WFV 显著性检测"
-  }),
+  }, [
+    { key: "tile-mosaic", title: "三层拼接" },
+    { key: "rpc-geolocation", title: "RPC/导航定位" },
+    {
+      key: "projection-standardization",
+      title: "投影与标准影像",
+      configurable: true
+    }
+  ]),
   imagePipeline("fy4b-agri-v1", {
     feature: "AGRI 通道特征",
     rgb: "AGRI 假彩色融合",
     anomaly: "AGRI 显著性检测"
-  }),
+  }, [
+    { key: "geo-grid-construction", title: "GEO 网格构建" },
+    { key: "radiometric-calibration", title: "辐射定标" },
+    { key: "quality-mask", title: "质量掩膜" },
+    {
+      key: "projection-standardization",
+      title: "投影与 ROI",
+      configurable: true
+    }
+  ]),
   imagePipeline("hy1c-czi-l2a-v1", {
     feature: "CZI 水色特征",
     rgb: "CZI RGB 融合",
     anomaly: "CZI 显著性检测"
-  }),
+  }, [
+    { key: "band-metadata-decode", title: "波段与元数据解码" },
+    { key: "scale-factor-processing", title: "比例因子处理" },
+    { key: "l2-quality-control", title: "L2 质量控制" },
+    {
+      key: "projection-standardization",
+      title: "定位、投影与 ROI",
+      configurable: true
+    }
+  ]),
   imagePipeline("fy3h-mersi-l1-1000m-geo1k-v1", {
     feature: "MERSI 通道特征",
     rgb: "MERSI RGB 融合",
     anomaly: "MERSI 显著性检测"
-  }),
+  }, [
+    { key: "data-decode", title: "数据解码" },
+    { key: "radiometric-calibration", title: "辐射定标" },
+    { key: "quality-control", title: "质量控制" },
+    {
+      key: "swath-standardization",
+      title: "扫描带网格化、投影与 ROI",
+      configurable: true
+    }
+  ]),
   {
     productId: "hy2d-altimeter-v1",
     pipelineType: "altimeter",

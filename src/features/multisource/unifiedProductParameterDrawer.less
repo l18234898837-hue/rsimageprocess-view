@@ -72,6 +72,85 @@
   scrollbar-width: thin;
 }
 
+.product-parameter-drawer .derived-output-checklist {
+  margin: 16px 20px 0;
+  padding: 14px 16px;
+  background: var(--drawer-panel);
+  border: 1px solid var(--drawer-line);
+  border-radius: 4px;
+}
+
+.product-parameter-drawer .derived-output-checklist__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: var(--drawer-font-section);
+  font-weight: 700;
+}
+
+.product-parameter-drawer .derived-output-checklist__heading small {
+  color: var(--drawer-muted);
+  font-size: var(--drawer-font-helper);
+  font-weight: 400;
+}
+
+.product-parameter-drawer .derived-output-checklist__items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.product-parameter-drawer .derived-output-checklist__items label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 24px;
+  color: var(--drawer-ink);
+  font-size: var(--drawer-font-control);
+}
+
+.product-parameter-drawer .derived-output-checklist__items input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.product-parameter-drawer .derived-output-checklist__indicator {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 2px solid #5c7b8c;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.product-parameter-drawer
+  .derived-output-checklist__items
+  input:checked
+  + .derived-output-checklist__indicator {
+  border-color: #087ea4;
+  background: #087ea4;
+  box-shadow: 0 0 0 2px rgb(8 126 164 / 15%);
+}
+
+.product-parameter-drawer
+  .derived-output-checklist__items
+  input:checked
+  + .derived-output-checklist__indicator::after {
+  width: 7px;
+  height: 4px;
+  content: "";
+  border-bottom: 2px solid #fff;
+  border-left: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
 .product-parameter-drawer .el-drawer__footer {
   padding-block: 14px;
   border-top: 1px solid var(--drawer-line);

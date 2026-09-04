@@ -28,14 +28,15 @@
     </template>
 
     <div class="drawer-body">
-      <div class="profile-signal">
+      <DerivedOutputChecklist :visible-steps="visibleSteps" />
+      <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
         <div>
           <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
         </div>
         <code>{{ form.bands.length }}/25 CHANNELS</code>
       </div>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>网格</legend>
         <div class="field-grid">
           <label class="is-wide">
@@ -75,7 +76,7 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>输出波段</legend>
         <div class="band-grid">
           <label
@@ -94,7 +95,7 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend class="toggle-heading">
           <span>WGS84 ROI</span>
           <label class="toggle">
@@ -118,13 +119,14 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('feature-extraction')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>特征提取</span>
           <label class="toggle">
-            <input v-model="form.features.enabled" type="checkbox" />
             <i aria-hidden="true" />
-            <small>{{ form.features.enabled ? "启用" : "关闭" }}</small>
           </label>
         </legend>
         <div class="chip-list">
@@ -155,13 +157,11 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
         <legend class="toggle-heading">
           <span>RGB 显示融合</span>
           <label class="toggle">
-            <input v-model="form.fusion.enabled" type="checkbox" />
             <i aria-hidden="true" />
-            <small>{{ form.fusion.enabled ? "启用" : "关闭" }}</small>
           </label>
         </legend>
         <div class="rgb-grid">
@@ -199,13 +199,14 @@
         </div>
       </fieldset>
 
-      <fieldset :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('anomaly-detection')"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
           <span>显著性检测</span>
           <label class="toggle">
-            <input v-model="form.saliency.enabled" type="checkbox" />
             <i aria-hidden="true" />
-            <small>{{ form.saliency.enabled ? "启用" : "关闭" }}</small>
           </label>
         </legend>
         <div class="field-grid">
@@ -269,6 +270,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
+import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
 import {
   FY3H_MERSI_BANDS,
   fy3hVariableName,
@@ -282,6 +284,7 @@ import {
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
   form: Fy3hMersiForm;
+  visibleSteps: readonly string[];
   locked: boolean;
   issues: Fy3hMersiValidationIssue[];
   summary: Fy3hMersiPanelSummary;

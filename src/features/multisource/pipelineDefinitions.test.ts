@@ -14,19 +14,45 @@ import {
   type PipelineDefinition
 } from "./pipelineDefinitions";
 
-test("image products expose the shared selectable processing capabilities", () => {
-  for (const template of [
-    GF6_WFV_L1A_TEMPLATE,
-    FY4B_AGRI_TEMPLATE,
-    HY1C_CZI_L2A_TEMPLATE,
-    FY3H_MERSI_TEMPLATE
-  ]) {
-    assert.equal(getPipelineDefinition(template.id).pipelineType, "image");
-    assert.deepEqual(
-      getTargetSteps(template.id).map(step => step.key),
-      ["preprocess", "feature-extraction", "rgb-fusion", "anomaly-detection"]
-    );
-  }
+test("image products expose product-specific preprocessing subfunctions", () => {
+  assert.deepEqual(
+    getTargetSteps(GF6_WFV_L1A_TEMPLATE.id).map(step => step.key),
+    [
+      "tile-mosaic",
+      "rpc-geolocation",
+      "projection-standardization",
+      "feature-extraction",
+      "rgb-fusion",
+      "anomaly-detection"
+    ]
+  );
+  assert.deepEqual(
+    getTargetSteps(FY4B_AGRI_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    [
+      "geo-grid-construction",
+      "radiometric-calibration",
+      "quality-mask",
+      "projection-standardization"
+    ]
+  );
+  assert.deepEqual(
+    getTargetSteps(HY1C_CZI_L2A_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    [
+      "band-metadata-decode",
+      "scale-factor-processing",
+      "l2-quality-control",
+      "projection-standardization"
+    ]
+  );
+  assert.deepEqual(
+    getTargetSteps(FY3H_MERSI_TEMPLATE.id).map(step => step.key).slice(0, 4),
+    [
+      "data-decode",
+      "radiometric-calibration",
+      "quality-control",
+      "swath-standardization"
+    ]
+  );
 });
 
 test("HY-2D keeps an independent along-track pipeline", () => {

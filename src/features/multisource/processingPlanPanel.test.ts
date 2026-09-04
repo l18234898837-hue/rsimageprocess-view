@@ -15,16 +15,25 @@ test("processing plan panel exposes selectable targets and automatic prerequisit
   assert.match(panel, /选择处理功能/);
   assert.match(panel, /系统自动添加/);
   assert.match(panel, /update:selectedTargets/);
-  assert.match(panel, /:disabled="disabled"/);
+  assert.match(panel, /:disabled="disabled \|\| isLockedTarget/);
+  assert.match(panel, /processing-plan__group/);
+  assert.match(panel, /预处理/);
+  assert.match(panel, /派生处理/);
 });
 
-test("selected processing targets expand their detail and configuration entry", () => {
-  assert.match(panel, /processing-plan__detail/);
-  assert.match(panel, /v-if="selectedTargets\.includes\(step\.key\)"/);
-  assert.match(panel, /getPrerequisiteSteps\(step\)/);
-  assert.match(panel, /configure:\s*\[\]/);
-  assert.match(panel, /@click="emit\('configure'\)"/);
+test("selected processing targets stay compact and open the workbench below", () => {
+  assert.doesNotMatch(panel, /processing-plan__detail/);
+  assert.match(panel, /checkedTargets/);
+  assert.match(panel, /lockedTargets/);
+  assert.match(panel, /isLockedTarget/);
   assert.match(workspace, /@configure="isParameterDrawerOpen = true"/);
+});
+
+test("processing choices stay compact and distinguish automatic prerequisites", () => {
+  assert.doesNotMatch(panel, /processing-plan__detail/);
+  assert.match(panel, /checkedTargets/);
+  assert.match(panel, /isAutomaticTarget/);
+  assert.match(panel, /自动依赖/);
 });
 
 test("multisource workspace integrates the plan before upload and requires a target", () => {

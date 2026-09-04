@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { getPipelineDefinition } from "./pipelineDefinitions";
 import {
   resolveProcessingPlan,
+  getRequiredSelectableSteps,
   updatePlanTargets,
   updateStepParameters
 } from "./processingPlan";
@@ -16,17 +17,17 @@ test("a selected image target resolves its complete locked prerequisite chain", 
   assert.deepEqual(plan.selectedTargets, ["rgb-fusion"]);
   assert.deepEqual(plan.resolvedSteps, [
     "upload-validation",
-    "preprocess",
-    "quality-control",
-    "spatial-standardization",
+    "tile-mosaic",
+    "rpc-geolocation",
+    "projection-standardization",
     "standard-product",
     "rgb-fusion"
   ]);
   assert.deepEqual(plan.lockedPrerequisites, [
     "upload-validation",
-    "preprocess",
-    "quality-control",
-    "spatial-standardization",
+    "tile-mosaic",
+    "rpc-geolocation",
+    "projection-standardization",
     "standard-product"
   ]);
 });
@@ -39,9 +40,9 @@ test("multiple image targets share one prerequisite chain", () => {
 
   assert.deepEqual(plan.resolvedSteps, [
     "upload-validation",
-    "preprocess",
-    "quality-control",
-    "spatial-standardization",
+    "tile-mosaic",
+    "rpc-geolocation",
+    "projection-standardization",
     "standard-product",
     "feature-extraction",
     "rgb-fusion"
@@ -82,15 +83,15 @@ test("HY-2D anomaly detection auto-adds locked along-track feature extraction", 
 
 test("changing a prerequisite parameter marks only its resolved descendants for rerun", () => {
   const plan = resolveProcessingPlan(gf6Pipeline, ["feature-extraction"]);
-  const updated = updateStepParameters(plan, gf6Pipeline, "quality-control", {
+  const updated = updateStepParameters(plan, gf6Pipeline, "rpc-geolocation", {
     cloudThreshold: 0.2
   });
 
   assert.deepEqual(updated.parameters, {
-    "quality-control": { cloudThreshold: 0.2 }
+    "rpc-geolocation": { cloudThreshold: 0.2 }
   });
   assert.deepEqual(updated.invalidatedSteps, [
-    "spatial-standardization",
+    "projection-standardization",
     "standard-product",
     "feature-extraction"
   ]);
@@ -102,7 +103,18 @@ test("the resolver rejects unsupported and non-target selections", () => {
     /unsupported/i
   );
   assert.throws(
-    () => resolveProcessingPlan(gf6Pipeline, ["quality-control"]),
+    () => resolveProcessingPlan(gf6Pipeline, ["standard-product"]),
     /target/i
+  );
+});
+
+test("a manually selected prerequisite is locked when a downstream target needs it", () => {
+  assert.deepEqual(
+    getRequiredSelectableSteps(gf6Pipeline, ["rpc-geolocation", "rgb-fusion"]),
+    ["tile-mosaic", "rpc-geolocation", "projection-standardization"]
+  );
+  assert.deepEqual(
+    getRequiredSelectableSteps(gf6Pipeline, ["rpc-geolocation"]),
+    ["tile-mosaic"]
   );
 });

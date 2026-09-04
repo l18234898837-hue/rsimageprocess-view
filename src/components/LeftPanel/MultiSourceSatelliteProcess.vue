@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section
     class="mission-panel satellite-workspace"
     aria-labelledby="mission-panel-title"
@@ -151,13 +151,25 @@
       :target-steps="targetSteps"
       :plan-steps="resolvedPlanSteps"
       :selected-targets="selectedTargets"
+      :checked-targets="checkedTargetKeys"
+      :locked-targets="lockedTargetKeys"
       :disabled="isTaskActive || isBusy || isUploading"
       @update:selected-targets="updateSelectedTargets"
       @configure="isParameterDrawerOpen = true"
     />
 
+    <MultisourceDialog
+      v-model="dependencyDialogOpen"
+      title="已自动添加前置处理"
+    >
+      <p>当前功能依赖以下前置步骤，这些步骤将随本次任务一起执行：</p>
+      <div class="dependency-dialog__steps">
+        <span v-for="step in dependencyDialogSteps" :key="step">{{ step }}</span>
+      </div>
+    </MultisourceDialog>
+
     <section
-      v-if="isHy1c"
+      v-if="isHy1c && selectedTargets.length"
       class="mission-section configuration-brief"
       aria-labelledby="l2a-parameters-title"
     >
@@ -180,7 +192,11 @@
         </el-button>
       </div>
 
-      <div class="spectral-signature" aria-label="CZI 多光谱波段状态">
+      <div
+        v-if="visibleParameterGroups.includes('preprocess')"
+        class="spectral-signature"
+        aria-label="CZI 多光谱波段状态"
+      >
         <span
           v-for="band in HY1C_CZI_BANDS"
           :key="band"
@@ -196,29 +212,30 @@
       </div>
 
       <dl class="configuration-summary">
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>输出波段</dt>
-          <dd>{{ l2aSummary.bands }}</dd>
+          <dd class="configuration-band-list">
+            <span v-for="band in l2aOutputBands" :key="band">{{ band }}</span>
+          </dd>
         </div>
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>网格定义</dt>
           <dd>{{ l2aSummary.grid }}</dd>
         </div>
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>处理范围</dt>
           <dd>{{ l2aSummary.roi }}</dd>
         </div>
       </dl>
 
-      <div class="configuration-algorithms" aria-label="已选算法">
-        <span v-for="algorithm in l2aSummary.algorithms" :key="algorithm">
-          {{ algorithm }}
-        </span>
-      </div>
+      <DerivedOutputChecklist
+        v-if="selectedTargets.some(step => step !== 'preprocess')"
+        :visible-steps="selectedTargets"
+      />
     </section>
 
     <section
-      v-if="isFy3h"
+      v-if="isFy3h && selectedTargets.length"
       class="mission-section configuration-brief"
       aria-labelledby="fy3h-parameters-title"
     >
@@ -241,28 +258,29 @@
         </el-button>
       </div>
       <dl class="configuration-summary">
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>输出波段</dt>
-          <dd>{{ fy3hSummary.bands }}</dd>
+          <dd class="configuration-band-list">
+            <span v-for="band in fy3hOutputBands" :key="band">{{ band }}</span>
+          </dd>
         </div>
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>网格定义</dt>
           <dd>{{ fy3hSummary.grid }}</dd>
         </div>
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>处理范围</dt>
           <dd>{{ fy3hSummary.roi }}</dd>
         </div>
       </dl>
-      <div class="configuration-algorithms" aria-label="已选算法">
-        <span v-for="algorithm in fy3hSummary.algorithms" :key="algorithm">
-          {{ algorithm }}
-        </span>
-      </div>
+      <DerivedOutputChecklist
+        v-if="selectedTargets.some(step => step !== 'preprocess')"
+        :visible-steps="selectedTargets"
+      />
     </section>
 
     <section
-      v-if="isHy2d"
+      v-if="isHy2d && selectedTargets.length"
       class="mission-section configuration-brief"
       aria-labelledby="hy2d-parameters-title"
     >
@@ -285,23 +303,28 @@
         </el-button>
       </div>
       <dl class="configuration-summary">
-        <div>
+        <div v-if="selectedTargets.includes('along-track-feature-extraction')">
           <dt>特征窗口</dt>
           <dd>{{ hy2dSummary.window }}</dd>
         </div>
-        <div>
+        <div v-if="selectedTargets.includes('anomaly-detection')">
           <dt>异常阈值</dt>
           <dd>{{ hy2dSummary.anomaly }}</dd>
         </div>
-        <div>
+        <div v-if="selectedTargets.includes('track-gridding')">
           <dt>空间输出</dt>
           <dd>{{ hy2dSummary.grid }}</dd>
         </div>
       </dl>
+      <DerivedOutputChecklist :visible-steps="selectedTargets" :items="[
+        { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
+        { key: 'anomaly-detection', label: '异常检测' },
+        { key: 'track-gridding', label: '网格化输出' }
+      ]" />
     </section>
 
     <section
-      v-if="isFy4b"
+      v-if="isFy4b && selectedTargets.length"
       class="mission-section configuration-brief"
       aria-labelledby="fy4b-parameters-title"
     >
@@ -324,70 +347,37 @@
         </el-button>
       </div>
       <dl class="configuration-summary">
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>网格定义</dt>
           <dd>{{ fy4bSummary.grid }}</dd>
         </div>
-        <div>
+        <div v-if="visibleParameterGroups.includes('preprocess')">
           <dt>处理范围</dt>
           <dd>{{ fy4bSummary.roi }}</dd>
         </div>
-        <div>
-          <dt>派生输出</dt>
-          <dd>{{ fy4bSummary.algorithms }}</dd>
-        </div>
       </dl>
+      <DerivedOutputChecklist
+        v-if="selectedTargets.some(step => step !== 'preprocess')"
+        :visible-steps="selectedTargets"
+      />
       <div class="configuration-algorithms" aria-label="FY-4B 工程限制">
         <span>NOMINAL_UNVERIFIED · 名义定位未验证</span>
       </div>
     </section>
 
-    <section
-      v-if="isGf6WfvL1a"
-      class="mission-section configuration-brief"
-      aria-labelledby="gf6-parameters-title"
-    >
-      <div class="configuration-brief__heading">
-        <div>
-          <span class="mission-section__signal is-violet" aria-hidden="true" />
-          <div>
-            <strong id="gf6-parameters-title">GF-6 WFV L1A 参数工作台</strong>
-            <small>固定高程名义 RPC 工程处理配置。</small>
-          </div>
-        </div>
-        <el-button
-          class="configuration-brief__open"
-          text
-          type="primary"
-          @click="isParameterDrawerOpen = true"
-        >
-          <el-icon><Setting /></el-icon>
-          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
-        </el-button>
-      </div>
-      <dl class="configuration-summary">
-        <div>
-          <dt>工程网格</dt>
-          <dd>{{ gf6Summary.grid }}</dd>
-        </div>
-        <div>
-          <dt>处理范围</dt>
-          <dd>{{ gf6Summary.roi }}</dd>
-        </div>
-        <div>
-          <dt>输出波段</dt>
-          <dd>{{ gf6Summary.bands }}</dd>
-        </div>
-        <div>
-          <dt>派生输出</dt>
-          <dd>{{ gf6Summary.algorithms }}</dd>
-        </div>
-      </dl>
-      <div class="configuration-algorithms" aria-label="GF-6 工程限制">
-        <span>NOMINAL_RPC_NO_DEM</span><span>accuracyStatus=UNVALIDATED</span
-        ><span>CANDIDATE_ONLY</span>
-      </div>
-    </section>
+    <Gf6ProcessingWorkbench
+      v-if="isGf6WfvL1a && selectedTargets.length"
+      :selected-targets="selectedTargets"
+      :bands="gf6OutputBands"
+      :grid="gf6Summary.grid"
+      :roi="gf6Summary.roi"
+      :rgb-bands="`B${gf6Form.fusion.red} / B${gf6Form.fusion.green} / B${gf6Form.fusion.blue}`"
+      :stretch="`${gf6Form.fusion.lowPercentile}% - ${gf6Form.fusion.highPercentile}%`"
+      :feature-metrics="gf6Form.features.metrics.map(featureMetricLabel).join('、')"
+      :saliency="`${gf6Form.saliency.source} · 阈值 ${gf6Form.saliency.threshold}`"
+      :locked="isConfigurationLocked"
+      @configure="isParameterDrawerOpen = true"
+    />
 
     <section class="mission-section mission-launch" aria-label="任务启动">
       <div>
@@ -534,7 +524,12 @@
       </template>
 
       <div class="parameter-drawer__body">
-        <section class="parameter-drawer__signal" aria-label="当前产品配置">
+        <DerivedOutputChecklist :visible-steps="visibleParameterGroups" />
+        <section
+          v-if="visibleParameterGroups.includes('preprocess')"
+          class="parameter-drawer__signal"
+          aria-label="当前产品配置"
+        >
           <div>
             <span>OUTPUT PROFILE</span>
             <strong>{{ l2aSummary.grid }}</strong>
@@ -567,6 +562,7 @@
           </div>
 
           <fieldset
+            v-if="visibleParameterGroups.includes('preprocess')"
             class="control-group spectral-fieldset"
             :disabled="isConfigurationLocked"
           >
@@ -594,7 +590,11 @@
             </div>
           </fieldset>
 
-          <fieldset class="control-group" :disabled="isConfigurationLocked">
+          <fieldset
+            v-if="visibleParameterGroups.includes('preprocess')"
+            class="control-group"
+            :disabled="isConfigurationLocked"
+          >
             <legend>网格</legend>
             <div class="control-grid">
               <label class="control-field is-wide">
@@ -626,7 +626,11 @@
             </div>
           </fieldset>
 
-          <fieldset class="control-group" :disabled="isConfigurationLocked">
+          <fieldset
+            v-if="visibleParameterGroups.includes('preprocess')"
+            class="control-group"
+            :disabled="isConfigurationLocked"
+          >
             <legend class="toggle-heading">
               <span>WGS84 ROI</span>
               <label class="toggle-control">
@@ -655,6 +659,7 @@
           </fieldset>
 
           <fieldset
+            v-if="selectedTargets.includes('feature-extraction')"
             class="control-group algorithm-group"
             :disabled="isConfigurationLocked"
           >
@@ -662,7 +667,8 @@
               <span>特征提取</span>
               <label class="toggle-control">
                 <input
-                  v-model="l2aForm.algorithms.features.enabled"
+                  :checked="selectedTargets.includes('feature-extraction')"
+                  disabled
                   type="checkbox"
                   :disabled="isConfigurationLocked"
                 />
@@ -689,6 +695,7 @@
           </fieldset>
 
           <fieldset
+            v-if="selectedTargets.includes('rgb-fusion')"
             class="control-group algorithm-group"
             :disabled="isConfigurationLocked"
           >
@@ -696,7 +703,8 @@
               <span>RGB 显示融合</span>
               <label class="toggle-control">
                 <input
-                  v-model="l2aForm.algorithms.fusion.enabled"
+                  :checked="selectedTargets.includes('rgb-fusion')"
+                  disabled
                   type="checkbox"
                   :disabled="isConfigurationLocked"
                 />
@@ -729,6 +737,7 @@
           </fieldset>
 
           <fieldset
+            v-if="selectedTargets.includes('anomaly-detection')"
             class="control-group algorithm-group"
             :disabled="isConfigurationLocked"
           >
@@ -736,7 +745,8 @@
               <span>对比度显著性</span>
               <label class="toggle-control">
                 <input
-                  v-model="l2aForm.algorithms.saliency.enabled"
+                  :checked="selectedTargets.includes('anomaly-detection')"
+                  disabled
                   type="checkbox"
                   :disabled="isConfigurationLocked"
                 />
@@ -814,6 +824,7 @@
       v-if="isFy3h"
       v-model="isParameterDrawerOpen"
       :form="fy3hForm"
+      :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
       :issues="fy3hParameterIssues"
       :summary="fy3hSummary"
@@ -823,6 +834,7 @@
       v-if="isHy2d"
       v-model="isParameterDrawerOpen"
       :form="hy2dForm"
+      :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
       :issues="hy2dParameterIssues"
       :summary="hy2dSummary"
@@ -832,6 +844,7 @@
       v-if="isFy4b"
       v-model="isParameterDrawerOpen"
       :form="fy4bForm"
+      :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
       :issues="fy4bParameterIssues"
       :summary="fy4bSummary"
@@ -842,7 +855,7 @@
       v-model="isParameterDrawerOpen"
       :form="gf6Form"
       :metadata-file="slots.metadataXml.file"
-      :visible-steps="processingPlan.resolvedSteps"
+      :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
       :issues="gf6ParameterIssues"
       @update-form="updateGf6Form"
@@ -867,6 +880,10 @@ import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterD
 import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
 import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
 import Gf6WfvL1aParameterDrawer from "@/features/multisource/Gf6WfvL1aParameterDrawer.vue";
+import Gf6ProcessingWorkbench from "@/features/multisource/Gf6ProcessingWorkbench.vue";
+import { getVisibleParameterGroups } from "@/features/multisource/parameterVisibility";
+import MultisourceDialog from "@/features/multisource/MultisourceDialog.vue";
+import DerivedOutputChecklist from "@/features/multisource/DerivedOutputChecklist.vue";
 import { featureMetricLabel } from "@/features/multisource/featureMetricLabels";
 import {
   buildFy4bAgriSnapshot,
@@ -908,6 +925,7 @@ import {
   getTargetSteps
 } from "@/features/multisource/pipelineDefinitions";
 import {
+  getRequiredSelectableSteps,
   resolveProcessingPlan,
   type ProcessingPlan
 } from "@/features/multisource/processingPlan";
@@ -1030,10 +1048,23 @@ const targetSteps = computed(() => getTargetSteps(activeTemplate.value.id));
 const processingPlan = computed<ProcessingPlan>(() =>
   resolveProcessingPlan(pipelineDefinition.value, selectedTargets.value)
 );
+const visibleParameterGroups = computed(() =>
+  getVisibleParameterGroups(activeTemplate.value.id, selectedTargets.value)
+);
+const dependencyDialogOpen = ref(false);
+const dependencyDialogSteps = ref<string[]>([]);
 const resolvedPlanSteps = computed(() =>
   processingPlan.value.resolvedSteps
     .map(key => pipelineDefinition.value.steps.find(step => step.key === key))
     .filter((step): step is NonNullable<typeof step> => Boolean(step))
+);
+const checkedTargetKeys = computed(() =>
+  resolvedPlanSteps.value
+    .filter(step => targetSteps.value.some(target => target.key === step.key))
+    .map(step => step.key)
+);
+const lockedTargetKeys = computed(() =>
+  getRequiredSelectableSteps(pipelineDefinition.value, selectedTargets.value)
 );
 const templateLockMessage = computed(() => {
   if (isUploading.value) return "文件正在上传；上传结束后才能切换模板。";
@@ -1049,11 +1080,13 @@ const uploadedSlotCount = computed(
 const parameterValidation = computed(() => validateHy1cCziL2aForm(l2aForm));
 const parameterIssues = computed(() => parameterValidation.value.issues);
 const l2aSummary = computed(() => buildHy1cCziL2aPanelSummary(l2aForm));
+const l2aOutputBands = computed(() => l2aForm.bands);
 const fy3hParameterValidation = computed(() => validateFy3hMersiForm(fy3hForm));
 const fy3hParameterIssues = computed(
   () => fy3hParameterValidation.value.issues
 );
 const fy3hSummary = computed(() => buildFy3hMersiPanelSummary(fy3hForm));
+const fy3hOutputBands = computed(() => fy3hForm.bands.map(band => `CH${String(band).padStart(2, "0")}`));
 const hy2dParameterValidation = computed(() =>
   validateHy2dAltimeterForm(hy2dForm)
 );
@@ -1094,6 +1127,7 @@ const gf6Summary = computed(() => ({
       : "显著性关闭"
   ].join(" · ")
 }));
+const gf6OutputBands = computed(() => gf6Form.bands.map(band => `B${band}`));
 const activeParametersValid = computed(() => {
   if (isHy1c.value) return parameterValidation.value.valid;
   if (isFy3h.value) return fy3hParameterValidation.value.valid;
@@ -1183,7 +1217,16 @@ function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
 }
 
 function updateSelectedTargets(value: string[]) {
+  const previousChecked = new Set(checkedTargetKeys.value);
   selectedTargets.value = value;
+  const automaticSteps = resolvedPlanSteps.value
+    .filter(step => checkedTargetKeys.value.includes(step.key))
+    .filter(step => !value.includes(step.key) && !previousChecked.has(step.key))
+    .map(step => step.title);
+  if (automaticSteps.length) {
+    dependencyDialogSteps.value = automaticSteps;
+    dependencyDialogOpen.value = true;
+  }
   const enabled = new Set(value);
   l2aForm.algorithms.features.enabled = enabled.has("feature-extraction");
   l2aForm.algorithms.fusion.enabled = enabled.has("rgb-fusion");
@@ -2636,6 +2679,85 @@ button:disabled {
   margin-top: 11px;
 }
 
+.satellite-workspace .derived-output-checklist {
+  margin-top: 11px;
+  padding: 10px 12px;
+  background: #f5fafc;
+  border: 1px solid #cfe1e8;
+  border-radius: 4px;
+}
+
+.satellite-workspace .derived-output-checklist__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: var(--plain-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.satellite-workspace .derived-output-checklist__heading small {
+  color: var(--plain-muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.satellite-workspace .derived-output-checklist__items {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.satellite-workspace .derived-output-checklist__items label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--plain-ink);
+  font-size: 12px;
+}
+
+.satellite-workspace .derived-output-checklist__items input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.satellite-workspace .derived-output-checklist__indicator {
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 2px solid #587b8d;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.satellite-workspace
+  .derived-output-checklist__items
+  input:checked
+  + .derived-output-checklist__indicator {
+  border-color: #087ea4;
+  background: #087ea4;
+  box-shadow: 0 0 0 2px rgb(8 126 164 / 16%);
+}
+
+.satellite-workspace
+  .derived-output-checklist__items
+  input:checked
+  + .derived-output-checklist__indicator::after {
+  width: 7px;
+  height: 4px;
+  content: "";
+  border-bottom: 2px solid #fff;
+  border-left: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
 .configuration-algorithms span {
   padding: 4px 6px;
   color: #c1e7f4;
@@ -3643,7 +3765,7 @@ button:disabled {
 
 .satellite-workspace .configuration-summary {
   gap: 6px;
-  margin-top: 13px;
+  margin: 0;
 }
 
 .satellite-workspace .configuration-summary > div {
@@ -3665,9 +3787,92 @@ button:disabled {
   font-weight: 500;
 }
 
+.satellite-workspace .configuration-section {
+  padding: 15px 0;
+  border-top: 1px solid #e1e8ec;
+}
+
+.satellite-workspace .configuration-section--bands {
+  display: grid;
+  gap: 9px;
+}
+
+.satellite-workspace .configuration-section__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.satellite-workspace .configuration-section__heading strong {
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.satellite-workspace .configuration-section__heading small {
+  color: var(--plain-muted);
+  font-size: 11px;
+}
+
+.satellite-workspace .configuration-band-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.satellite-workspace .configuration-band-list span {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-width: 42px;
+  padding: 4px 8px;
+  color: #24546b;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  background: #edf7fb;
+  border: 1px solid #b9dce8;
+  border-radius: 3px;
+}
+
+.satellite-workspace .configuration-section--outputs {
+  padding-bottom: 12px;
+}
+
+.satellite-workspace .configuration-section--outputs :deep(.derived-output-checklist) {
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+}
+
+.satellite-workspace .configuration-section--outputs :deep(.derived-output-checklist__heading) {
+  margin-bottom: 9px;
+}
+
+.satellite-workspace :deep(.derived-output-checklist__items) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+}
+
+.satellite-workspace :deep(.derived-output-checklist__items label) {
+  display: flex;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #d7e3e9;
+  border-radius: 4px;
+}
+
 .satellite-workspace .configuration-algorithms {
   gap: 6px;
-  margin-top: 11px;
+  margin: 0;
 }
 
 .satellite-workspace .configuration-algorithms span {
