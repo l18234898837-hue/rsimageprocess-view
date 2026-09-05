@@ -10,7 +10,7 @@ In scope:
 
 - Restore corrupted Chinese text in the multisource files changed by the `316409a` merge.
 - Extract repeated product-form reset and selected-target synchronization from `MultiSourceSatelliteProcess.vue`.
-- Extract GF-6 workbench summary data preparation from the parent component.
+- Extract product-specific workbench and drawer data preparation for every supported product from the parent component.
 - Add focused tests for the extracted state adapter and for restored visible text.
 
 Out of scope:
@@ -47,6 +47,19 @@ export function syncProductAlgorithmSelection(
   forms: MultisourceProductForms,
   selectedTargets: readonly string[]
 ): void;
+export function buildHy1cWorkbenchSummary(
+  form: Hy1cCziL2aForm
+): Hy1cWorkbenchSummary;
+export function buildFy3hWorkbenchSummary(
+  form: Fy3hMersiForm
+): Fy3hWorkbenchSummary;
+export function buildHy2dWorkbenchSummary(
+  form: Hy2dAltimeterForm
+): Hy2dWorkbenchSummary;
+export function buildFy4bWorkbenchSummary(
+  form: Fy4bAgriForm,
+  metricLabel: (metric: string) => string
+): Fy4bWorkbenchSummary;
 export function buildGf6WorkbenchSummary(
   form: Gf6WfvL1aForm,
   metricLabel: (metric: string) => string
@@ -55,15 +68,18 @@ export function buildGf6WorkbenchSummary(
 
 `resetMultisourceProductForms` mutates only the existing reactive form objects with their existing `default...Form()` factories. `syncProductAlgorithmSelection` keeps the current contract: selected targets enable only the matching algorithm controls for FY-3H, FY-4B, and GF-6, and enable HY-2D gridding only for `track-gridding`. HY-1C remains untouched because its existing form uses a different local control contract.
 
-`buildGf6WorkbenchSummary` maps the unchanged GF-6 form state to the existing workbench props: bands, grid, ROI, RGB channels, stretch, feature metric labels, and saliency source/threshold. `Gf6ProcessingWorkbench.vue` remains a presentational component.
+The adapter also exposes product-summary builders for HY-1C, FY-3H, HY-2D, FY-4B, and GF-6. Each builder maps its existing form state to the exact props and display values already consumed by that product's workbench and drawer. No builder returns template markup or CSS decisions.
+
+`buildGf6WorkbenchSummary` maps the unchanged GF-6 form state to the existing workbench props: bands, grid, ROI, RGB channels, stretch, feature metric labels, and saliency source/threshold. `Gf6ProcessingWorkbench.vue` remains a presentational component. The other product-specific summaries retain their existing DOM and components; only their data preparation moves out of the parent.
 
 ## Data Flow
 
 1. `ProcessingPlanPanel` emits a new `selectedTargets` array.
 2. `MultiSourceSatelliteProcess.vue` stores the array as it does today.
 3. The parent calls `syncProductAlgorithmSelection(forms, selectedTargets)`.
-4. Computed parameter visibility, the execution plan, current parameter drawers, and existing workbench props consume the same selected target state.
-5. On template changes, the parent calls `resetMultisourceProductForms(forms)` before clearing selected targets and closing the current parameter drawer.
+4. Product-summary builders derive the existing workbench and parameter-drawer display values from those unchanged form objects.
+5. Computed parameter visibility, the execution plan, current parameter drawers, and existing workbench props consume the same selected target state and summary values.
+6. On template changes, the parent calls `resetMultisourceProductForms(forms)` before clearing selected targets and closing the current parameter drawer.
 
 No child receives new state that it did not receive before. No server payload or processing-plan algorithm changes.
 
@@ -71,7 +87,7 @@ No child receives new state that it did not receive before. No server payload or
 
 - Unit tests prove reset restores all product forms to their current defaults.
 - Unit tests prove target selection changes only the existing affected algorithm flags.
-- Unit tests prove the GF-6 summary values match the current parent formatting contract.
+- Unit tests prove every product summary matches the current parent formatting contract, including HY-1C, FY-3H, HY-2D, FY-4B, and GF-6.
 - Existing source-contract tests are updated only for restored Chinese copy and the new adapter calls.
 - Run `pnpm test:multisource`, `pnpm exec vue-tsc --noEmit --skipLibCheck`, `git diff --check`, and `pnpm build`.
 - Open `http://localhost:8849/#/satellite-applications` and verify: package folding, selected-step execution plan, GF-6 workbench visibility, parameter drawer opening, and the restored Chinese labels.
