@@ -66,7 +66,7 @@ export function buildGf6WorkbenchSummary(
 ): Gf6WorkbenchSummary;
 ```
 
-`resetMultisourceProductForms` mutates only the existing reactive form objects with their existing `default...Form()` factories. `syncProductAlgorithmSelection` keeps the current contract: selected targets enable only the matching algorithm controls for FY-3H, FY-4B, and GF-6, and enable HY-2D gridding only for `track-gridding`. HY-1C remains untouched because its existing form uses a different local control contract.
+`resetMultisourceProductForms` mutates only the existing reactive form objects with their existing `default...Form()` factories. `syncProductAlgorithmSelection` keeps the current contract: selected targets enable only the matching algorithm controls for HY-1C, FY-3H, FY-4B, and GF-6, and enable HY-2D gridding only for `track-gridding`.
 
 The adapter also exposes product-summary builders for HY-1C, FY-3H, HY-2D, FY-4B, and GF-6. Each builder maps its existing form state to the exact props and display values already consumed by that product's workbench and drawer. No builder returns template markup or CSS decisions.
 
