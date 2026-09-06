@@ -28,7 +28,14 @@ test("feature metric keys keep their API values but render Chinese labels", () =
   assert.match(gf6Drawer, /featureMetricLabel\(metric\)/);
   assert.doesNotMatch(fy4bDrawer, /<span>\{\{ metric \}\}<\/span>/);
   assert.doesNotMatch(gf6Drawer, /<span>\{\{ metric \}\}<\/span>/);
-  assert.match(workspace, /features\.metrics\.map\(featureMetricLabel\)/);
+  assert.match(
+    workspace,
+    /buildFy4bWorkbenchSummary\(fy4bForm, featureMetricLabel\)/
+  );
+  assert.match(
+    workspace,
+    /buildGf6WorkbenchSummary\(gf6Form, featureMetricLabel\)/
+  );
 });
 
 test("teleported product drawers compile the shared theme as global CSS", async () => {
@@ -164,7 +171,11 @@ test("workspace selects FY-4B and GF-6 parameter contracts with integrated stage
     /import Gf6ProcessingWorkbench from "@\/features\/multisource\/Gf6ProcessingWorkbench\.vue"/
   );
   assert.match(gf6Workbench, /<dt>处理范围<\/dt>\s*<dd>\{\{ roi \}\}<\/dd>/);
-  assert.match(workspace, /roi: gf6Form\.roi \? gf6Form\.roi\.join/);
+  assert.match(
+    workspace,
+    /buildGf6WorkbenchSummary\(gf6Form, featureMetricLabel\)/
+  );
+  assert.match(workspace, /:roi="gf6Summary\.roi"/);
   assert.match(gf6Workbench, /accuracyStatus=UNVALIDATED/);
   assert.match(
     workspace,
@@ -216,6 +227,21 @@ test("parameter workbench is driven by selected targets, not automatic dependenc
     assert.match(drawer, /visibleSteps: readonly string\[\]/);
     assert.match(drawer, /visibleSteps\.includes\(/);
   }
+});
+
+test("workspace delegates multisource form coordination to the shared adapter", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(workspace, /resetMultisourceProductForms\(productForms\)/);
+  assert.match(
+    workspace,
+    /syncProductAlgorithmSelection\(productForms, value\)/
+  );
+  assert.doesNotMatch(workspace, /fy3hForm\.features\.enabled\s*=/);
+  assert.doesNotMatch(workspace, /gf6Form\.saliency\.enabled\s*=/);
 });
 
 test("derived output status is a shared read-only checklist", () => {
