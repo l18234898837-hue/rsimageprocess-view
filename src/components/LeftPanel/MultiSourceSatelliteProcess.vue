@@ -380,12 +380,10 @@
       :bands="gf6OutputBands"
       :grid="gf6Summary.grid"
       :roi="gf6Summary.roi"
-      :rgb-bands="`B${gf6Form.fusion.red} / B${gf6Form.fusion.green} / B${gf6Form.fusion.blue}`"
-      :stretch="`${gf6Form.fusion.lowPercentile}% - ${gf6Form.fusion.highPercentile}%`"
-      :feature-metrics="
-        gf6Form.features.metrics.map(featureMetricLabel).join('、')
-      "
-      :saliency="`${gf6Form.saliency.source} · 阈值 ${gf6Form.saliency.threshold}`"
+      :rgb-bands="gf6Summary.rgbBands"
+      :stretch="gf6Summary.stretch"
+      :feature-metrics="gf6Summary.featureMetrics"
+      :saliency="gf6Summary.saliency"
       :locked="isConfigurationLocked"
       @configure="isParameterDrawerOpen = true"
     />
@@ -909,13 +907,11 @@ import {
   validateGf6WfvL1aForm
 } from "@/features/multisource/gf6WfvL1aParameters";
 import {
-  buildFy3hMersiPanelSummary,
   buildFy3hMersiSnapshot,
   defaultFy3hMersiForm,
   validateFy3hMersiForm
 } from "@/features/multisource/fy3hMersiParameters";
 import {
-  buildHy2dAltimeterPanelSummary,
   buildHy2dAltimeterSnapshot,
   defaultHy2dAltimeterForm,
   validateHy2dAltimeterForm
@@ -923,7 +919,6 @@ import {
 import {
   HY1C_CZI_BANDS,
   buildHy1cCziL2aSnapshot,
-  buildHy1cCziL2aPanelSummary,
   defaultL2aForm,
   validateHy1cCziL2aForm,
   type Hy1cCziBand,
@@ -956,6 +951,15 @@ import {
   type SlotId
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
+import {
+  buildFy4bWorkbenchSummary,
+  buildGf6WorkbenchSummary,
+  buildHy1cWorkbenchSummary,
+  buildFy3hWorkbenchSummary,
+  buildHy2dWorkbenchSummary,
+  resetMultisourceProductForms,
+  syncProductAlgorithmSelection
+} from "@/features/multisource/multisourceProductState";
 
 const FEATURE_METRICS: readonly {
   value: Hy1cFeatureMetric;
@@ -1018,6 +1022,13 @@ const fy3hForm = reactive(defaultFy3hMersiForm());
 const hy2dForm = reactive(defaultHy2dAltimeterForm());
 const fy4bForm = reactive(defaultFy4bAgriForm());
 const gf6Form = reactive(defaultGf6WfvL1aForm());
+const productForms = {
+  hy1c: l2aForm,
+  fy3h: fy3hForm,
+  hy2d: hy2dForm,
+  fy4b: fy4bForm,
+  gf6: gf6Form
+};
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
 const isPackageExpanded = ref(false);
@@ -1095,57 +1106,44 @@ const uploadedSlotCount = computed(
 );
 const parameterValidation = computed(() => validateHy1cCziL2aForm(l2aForm));
 const parameterIssues = computed(() => parameterValidation.value.issues);
-const l2aSummary = computed(() => buildHy1cCziL2aPanelSummary(l2aForm));
-const l2aOutputBands = computed(() => l2aForm.bands);
+const l2aSummary = computed(() => buildHy1cWorkbenchSummary(l2aForm));
+const l2aOutputBands = computed(() => l2aSummary.value.bands);
 const fy3hParameterValidation = computed(() => validateFy3hMersiForm(fy3hForm));
 const fy3hParameterIssues = computed(
   () => fy3hParameterValidation.value.issues
 );
-const fy3hSummary = computed(() => buildFy3hMersiPanelSummary(fy3hForm));
-const fy3hOutputBands = computed(() =>
-  fy3hForm.bands.map(band => `CH${String(band).padStart(2, "0")}`)
-);
+const fy3hSummary = computed(() => buildFy3hWorkbenchSummary(fy3hForm));
+const fy3hOutputBands = computed(() => fy3hSummary.value.outputBands);
 const hy2dParameterValidation = computed(() =>
   validateHy2dAltimeterForm(hy2dForm)
 );
 const hy2dParameterIssues = computed(
   () => hy2dParameterValidation.value.issues
 );
-const hy2dSummary = computed(() => buildHy2dAltimeterPanelSummary(hy2dForm));
+const hy2dSummary = computed(() => buildHy2dWorkbenchSummary(hy2dForm));
 const fy4bParameterValidation = computed(() => validateFy4bAgriForm(fy4bForm));
 const fy4bParameterIssues = computed(
   () => fy4bParameterValidation.value.issues
 );
-const fy4bSummary = computed(() => ({
-  grid: fy4bForm.targetCrs,
-  roi: fy4bForm.roi ? fy4bForm.roi.join(", ") : "全圆盘",
-  algorithms: [
-    fy4bForm.features.enabled
-      ? `特征: ${fy4bForm.features.metrics.map(featureMetricLabel).join("、")}`
-      : "特征关闭",
-    fy4bForm.fusion.enabled ? "假彩色: NIR_RED_BLUE" : "假彩色关闭",
-    fy4bForm.saliency.enabled
-      ? `显著性: ${fy4bForm.saliency.source}`
-      : "显著性关闭"
-  ].join(" · ")
-}));
+const fy4bSummary = computed(() =>
+  buildFy4bWorkbenchSummary(fy4bForm, featureMetricLabel)
+);
 const gf6ParameterValidation = computed(() => validateGf6WfvL1aForm(gf6Form));
 const gf6ParameterIssues = computed(() => gf6ParameterValidation.value.issues);
-const gf6Summary = computed(() => ({
-  grid: `${gf6Form.targetCrs} · ${gf6Form.resolution}`,
-  roi: gf6Form.roi ? gf6Form.roi.join(", ") : "全幅镶嵌",
-  bands: gf6Form.bands.map(band => `B${band}`).join(" / "),
-  algorithms: [
-    gf6Form.features.enabled
-      ? `特征: ${gf6Form.features.metrics.map(featureMetricLabel).join("、")}`
-      : "特征关闭",
-    gf6Form.fusion.enabled ? "RGB 融合" : "RGB 关闭",
-    gf6Form.saliency.enabled
-      ? `显著性: ${gf6Form.saliency.source}`
-      : "显著性关闭"
-  ].join(" · ")
-}));
-const gf6OutputBands = computed(() => gf6Form.bands.map(band => `B${band}`));
+const gf6Summary = computed(() => {
+  const summary = buildGf6WorkbenchSummary(gf6Form, featureMetricLabel);
+  return {
+    ...summary,
+    algorithms: [
+      gf6Form.features.enabled ? `特征: ${summary.featureMetrics}` : "特征关闭",
+      gf6Form.fusion.enabled ? "RGB 融合" : "RGB 关闭",
+      gf6Form.saliency.enabled
+        ? `显著性: ${gf6Form.saliency.source}`
+        : "显著性关闭"
+    ].join(" · ")
+  };
+});
+const gf6OutputBands = computed(() => gf6Summary.value.bands);
 const activeParametersValid = computed(() => {
   if (isHy1c.value) return parameterValidation.value.valid;
   if (isFy3h.value) return fy3hParameterValidation.value.valid;
@@ -1224,20 +1222,7 @@ function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
 
 function updateSelectedTargets(value: string[]) {
   selectedTargets.value = value;
-  const enabled = new Set(value);
-  l2aForm.algorithms.features.enabled = enabled.has("feature-extraction");
-  l2aForm.algorithms.fusion.enabled = enabled.has("rgb-fusion");
-  l2aForm.algorithms.saliency.enabled = enabled.has("anomaly-detection");
-  fy3hForm.features.enabled = enabled.has("feature-extraction");
-  fy3hForm.fusion.enabled = enabled.has("rgb-fusion");
-  fy3hForm.saliency.enabled = enabled.has("anomaly-detection");
-  fy4bForm.features.enabled = enabled.has("feature-extraction");
-  fy4bForm.fusion.enabled = enabled.has("rgb-fusion");
-  fy4bForm.saliency.enabled = enabled.has("anomaly-detection");
-  gf6Form.features.enabled = enabled.has("feature-extraction");
-  gf6Form.fusion.enabled = enabled.has("rgb-fusion");
-  gf6Form.saliency.enabled = enabled.has("anomaly-detection");
-  hy2dForm.grid.enabled = enabled.has("track-gridding");
+  syncProductAlgorithmSelection(productForms, value);
 }
 
 function togglePackageExpanded() {
@@ -1286,12 +1271,8 @@ function handleTemplateChange(event: Event) {
   if (!template) return;
   try {
     setTemplate(template);
-    Object.assign(l2aForm, defaultL2aForm());
+    resetMultisourceProductForms(productForms);
     hy1cRoiSuggestion.value = null;
-    Object.assign(fy3hForm, defaultFy3hMersiForm());
-    Object.assign(hy2dForm, defaultHy2dAltimeterForm());
-    Object.assign(fy4bForm, defaultFy4bAgriForm());
-    Object.assign(gf6Form, defaultGf6WfvL1aForm());
     selectedTargets.value = [];
     isPackageExpanded.value = false;
     isParameterDrawerOpen.value = false;

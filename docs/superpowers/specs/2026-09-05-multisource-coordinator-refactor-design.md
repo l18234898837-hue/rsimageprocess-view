@@ -8,10 +8,10 @@ Reduce the orchestration responsibility of the multisource satellite workspace w
 
 In scope:
 
-- Restore corrupted Chinese text in the multisource files changed by the `316409a` merge.
+- Verify readable Chinese text in the multisource files changed by the `316409a` merge and retain a regression check for it.
 - Extract repeated product-form reset and selected-target synchronization from `MultiSourceSatelliteProcess.vue`.
 - Extract product-specific workbench and drawer data preparation for every supported product from the parent component.
-- Add focused tests for the extracted state adapter and for restored visible text.
+- Add focused tests for the extracted state adapter and core workspace copy encoding.
 
 Out of scope:
 
@@ -20,16 +20,16 @@ Out of scope:
 - A registry-driven rewrite of all product summary components.
 - Changes to non-multisource product workflows.
 
-## Baseline Recovery
+## Text Encoding Verification
 
-The current working tree contains valid UTF-8 byte sequences whose text values were incorrectly converted to mojibake in several multisource source and test files. `13a5e08` is the verified Chinese-text baseline for the pre-merge multisource implementation. `316409a` contributes current UI and interaction refinements.
+PowerShell console rendering showed mojibake during analysis, but direct UTF-8 reads confirmed the current source retains its intended Chinese values. The implementation must not rewrite visible copy solely for console display.
 
-Recovery rules:
+Verification rules:
 
-1. Restore only user-facing and test text values from the verified baseline or the equivalent intended Chinese copy visible in the `13a5e08..316409a` diff.
+1. Preserve current user-facing and test text values.
 2. Keep all structural, event-handling, accessibility, and style additions introduced by `316409a`.
-3. Do not use blind whole-file checkout or character-set transforms.
-4. Verify each repaired file remains strict UTF-8 and contains no replacement character.
+3. Do not apply blind whole-file checkout or character-set transforms.
+4. Retain a regression check that core workspace files contain expected Chinese labels and no replacement character.
 
 ## Architecture
 
@@ -88,6 +88,6 @@ No child receives new state that it did not receive before. No server payload or
 - Unit tests prove reset restores all product forms to their current defaults.
 - Unit tests prove target selection changes only the existing affected algorithm flags.
 - Unit tests prove every product summary matches the current parent formatting contract, including HY-1C, FY-3H, HY-2D, FY-4B, and GF-6.
-- Existing source-contract tests are updated only for restored Chinese copy and the new adapter calls.
+- Source-contract tests retain Chinese-copy and adapter-delegation coverage.
 - Run `pnpm test:multisource`, `pnpm exec vue-tsc --noEmit --skipLibCheck`, `git diff --check`, and `pnpm build`.
-- Open `http://localhost:8849/#/satellite-applications` and verify: package folding, selected-step execution plan, GF-6 workbench visibility, parameter drawer opening, and the restored Chinese labels.
+- Open `http://localhost:8849/#/satellite-applications` and verify: package folding, selected-step execution plan, GF-6 workbench visibility, parameter drawer opening, and readable Chinese labels.
