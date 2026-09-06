@@ -395,3 +395,30 @@ test("product parameter drawers use an inset, content-sized floating workbench",
   assert.match(styles, /max-height:\s*calc\(100vh - 48px\);/);
   assert.match(styles, /\.el-drawer__body\s*\{[\s\S]*?overflow-y:\s*auto;/);
 });
+
+test("product package exposes ZIP import inside the existing upload section", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(workspace, /一键导入 ZIP/);
+  assert.match(workspace, /accept="\.zip,application\/zip"/);
+  assert.match(workspace, /handleArchiveChange/);
+  assert.match(workspace, /matchProductArchiveEntries/);
+  assert.match(workspace, /await uploadSlot\(match\.slot\.id, file\)/);
+  assert.doesNotMatch(workspace, /解析预览/);
+  assert.doesNotMatch(workspace, /确认填充并上传/);
+});
+
+test("product package slots show parsed filenames and slot mapping", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(workspace, /slotDisplayName\(slot\.id, slot\.label\)/);
+  assert.match(workspace, /slotSourceDescription\(slot\.id, slot\.label\)/);
+  assert.match(workspace, /v-if="slots\[slot\.id\]\.status !== 'EMPTY'"/);
+  assert.match(workspace, /archiveMatchedSlots\.value\.has\(slotId\)/);
+});

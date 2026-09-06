@@ -41,6 +41,9 @@ importers:
       '@vueuse/motion':
         specifier: ^2.2.3
         version: 2.2.3(rollup@4.18.0)(vue@3.4.27(typescript@5.4.5))
+      '@zip.js/zip.js':
+        specifier: 2.4.26
+        version: 2.4.26
       animate.css:
         specifier: ^4.1.1
         version: 4.1.1
