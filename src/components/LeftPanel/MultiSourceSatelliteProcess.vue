@@ -942,6 +942,7 @@ import {
   getTargetSteps
 } from "@/features/multisource/pipelineDefinitions";
 import {
+  getCheckedSelectableStepKeys,
   getRequiredSelectableSteps,
   resolveProcessingPlan,
   type ProcessingPlan
@@ -1075,9 +1076,7 @@ const resolvedPlanSteps = computed(() =>
     .filter((step): step is NonNullable<typeof step> => Boolean(step))
 );
 const checkedTargetKeys = computed(() =>
-  resolvedPlanSteps.value
-    .filter(step => targetSteps.value.some(target => target.key === step.key))
-    .map(step => step.key)
+  getCheckedSelectableStepKeys(pipelineDefinition.value, selectedTargets.value)
 );
 const lockedTargetKeys = computed(() =>
   getRequiredSelectableSteps(pipelineDefinition.value, selectedTargets.value)

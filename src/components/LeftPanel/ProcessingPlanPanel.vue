@@ -393,14 +393,17 @@ function toggleTarget(stepKey: string) {
 }
 
 .processing-plan__target.is-automatic {
-  color: #5d7280;
-  background: #eef4f6;
-  border-color: #c4d2d8;
   cursor: not-allowed;
 }
 
+.processing-plan__target.is-selected.is-automatic {
+  color: #155d7a;
+  background: #e6f4fa;
+  border-color: #2e7da3;
+}
+
 .processing-plan__target .is-auto-label {
-  color: #738993;
+  color: #3d7186;
 }
 
 .processing-plan__target input {

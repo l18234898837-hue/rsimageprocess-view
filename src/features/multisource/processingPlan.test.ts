@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getPipelineDefinition } from "./pipelineDefinitions";
 import {
+  getCheckedSelectableStepKeys,
   resolveProcessingPlan,
   getRequiredSelectableSteps,
   updatePlanTargets,
@@ -116,5 +117,17 @@ test("a manually selected prerequisite is locked when a downstream target needs 
   assert.deepEqual(
     getRequiredSelectableSteps(gf6Pipeline, ["rpc-geolocation"]),
     ["tile-mosaic"]
+  );
+});
+
+test("an automatic GF-6 prerequisite remains visually selected", () => {
+  assert.deepEqual(
+    getCheckedSelectableStepKeys(gf6Pipeline, ["anomaly-detection"]),
+    [
+      "tile-mosaic",
+      "rpc-geolocation",
+      "projection-standardization",
+      "anomaly-detection"
+    ]
   );
 });
