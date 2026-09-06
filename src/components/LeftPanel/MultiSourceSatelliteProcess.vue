@@ -44,6 +44,25 @@
             </button>
           </el-tooltip>
         </div>
+        <div class="package-actions">
+          <button
+            class="package-archive-import"
+            type="button"
+            :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
+            @click="openArchivePicker"
+          >
+            <el-icon><Upload /></el-icon>
+            <span>{{ isArchiveImporting ? "解析中..." : "一键导入 ZIP" }}</span>
+          </button>
+          <input
+            ref="archiveInput"
+            class="visually-hidden"
+            type="file"
+            accept=".zip,application/zip"
+            :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
+            @change="handleArchiveChange"
+          />
+        </div>
         <button
           class="package-toggle"
           type="button"
@@ -98,7 +117,7 @@
                   :offset="6"
                   :show-after="180"
                 >
-                  <strong>{{ slot.label }}</strong>
+                  <strong>{{ slotDisplayName(slot.id, slot.label) }}</strong>
                 </el-tooltip>
                 <small
                   v-if="slots[slot.id].status === 'EMPTY'"
@@ -106,9 +125,12 @@
                 >
                   点击卡片上传
                 </small>
+                <small v-else class="file-slot__source">
+                  {{ slotSourceDescription(slot.id, slot.label) }}
+                </small>
               </div>
               <span
-                v-if="slots[slot.id].status !== 'UPLOADED'"
+                v-if="slots[slot.id].status !== 'EMPTY'"
                 class="file-slot__status"
               >
                 {{ slotStatusLabel(slots[slot.id].status) }}
@@ -884,7 +906,8 @@ import {
   Download,
   ArrowDown,
   Setting,
-  QuestionFilled
+  QuestionFilled,
+  Upload
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
@@ -951,6 +974,11 @@ import {
   type SlotId
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
+import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
+import {
+  matchProductArchiveEntries,
+  type ProductArchiveEntry
+} from "@/features/multisource/productArchiveImport";
 import {
   buildFy4bWorkbenchSummary,
   buildGf6WorkbenchSummary,
@@ -1032,6 +1060,9 @@ const productForms = {
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
 const isPackageExpanded = ref(false);
+const isArchiveImporting = ref(false);
+const archiveInput = ref<HTMLInputElement | null>(null);
+const archiveMatchedSlots = ref(new Set<SlotId>());
 const selectedTargets = ref<string[]>([]);
 const {
   activeTemplate,
@@ -1254,6 +1285,91 @@ function handleSlotActivate(slotId: SlotId, event: Event) {
   document.getElementById(`file-${activeTemplate.value.id}-${slotId}`)?.click();
 }
 
+function slotDisplayName(slotId: SlotId, fallback: string) {
+  return slots[slotId].file?.name ?? fallback;
+}
+
+function slotSourceDescription(slotId: SlotId, label: string) {
+  return `${archiveMatchedSlots.value.has(slotId) ? "已匹配" : "已选择"} → ${label}`;
+}
+
+function openArchivePicker() {
+  archiveInput.value?.click();
+}
+
+async function handleArchiveChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const archive = input.files?.[0];
+  if (!archive) return;
+  isArchiveImporting.value = true;
+  let reader: ZipReader<BlobReader> | undefined;
+  try {
+    if (archive.size > 2 * 1024 * 1024 * 1024) {
+      throw new Error("ZIP 压缩包不能超过 2 GB");
+    }
+    reader = new ZipReader(new BlobReader(archive));
+    const zipEntries = await reader.getEntries();
+    if (zipEntries.length > 200) {
+      await reader.close();
+      reader = undefined;
+      throw new Error("ZIP 压缩包文件数量不能超过 200 个");
+    }
+    const archiveEntries = zipEntries
+      .filter(entry => !entry.directory && Boolean(entry.getData))
+      .map(entry => ({
+        name: entry.filename,
+        zipEntry: entry
+      }));
+    const result = matchProductArchiveEntries(archiveEntries, activeTemplate.value);
+    if (result.conflicts.length > 0) {
+      const conflictSlots = result.conflicts.map(conflict => conflict.slot.label).join("、");
+      throw new Error(`ZIP 中存在重复匹配文件：${conflictSlots}，请整理后重新导入`);
+    }
+    if (result.missingRequired.length > 0) {
+      const missingSlots = result.missingRequired
+        .map(slotId => activeTemplate.value.slots.find(slot => slot.id === slotId)?.label ?? slotId)
+        .join("、");
+      throw new Error(`ZIP 缺少必需文件：${missingSlots}`);
+    }
+    if (result.matches.length === 0) {
+      throw new Error("ZIP 中没有识别到当前产品所需的文件");
+    }
+    isPackageExpanded.value = true;
+    for (const match of result.matches) {
+      const archiveEntry = match.entry as ProductArchiveEntry & {
+        zipEntry: { getData: (writer: BlobWriter) => Promise<Blob> };
+      };
+      const blob = await archiveEntry.zipEntry.getData(new BlobWriter());
+      const file = new File([blob], match.entry.name.split("/").pop() ?? match.entry.name, {
+        type: blob.type || "application/octet-stream"
+      });
+      archiveMatchedSlots.value.add(match.slot.id);
+      await uploadSlot(match.slot.id, file);
+      if (slots[match.slot.id].status === "FAILED") {
+        throw new Error(`${match.slot.label}上传失败，请使用单文件上传重试`);
+      }
+      if (
+        isHy1c.value &&
+        match.slot.id === "metadata" &&
+        slots.metadata.status === "UPLOADED"
+      ) {
+        applyHy1cMetadataRoi(await file.text());
+      }
+    }
+    message(`已从 ZIP 自动匹配并上传 ${result.matches.length} 个文件`, {
+      type: "success"
+    });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "ZIP 产品包解析失败", {
+      type: "warning"
+    });
+  } finally {
+    if (reader) await reader.close();
+    input.value = "";
+    isArchiveImporting.value = false;
+  }
+}
+
 function stageLabel(stageCode: string) {
   if (stageCode === "VALIDATE_SOURCE" && isHy2d.value) {
     return "校验 HY-2D 产品包";
@@ -1272,6 +1388,7 @@ function handleTemplateChange(event: Event) {
   try {
     setTemplate(template);
     resetMultisourceProductForms(productForms);
+    archiveMatchedSlots.value.clear();
     hy1cRoiSuggestion.value = null;
     selectedTargets.value = [];
     isPackageExpanded.value = false;
@@ -1289,6 +1406,7 @@ async function handleFileChange(slotId: SlotId, event: Event) {
   const file = input.files?.[0];
   if (!file) return;
   try {
+    archiveMatchedSlots.value.delete(slotId);
     await uploadSlot(slotId, file);
     if (
       isHy1c.value &&
@@ -1318,6 +1436,7 @@ function applyHy1cMetadataRoi(xmlText: string) {
 
 function removeProductSlot(slotId: SlotId) {
   try {
+    archiveMatchedSlots.value.delete(slotId);
     removeSlot(slotId);
     if (isHy1c.value && slotId === "metadata") {
       applyHy1cMetadataRoi("");
@@ -1512,6 +1631,37 @@ function resetTask() {
 
 .mission-section__heading > div {
   justify-content: flex-start;
+}
+
+.package-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.package-archive-import {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 3px 7px;
+  color: #176fa8;
+  background: #e9f8fb;
+  border: 1px solid #9dd6e2;
+  border-radius: 2px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.package-archive-import:hover:not(:disabled) {
+  color: #0e4f77;
+  background: #d9f1f6;
+}
+
+.package-archive-import:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .mission-section__heading strong {
@@ -3693,6 +3843,12 @@ button:disabled {
   color: #71899a;
   font-size: 10px;
   line-height: 1.25;
+}
+
+.satellite-workspace .file-slot__source {
+  flex: 1 1 auto;
+  color: var(--plain-muted);
+  font-size: 10px;
 }
 
 .satellite-workspace .file-slot__details .el-tooltip {
