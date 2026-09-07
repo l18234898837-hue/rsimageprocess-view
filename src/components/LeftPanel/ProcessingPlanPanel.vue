@@ -322,7 +322,7 @@ function toggleTarget(stepKey: string) {
 .processing-plan h4 {
   margin: 0;
   color: #243746;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 650;
   line-height: 1.25;
 }

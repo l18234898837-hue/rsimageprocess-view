@@ -44,6 +44,31 @@ test("matches GF-6 archive files to all required slots by extension and tile ord
   assert.deepEqual(result.missingRequired, []);
 });
 
+test("ignores GF-6 footprint sidecars that are outside the upload contract", () => {
+  const result = matchProductArchiveEntries(
+    [
+      "GF6_tile_01.tif",
+      "GF6_tile_02.tif",
+      "GF6_tile_03.tif",
+      "GF6_product.xml",
+      "GF6_product.rpb",
+      "GF6_product.nav",
+      "GF6_product.til",
+      "GF6_product.shp",
+      "GF6_product.dbf",
+      "GF6_product.shx"
+    ].map(entry),
+    GF6_WFV_L1A_TEMPLATE
+  );
+
+  assert.deepEqual(result.missingRequired, []);
+  assert.deepEqual(result.unsupported, [
+    "GF6_product.dbf",
+    "GF6_product.shp",
+    "GF6_product.shx"
+  ]);
+});
+
 test("reports duplicate archive candidates instead of choosing silently", () => {
   const result = matchProductArchiveEntries(
     [entry("GF6_tile_01_a.tif"), entry("GF6_tile_01_b.tif")],
@@ -81,7 +106,11 @@ test("matches HY-2D tar.gz as the single product slot", () => {
 
 test("matches HY-1C main, metadata, and browse files", () => {
   const result = matchProductArchiveEntries(
-    [entry("HY1C_product.h5"), entry("HY1C_product.xml"), entry("HY1C_product.jpg")],
+    [
+      entry("HY1C_product.h5"),
+      entry("HY1C_product.xml"),
+      entry("HY1C_product.jpg")
+    ],
     HY1C_CZI_L2A_TEMPLATE
   );
 

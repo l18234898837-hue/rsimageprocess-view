@@ -3,10 +3,7 @@ export type Gf6L1aRole =
   | "METADATA_XML"
   | "RPC_RPB"
   | "NAV"
-  | "TILE_INDEX_TIL"
-  | "FOOTPRINT_SHP"
-  | "FOOTPRINT_DBF"
-  | "FOOTPRINT_SHX";
+  | "TILE_INDEX_TIL";
 export interface Gf6L1aForm {
   targetCrs: string;
   resolution: number;
@@ -69,24 +66,6 @@ export const GF6_WFV_L1A_TEMPLATE = Object.freeze({
       role: "TILE_INDEX_TIL" as const,
       extensions: [".til"],
       required: true
-    },
-    {
-      id: "shp",
-      role: "FOOTPRINT_SHP" as const,
-      extensions: [".shp"],
-      required: false
-    },
-    {
-      id: "dbf",
-      role: "FOOTPRINT_DBF" as const,
-      extensions: [".dbf"],
-      required: false
-    },
-    {
-      id: "shx",
-      role: "FOOTPRINT_SHX" as const,
-      extensions: [".shx"],
-      required: false
     }
   ]),
   parameterSnapshotSchema: "gf6-wfv-l1a-v1"

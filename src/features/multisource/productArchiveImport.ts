@@ -1,4 +1,8 @@
-import type { ProductFileSlot, ProductTemplate, SlotId } from "./productTemplates";
+import type {
+  ProductFileSlot,
+  ProductTemplate,
+  SlotId
+} from "./productTemplates";
 
 export interface ProductArchiveEntry {
   readonly name: string;
@@ -27,7 +31,9 @@ function basename(name: string) {
 
 function extensionMatches(name: string, extensions: readonly string[]) {
   const normalized = basename(name).toLowerCase();
-  return extensions.some(extension => normalized.endsWith(extension.toLowerCase()));
+  return extensions.some(extension =>
+    normalized.endsWith(extension.toLowerCase())
+  );
 }
 
 function markerMatches(name: string, slot: ProductFileSlot) {
@@ -37,25 +43,27 @@ function markerMatches(name: string, slot: ProductFileSlot) {
   if (role === "L1_1000M") return /1000m|1km/.test(normalized);
   if (role === "L1_2000M") return /2000m|2km/.test(normalized);
   if (role === "L1_4000M" || role === "GEO_4000M") {
-    return /4000m|4km/.test(normalized) &&
-      (role === "GEO_4000M" ? /geo/.test(normalized) : !/geo/.test(normalized));
+    return (
+      /4000m|4km/.test(normalized) &&
+      (role === "GEO_4000M" ? /geo/.test(normalized) : !/geo/.test(normalized))
+    );
   }
-  if (role === "OBSERVATION") return /1000m|observation|observ/.test(normalized);
+  if (role === "OBSERVATION")
+    return /1000m|observation|observ/.test(normalized);
   if (role === "GEO1K") return /geo1k|geo_?1k|geo/.test(normalized);
   if (role === "MAIN_TIFF_TILE") return /tif{1,2}$/.test(normalized);
   if (role === "METADATA_XML") return /xml$/.test(normalized);
   if (role === "RPC_RPB") return /rpb$/.test(normalized);
   if (role === "NAV") return /nav/.test(normalized);
   if (role === "TILE_INDEX_TIL") return /til/.test(normalized);
-  if (role === "FOOTPRINT_SHP" || role === "FOOTPRINT_DBF" || role === "FOOTPRINT_SHX") {
-    return /foot|shape|shp|dbf|shx/.test(normalized);
-  }
   return true;
 }
 
 function tileOrdinal(name: string) {
   const normalized = basename(name).toLowerCase();
-  const match = normalized.match(/(?:tile|t|part|block)[-_ ]*0?([1-3])(?:\D|$)/);
+  const match = normalized.match(
+    /(?:tile|t|part|block)[-_ ]*0?([1-3])(?:\D|$)/
+  );
   return match ? Number(match[1]) - 1 : undefined;
 }
 
@@ -64,7 +72,9 @@ function candidatesForSlot(
   slot: ProductFileSlot
 ) {
   return entries.filter(
-    entry => extensionMatches(entry.name, slot.extensions) && markerMatches(entry.name, slot)
+    entry =>
+      extensionMatches(entry.name, slot.extensions) &&
+      markerMatches(entry.name, slot)
   );
 }
 
@@ -75,7 +85,9 @@ export function matchProductArchiveEntries(
   const matches: ProductArchiveMatch[] = [];
   const conflicts: ProductArchiveConflict[] = [];
   const used = new Set<ProductArchiveEntry>();
-  const sortedEntries = [...entries].sort((left, right) => left.name.localeCompare(right.name));
+  const sortedEntries = [...entries].sort((left, right) =>
+    left.name.localeCompare(right.name)
+  );
 
   for (const slot of template.slots) {
     let candidates = candidatesForSlot(sortedEntries, slot);
@@ -100,9 +112,14 @@ export function matchProductArchiveEntries(
       template.slots.some(slot => slot.role === "MAIN_TIFF_TILE")
   );
   const unassignedTiffSlots = template.slots.filter(
-    slot => slot.role === "MAIN_TIFF_TILE" && !matches.some(match => match.slot.id === slot.id)
+    slot =>
+      slot.role === "MAIN_TIFF_TILE" &&
+      !matches.some(match => match.slot.id === slot.id)
   );
-  if (unmatchedTiffs.length === unassignedTiffSlots.length && unmatchedTiffs.length > 0) {
+  if (
+    unmatchedTiffs.length === unassignedTiffSlots.length &&
+    unmatchedTiffs.length > 0
+  ) {
     unmatchedTiffs.forEach((entry, index) => {
       const slot = unassignedTiffSlots[index];
       if (!slot) return;
@@ -120,7 +137,11 @@ export function matchProductArchiveEntries(
       .filter(slot => !conflicts.some(conflict => conflict.slot.id === slot.id))
       .map(slot => slot.id),
     unsupported: sortedEntries
-      .filter(entry => !used.has(entry) && !conflicts.some(conflict => conflict.entries.includes(entry)))
+      .filter(
+        entry =>
+          !used.has(entry) &&
+          !conflicts.some(conflict => conflict.entries.includes(entry))
+      )
       .map(entry => entry.name)
   };
 }

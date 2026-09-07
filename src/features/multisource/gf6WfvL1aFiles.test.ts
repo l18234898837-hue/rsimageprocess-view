@@ -57,32 +57,3 @@ test("GF-6 rejects a tile RPB and mismatched XML basename", () => {
     new Set(["TILE_RPB", "UNMATCHED_BASENAME"])
   );
 });
-
-test("GF-6 requires the optional footprint SHP, DBF, and SHX as one set", () => {
-  const files = matchingFiles();
-  Object.assign(files, {
-    footprintShp: file("GF6_WFV_E114.2_N30.1_20260701_L1A.shp")
-  });
-
-  const result = validateGf6WfvL1aFiles(files);
-
-  assert.equal(result.valid, false);
-  assert.deepEqual(
-    result.issues.map(issue => issue.code),
-    ["PARTIAL_FOOTPRINT"]
-  );
-});
-
-test("GF-6 accepts a complete matching optional footprint triplet", () => {
-  const files = matchingFiles();
-  Object.assign(files, {
-    footprintShp: file("GF6_WFV_E114.2_N30.1_20260701_L1A.shp"),
-    footprintDbf: file("GF6_WFV_E114.2_N30.1_20260701_L1A.dbf"),
-    footprintShx: file("GF6_WFV_E114.2_N30.1_20260701_L1A.shx")
-  });
-
-  const result = validateGf6WfvL1aFiles(files);
-
-  assert.equal(result.valid, true);
-  assert.deepEqual(result.issues, []);
-});

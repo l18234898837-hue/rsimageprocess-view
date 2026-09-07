@@ -6,9 +6,6 @@ export interface Gf6WfvL1aFiles {
   rpcRpb?: File;
   nav?: File;
   tileIndexTil?: File;
-  footprintShp?: File;
-  footprintDbf?: File;
-  footprintShx?: File;
 }
 
 export type Gf6WfvL1aFileIssueCode =
@@ -17,8 +14,7 @@ export type Gf6WfvL1aFileIssueCode =
   | "INVALID_TILE_ORDINALS"
   | "WRONG_TILE_SLOT"
   | "TILE_RPB"
-  | "UNMATCHED_BASENAME"
-  | "PARTIAL_FOOTPRINT";
+  | "UNMATCHED_BASENAME";
 
 export interface Gf6WfvL1aFileValidation {
   valid: boolean;
@@ -125,29 +121,5 @@ export function validateGf6WfvL1aFiles(
     });
   }
 
-  const footprint = [
-    files.footprintShp,
-    files.footprintDbf,
-    files.footprintShx
-  ];
-  if (footprint.some(Boolean) && !footprint.every(Boolean)) {
-    issues.push({
-      code: "PARTIAL_FOOTPRINT",
-      message: "GF-6 足迹文件必须同时提供 SHP、DBF 和 SHX"
-    });
-  }
-  if (
-    basename &&
-    footprint.every(Boolean) &&
-    ["shp", "dbf", "shx"].some(
-      (extension, index) =>
-        sidecarBase(footprint[index], extension) !== basename
-    )
-  ) {
-    issues.push({
-      code: "UNMATCHED_BASENAME",
-      message: "GF-6 文件基名必须一致"
-    });
-  }
   return { valid: issues.length === 0, issues };
 }

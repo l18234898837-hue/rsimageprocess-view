@@ -76,10 +76,7 @@ const SLOT_IDS: readonly SlotId[] = [
   "metadataXml",
   "rpcRpb",
   "nav",
-  "tileIndexTil",
-  "footprintShp",
-  "footprintDbf",
-  "footprintShx"
+  "tileIndexTil"
 ];
 
 function fileMatchesExtensions(
@@ -257,6 +254,29 @@ export function useProcessingTask(
 
   function setSlotError(slotId: SlotId, error: string) {
     slots[slotId] = { ...slots[slotId], status: "FAILED", error };
+  }
+
+  function setUploadedSlot(
+    slotId: SlotId,
+    fileName: string,
+    sysFileId: string | number
+  ) {
+    assertTaskInactive();
+    const slot = slotTemplate(slotId);
+    const file = new File([], fileName, { type: "application/octet-stream" });
+    if (!fileMatchesExtensions(fileName, slot.extensions)) {
+      setSlotError(
+        slotId,
+        `${slot.label}格式错误，仅支持${slot.extensions.join("、")}`
+      );
+      return;
+    }
+    slots[slotId] = {
+      status: "UPLOADED",
+      file,
+      sysFileId,
+      uploadProgress: 100
+    };
   }
 
   function slotTemplate(slotId: SlotId): ProductFileSlot {
@@ -492,6 +512,7 @@ export function useProcessingTask(
     errorMessage,
     setTemplate,
     uploadSlot,
+    setUploadedSlot,
     removeSlot,
     runPreflight,
     createAndStart,
