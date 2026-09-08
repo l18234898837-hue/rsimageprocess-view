@@ -1,0 +1,6 @@
+Failed to resolve dependency: [36mvue-tippy[39m, present in 'optimizeDeps.include'
+postcss-px-to-viewport: postcss.plugin was deprecated. Migration guide:
+https://evilmartians.com/chronicles/postcss-8-plugin-migration
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme

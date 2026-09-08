@@ -1,0 +1,12 @@
+
+> pure-admin-thin@5.7.0 dev C:\Users\24257\Desktop\GIS开发\rsimageprocess-view
+> NODE_OPTIONS=--max-old-space-size=4096 vite
+
+
+  [32m[1mVITE[22m v5.3.0[39m  [2mready in [0m[1m1640[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m8848[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.116:[1m8848[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.9.83.104:[1m8848[22m/[39m
+  ➜  Vue Inspector: Press Ctrl(^)+Shift(⇧) in App to toggle the Inspector
+
