@@ -1,89 +1,110 @@
 <template>
-  <section class="processing-plan" aria-labelledby="processing-plan-title">
-    <div class="processing-plan__header">
-      <div class="processing-plan__title-block">
-        <div class="processing-plan__title-row">
-          <h4 id="processing-plan-title">选择处理功能</h4>
+  <div class="processing-plan-stack">
+    <section class="processing-plan" aria-labelledby="processing-plan-title">
+      <div class="processing-plan__header">
+        <div class="processing-plan__title-block">
+          <div class="processing-plan__title-row">
+            <h4 id="processing-plan-title">选择处理功能</h4>
+            <el-tooltip
+              content="先选择目标功能，系统会自动补齐必要的前置步骤。"
+              placement="top-start"
+              effect="light"
+              :show-after="180"
+            >
+              <button
+                class="processing-plan__help"
+                type="button"
+                aria-label="查看处理功能说明"
+              >
+                <el-icon><QuestionFilled /></el-icon>
+              </button>
+            </el-tooltip>
+            <span
+              v-if="!selectedTargets.length"
+              class="processing-plan__empty-inline"
+              role="status"
+              >请选择至少一个处理功能</span
+            >
+          </div>
+        </div>
+        <div class="processing-plan__header-meta">
+          <button
+            class="processing-plan__toggle"
+            type="button"
+            :aria-expanded="isTargetsVisible"
+            aria-controls="processing-plan-targets"
+            :title="isTargetsVisible ? '收起处理功能' : '展开处理功能'"
+            @click="isTargetsVisible = !isTargetsVisible"
+          >
+            <el-icon :class="{ 'is-expanded': isTargetsVisible }">
+              <ArrowDown />
+            </el-icon>
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-if="isTargetsVisible"
+        id="processing-plan-targets"
+        class="processing-plan__targets"
+      >
+        <section
+          v-for="group in targetGroups"
+          :key="group.key"
+          class="processing-plan__group"
+        >
+          <div class="processing-plan__group-heading">
+            <strong>{{ group.title }}</strong>
+            <span>{{ group.steps.length }} 项</span>
+          </div>
           <el-tooltip
-            content="先选择目标功能，系统会自动补齐必要的前置步骤。"
-            placement="top-start"
+            v-for="step in group.steps"
+            :key="step.key"
+            class="processing-plan__target-tooltip"
+            :content="step.productTitle || step.title"
+            placement="top"
             effect="light"
+            :offset="6"
             :show-after="180"
           >
-            <button
-              class="processing-plan__help"
-              type="button"
-              aria-label="查看处理功能说明"
+            <label
+              class="processing-plan__target"
+              :class="{
+                'is-selected': checkedTargets.includes(step.key),
+                'is-automatic': isAutomaticTarget(step.key)
+              }"
             >
-              <el-icon><QuestionFilled /></el-icon>
-            </button>
+              <input
+                type="checkbox"
+                :checked="checkedTargets.includes(step.key)"
+                :disabled="disabled || isLockedTarget(step.key)"
+                @change="toggleTarget(step.key)"
+              />
+              <span class="processing-plan__target-copy">
+                <strong>{{ step.title }}</strong>
+                <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
+                  >自动依赖</small
+                >
+                <small
+                  v-else-if="isLockedTarget(step.key)"
+                  class="is-auto-label"
+                  >必需前置</small
+                >
+              </span>
+            </label>
           </el-tooltip>
-        </div>
+        </section>
       </div>
-      <div class="processing-plan__header-meta">
-        <span
-          v-if="!selectedTargets.length"
-          class="processing-plan__empty-inline"
-          role="status"
-          >请选择至少一个处理功能</span
-        >
-        <span class="processing-plan__count"
-          >{{ selectedTargets.length }} 项目标</span
-        >
-      </div>
-    </div>
+    </section>
 
-    <div class="processing-plan__targets">
-      <section
-        v-for="group in targetGroups"
-        :key="group.key"
-        class="processing-plan__group"
-      >
-        <div class="processing-plan__group-heading">
-          <strong>{{ group.title }}</strong>
-          <span>{{ group.steps.length }} 项</span>
-        </div>
-        <el-tooltip
-          v-for="step in group.steps"
-          :key="step.key"
-          class="processing-plan__target-tooltip"
-          :content="step.productTitle || step.title"
-          placement="top"
-          effect="light"
-          :offset="6"
-          :show-after="180"
-        >
-          <label
-            class="processing-plan__target"
-            :class="{
-              'is-selected': checkedTargets.includes(step.key),
-              'is-automatic': isAutomaticTarget(step.key)
-            }"
-          >
-            <input
-              type="checkbox"
-              :checked="checkedTargets.includes(step.key)"
-              :disabled="disabled || isLockedTarget(step.key)"
-              @change="toggleTarget(step.key)"
-            />
-            <span class="processing-plan__target-copy">
-              <strong>{{ step.title }}</strong>
-              <small v-if="isAutomaticTarget(step.key)" class="is-auto-label"
-                >自动依赖</small
-              >
-              <small v-else-if="isLockedTarget(step.key)" class="is-auto-label"
-                >必需前置</small
-              >
-            </span>
-          </label>
-        </el-tooltip>
-      </section>
-    </div>
-
-    <div v-if="planSteps.length" class="processing-plan__resolved">
+    <section
+      v-if="planSteps.length"
+      class="execution-plan"
+      aria-labelledby="execution-plan-title"
+    >
       <div class="processing-plan__subheading">
         <div class="processing-plan__resolved-heading">
-          <strong>执行计划</strong>
+          <strong id="execution-plan-title">执行计划</strong>
           <el-tooltip
             v-if="automaticPlanSteps.length"
             class="processing-plan__dependency-tooltip"
@@ -128,13 +149,13 @@
           </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { InfoFilled, QuestionFilled } from "@element-plus/icons-vue";
+import { computed, ref } from "vue";
+import { ArrowDown, InfoFilled, QuestionFilled } from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
 
 const props = defineProps<{
@@ -150,6 +171,8 @@ const emit = defineEmits<{
   "update:selectedTargets": [value: string[]];
   configure: [];
 }>();
+
+const isTargetsVisible = ref(true);
 
 const targetGroups = computed(() => {
   const groups = [
@@ -199,12 +222,21 @@ function toggleTarget(stepKey: string) {
   border-radius: 4px;
 }
 
+.processing-plan-stack {
+  display: grid;
+  gap: 8px;
+}
+
 .processing-plan__header,
 .processing-plan__subheading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.processing-plan__header {
+  flex-wrap: nowrap;
 }
 
 .processing-plan__title-block,
@@ -212,10 +244,44 @@ function toggleTarget(stepKey: string) {
   min-width: 0;
 }
 
+.processing-plan__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 4px 2px 7px;
+  color: #647585;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.processing-plan__toggle:hover {
+  color: #2e718d;
+  background: #edf7fa;
+  border-color: #c7e3ea;
+}
+
+.processing-plan__toggle:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
+.processing-plan__toggle .el-icon {
+  font-size: 13px;
+  transition: transform 150ms ease;
+}
+
+.processing-plan__toggle .el-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
 .processing-plan__title-row {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
 }
 
 .processing-plan__help {
@@ -247,16 +313,15 @@ function toggleTarget(stepKey: string) {
   outline-offset: 2px;
 }
 
-.processing-plan__subheading span,
-.processing-plan__count {
+.processing-plan__subheading span {
   color: #647585;
   font-size: 11px;
 }
 
 .processing-plan__subheading strong {
-  color: #314957;
-  font-size: 13px;
-  font-weight: 650;
+  color: var(--plain-ink, #243746);
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
 }
 
@@ -306,25 +371,29 @@ function toggleTarget(stepKey: string) {
 
 .processing-plan__header-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 5px 8px;
+  gap: 5px;
   text-align: right;
 }
 
 .processing-plan__empty-inline {
+  overflow: hidden;
   color: #a66a34;
+  text-overflow: ellipsis;
   font-size: 11px;
   line-height: 1.3;
+  white-space: nowrap;
 }
 
 .processing-plan h4 {
   margin: 0;
-  color: #243746;
-  font-size: 17px;
-  font-weight: 650;
-  line-height: 1.25;
+  color: var(--plain-ink, #243746);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .processing-plan p {
@@ -444,10 +513,15 @@ function toggleTarget(stepKey: string) {
   white-space: nowrap;
 }
 
-.processing-plan__resolved {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid #e3eaee;
+.execution-plan {
+  padding: 12px 14px 14px;
+  background: #fff;
+  border: 1px solid #d7e1e7;
+  border-radius: 4px;
+}
+
+.execution-plan .processing-plan__subheading {
+  margin-bottom: 9px;
 }
 
 .processing-plan__steps {
@@ -549,13 +623,8 @@ function toggleTarget(stepKey: string) {
 }
 
 @media (max-width: 640px) {
-  .processing-plan__header {
-    align-items: flex-start;
-  }
-
-  .processing-plan__header-meta {
-    display: grid;
-    justify-items: end;
+  .processing-plan__empty-inline {
+    max-width: 12rem;
   }
 
   .processing-plan__resolved-heading {

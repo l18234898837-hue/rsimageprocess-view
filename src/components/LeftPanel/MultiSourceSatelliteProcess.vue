@@ -27,7 +27,7 @@
     <section class="mission-section" aria-labelledby="package-title">
       <div class="mission-section__heading">
         <div>
-          <strong id="package-title">产品包</strong>
+          <strong id="package-title">上传产品包</strong>
           <el-tooltip
             class="package-requirements-tooltip"
             :content="activeTemplate.packageRequirements"
@@ -4765,8 +4765,12 @@ button:disabled {
   border-top: 2px solid #d8d0f0;
 }
 
-.satellite-workspace > .processing-plan {
+.satellite-workspace > .processing-plan-stack {
   margin-top: 8px;
+}
+
+.satellite-workspace > .processing-plan-stack > .processing-plan,
+.satellite-workspace > .processing-plan-stack > .execution-plan {
   padding: 12px;
   background: #f7fafb;
   border-color: #dce5ea;
