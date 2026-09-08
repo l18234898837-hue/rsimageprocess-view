@@ -234,7 +234,7 @@ test("resetting a processing run clears the previous candidate and progress", ()
   });
 });
 
-test("completed processing view exposes the ZIP action without an artifact list", () => {
+test("completed processing view exposes the ZIP action and stage artifacts", () => {
   const component = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
@@ -244,7 +244,9 @@ test("completed processing view exposes the ZIP action without an artifact list"
     "utf8"
   );
 
-  assert.equal(component.includes('class="artifact-shelf"'), false);
+  assert.equal(component.includes('class="artifact-shelf"'), true);
+  assert.equal(component.includes("previewArtifact(artifact)"), true);
+  assert.equal(component.includes("downloadStageArtifact(artifact)"), true);
   assert.equal(component.includes("下载最终 ZIP"), true);
   assert.equal(component.includes(':loading="isDownloadingResult"'), true);
   assert.equal(component.includes(':disabled="isDownloadingResult"'), true);

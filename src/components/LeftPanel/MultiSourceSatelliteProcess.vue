@@ -331,6 +331,42 @@
               {{ stage.startedAt }} → {{ stage.finishedAt || "运行中" }}
             </small>
           </div>
+          <div v-if="stageArtifacts(stage).length" class="artifact-shelf">
+            <button
+              type="button"
+              class="artifact-shelf__toggle"
+              :aria-expanded="isStageArtifactsExpanded(stage.stageId)"
+              @click="toggleStageArtifacts(stage.stageId)"
+            >
+              <strong>产物 {{ stageArtifacts(stage).length }} 个</strong>
+              <el-icon :class="{ 'is-expanded': isStageArtifactsExpanded(stage.stageId) }">
+                <ArrowDown />
+              </el-icon>
+            </button>
+            <div v-if="isStageArtifactsExpanded(stage.stageId)" class="artifact-shelf__items">
+              <div v-for="artifact in stageArtifacts(stage)" :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`" class="artifact-row">
+                <div class="artifact-row__info">
+                  <code :title="artifactFileName(artifact)">{{ artifactFileName(artifact) }}</code>
+                  <small>{{ artifact.type }}<span v-if="artifact.sizeBytes"> · {{ artifactSize(artifact) }}</span></small>
+                </div>
+                <el-button
+                  v-if="isPreviewableArtifact(artifact)"
+                  text
+                  type="primary"
+                  :loading="previewingArtifact === artifact"
+                  @click="previewArtifact(artifact)"
+                >查看</el-button>
+                <el-button
+                  v-else
+                  text
+                  type="primary"
+                  :loading="downloadingArtifact === artifact"
+                  :disabled="artifact.downloadable === false"
+                  @click="downloadStageArtifact(artifact)"
+                >下载</el-button>
+              </div>
+            </div>
+          </div>
           <el-button
             v-if="canRetryStage(stage.status)"
             text
@@ -364,6 +400,22 @@
         >
       </footer>
     </section>
+
+    <el-dialog
+      v-model="isArtifactPreviewOpen"
+      class="artifact-preview-dialog"
+      width="min(860px, calc(100vw - 40px))"
+      append-to-body
+      destroy-on-close
+      @closed="clearArtifactPreview"
+    >
+      <template #header>
+        <strong class="artifact-preview-dialog__title">{{ artifactPreviewName }}</strong>
+      </template>
+      <div class="artifact-preview-dialog__body">
+        <img v-if="artifactPreviewUrl" :src="artifactPreviewUrl" :alt="artifactPreviewName" />
+      </div>
+    </el-dialog>
 
     <el-drawer
       v-if="isHy1c"
@@ -748,7 +800,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref } from "vue";
 import {
   ArrowRight,
   Close,
@@ -824,6 +876,10 @@ import {
   type SlotId
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
+import type {
+  ExecutionProgressArtifact,
+  ExecutionProgressStage
+} from "@/api/multiSourceSatellite";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import {
   cancelArchiveUpload,
@@ -988,8 +1044,17 @@ const {
   cancel,
   retry,
   downloadResult,
+  downloadArtifact,
+  getArtifactBlob,
   reset
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
+
+const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
+const isArtifactPreviewOpen = ref(false);
+const artifactPreviewUrl = ref("");
+const artifactPreviewName = ref("");
+const previewingArtifact = ref<ExecutionProgressArtifact | null>(null);
+const downloadingArtifact = ref<ExecutionProgressArtifact | null>(null);
 
 const isHy1c = computed(
   () => activeTemplate.value.id === HY1C_CZI_L2A_TEMPLATE.id
@@ -1129,6 +1194,77 @@ const taskStatusLabel = computed(() => {
   };
   return labels[taskStatus.value || ""] || "等待创建";
 });
+
+function stageArtifacts(stage: ExecutionProgressStage) {
+  return (progress.value?.artifacts || []).filter(
+    artifact => artifact.stageId === stage.stageId
+  );
+}
+
+function isStageArtifactsExpanded(stageId: ExecutionProgressStage["stageId"]) {
+  return expandedArtifactStageIds.value.includes(stageId);
+}
+
+function toggleStageArtifacts(stageId: ExecutionProgressStage["stageId"]) {
+  expandedArtifactStageIds.value = isStageArtifactsExpanded(stageId)
+    ? expandedArtifactStageIds.value.filter(id => id !== stageId)
+    : [...expandedArtifactStageIds.value, stageId];
+}
+
+function artifactFileName(artifact: ExecutionProgressArtifact) {
+  const value = artifact.uri.split(/[\\/]/).pop() || artifact.type;
+  return value.split(/[?#]/)[0] || "处理产物";
+}
+
+function artifactSize(artifact: ExecutionProgressArtifact) {
+  const bytes = artifact.sizeBytes || 0;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isPreviewableArtifact(artifact: ExecutionProgressArtifact) {
+  return /\.(jpe?g|png|webp|gif)(?:[?#]|$)/i.test(artifact.uri);
+}
+
+async function previewArtifact(artifact: ExecutionProgressArtifact) {
+  previewingArtifact.value = artifact;
+  try {
+    const blob = await getArtifactBlob(artifact);
+    clearArtifactPreview();
+    artifactPreviewUrl.value = URL.createObjectURL(blob);
+    artifactPreviewName.value = artifactFileName(artifact);
+    isArtifactPreviewOpen.value = true;
+  } catch (error) {
+    message(error instanceof Error ? error.message : "产物预览失败", {
+      type: "error"
+    });
+  } finally {
+    previewingArtifact.value = null;
+  }
+}
+
+async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
+  downloadingArtifact.value = artifact;
+  try {
+    await downloadArtifact(artifact);
+  } catch (error) {
+    message(error instanceof Error ? error.message : "产物下载失败", {
+      type: "error"
+    });
+  } finally {
+    downloadingArtifact.value = null;
+  }
+}
+
+function clearArtifactPreview() {
+  if (artifactPreviewUrl.value) URL.revokeObjectURL(artifactPreviewUrl.value);
+  artifactPreviewUrl.value = "";
+  artifactPreviewName.value = "";
+  isArtifactPreviewOpen.value = false;
+}
+
+onBeforeUnmount(clearArtifactPreview);
 
 function isBandSelected(band: Hy1cCziBand) {
   return l2aForm.bands.includes(band);
@@ -2252,6 +2388,59 @@ function resetTask() {
   border: 1px solid #cbdfe8;
 }
 
+.artifact-shelf__toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  color: var(--survey);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.artifact-shelf__toggle .el-icon {
+  transition: transform 150ms ease;
+}
+
+.artifact-shelf__toggle .el-icon.is-expanded {
+  transform: rotate(180deg);
+}
+
+.artifact-shelf__items {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.artifact-row__info {
+  min-width: 0;
+}
+
+.artifact-row__info code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-preview-dialog__body {
+  display: flex;
+  max-height: 70vh;
+  justify-content: center;
+  overflow: auto;
+  background: #f3f8fa;
+}
+
+.artifact-preview-dialog__body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 .artifact-shelf__title strong {
   font-size: 11px;
 }
@@ -3315,6 +3504,17 @@ button:disabled {
   padding-bottom: 3px;
 }
 
+.satellite-workspace .stage-row > .artifact-shelf {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 2px;
+}
+
+.satellite-workspace .stage-row > :deep(.el-button) {
+  grid-column: 3;
+  grid-row: 1;
+}
+
 .satellite-workspace .stage-row__body strong {
   color: #1c425a;
   font-size: 10px;
@@ -3331,6 +3531,15 @@ button:disabled {
   background: #eef8fb;
   border: 1px solid #d0e8ef;
   border-radius: 7px;
+}
+
+.satellite-workspace .artifact-shelf__toggle {
+  color: #1c607e;
+}
+
+.satellite-workspace .artifact-shelf__toggle:focus-visible {
+  outline: 2px solid var(--orbit-cyan);
+  outline-offset: 2px;
 }
 
 .satellite-workspace .artifact-row {
