@@ -327,7 +327,7 @@ test("download filenames preserve GF-6 ZIP compatibility and artifact extensions
   );
 });
 
-test("preflight assets retain GF-6 tile ordinals and optional footprint flags", () => {
+test("preflight assets retain GF-6 tile ordinals without optional footprint slots", () => {
   const slots = Object.fromEntries(
     GF6_WFV_L1A_TEMPLATE.slots.map((slot, index) => [
       slot.id,
@@ -347,12 +347,9 @@ test("preflight assets retain GF-6 tile ordinals and optional footprint flags", 
       ["MAIN_TIFF_TILE", 2, true]
     ]
   );
-  assert.deepEqual(
-    assets.slice(-3).map(asset => [asset.role, asset.required]),
-    [
-      ["FOOTPRINT_SHP", false],
-      ["FOOTPRINT_DBF", false],
-      ["FOOTPRINT_SHX", false]
-    ]
+  assert.equal(assets.length, 7);
+  assert.equal(
+    assets.some(asset => asset.role.startsWith("FOOTPRINT_")),
+    false
   );
 });

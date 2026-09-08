@@ -40,10 +40,7 @@ export type ProductFileRole =
   | "METADATA_XML"
   | "RPC_RPB"
   | "NAV"
-  | "TILE_INDEX_TIL"
-  | "FOOTPRINT_SHP"
-  | "FOOTPRINT_DBF"
-  | "FOOTPRINT_SHX";
+  | "TILE_INDEX_TIL";
 export type SlotId =
   | "browseImage"
   | "georeference"
@@ -63,10 +60,7 @@ export type SlotId =
   | "metadataXml"
   | "rpcRpb"
   | "nav"
-  | "tileIndexTil"
-  | "footprintShp"
-  | "footprintDbf"
-  | "footprintShx";
+  | "tileIndexTil";
 
 export interface ProductFileSlot {
   readonly id: SlotId;
@@ -196,8 +190,7 @@ export const GF6_WFV_L1A_TEMPLATE: ProductTemplate = Object.freeze({
   label: "GF-6 WFV L1A 工程产品",
   productCode: "GF-6-WFV-L1A",
   profileVersion: "v1",
-  packageRequirements:
-    "三块 TIFF、产品 XML、主 RPB、NAV、TIL；足迹 SHP/DBF/SHX 可选但须成套",
+  packageRequirements: "三块 TIFF、产品 XML、主 RPB、NAV、TIL",
   requireMatchingBasenames: false,
   slots: Object.freeze([
     Object.freeze({
@@ -251,27 +244,6 @@ export const GF6_WFV_L1A_TEMPLATE: ProductTemplate = Object.freeze({
       role: "TILE_INDEX_TIL" as const,
       extensions: Object.freeze([".til"]),
       required: true
-    }),
-    Object.freeze({
-      id: "footprintShp" as const,
-      label: "足迹 SHP",
-      role: "FOOTPRINT_SHP" as const,
-      extensions: Object.freeze([".shp"]),
-      required: false
-    }),
-    Object.freeze({
-      id: "footprintDbf" as const,
-      label: "足迹 DBF",
-      role: "FOOTPRINT_DBF" as const,
-      extensions: Object.freeze([".dbf"]),
-      required: false
-    }),
-    Object.freeze({
-      id: "footprintShx" as const,
-      label: "足迹 SHX",
-      role: "FOOTPRINT_SHX" as const,
-      extensions: Object.freeze([".shx"]),
-      required: false
     })
   ]),
   parameterSnapshot: Object.freeze(
@@ -446,10 +418,7 @@ export function validateProductFiles(
               metadataXml: files.metadataXml,
               rpcRpb: files.rpcRpb,
               nav: files.nav,
-              tileIndexTil: files.tileIndexTil,
-              footprintShp: files.footprintShp,
-              footprintDbf: files.footprintDbf,
-              footprintShx: files.footprintShx
+              tileIndexTil: files.tileIndexTil
             })
               .issues.filter(issue => issue.code !== "MISSING_FILE")
               .map(issue => issue.message)

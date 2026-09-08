@@ -433,13 +433,110 @@ test("product package exposes ZIP import inside the existing upload section", ()
     "utf8"
   );
 
-  assert.match(workspace, /一键导入 ZIP/);
+  assert.match(
+    workspace,
+    /:aria-label="[\s\S]*?isArchivePickerActionable \? '导入 ZIP 产品包' : undefined[\s\S]*?"/
+  );
   assert.match(workspace, /accept="\.zip,application\/zip"/);
   assert.match(workspace, /handleArchiveChange/);
   assert.match(workspace, /matchProductArchiveEntries/);
   assert.match(workspace, /await uploadSlot\(match\.slot\.id, file\)/);
+  assert.match(workspace, /const isArchivePickerActionable = computed/);
+  assert.match(
+    workspace,
+    /:role="isArchivePickerActionable \? 'button' : undefined"/
+  );
+  assert.match(workspace, /@keydown\.enter\.prevent="openArchivePicker"/);
+  assert.match(workspace, /@keydown\.space\.prevent="openArchivePicker"/);
+  assert.match(workspace, /@click\.stop="cancelArchiveImport"/);
+  assert.doesNotMatch(workspace, /class="package-archive-import"/);
   assert.doesNotMatch(workspace, /解析预览/);
   assert.doesNotMatch(workspace, /确认填充并上传/);
+});
+
+test("product package locks individual uploads and contains archive parsing feedback", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /function isSlotActionable\(status: string\) \{[\s\S]*?!isArchiveImporting\.value/
+  );
+  assert.match(
+    workspace,
+    /:disabled="isTaskActive \|\| isBusy \|\| isArchiveImporting"/
+  );
+  assert.doesNotMatch(
+    workspace,
+    /支持 ZIP 分片上传，服务端解析后自动匹配当前产品/
+  );
+  assert.match(workspace, /archive-import-panel__current-file/);
+  assert.match(
+    workspace,
+    /archive-import-panel__current-file[\s\S]*?text-overflow: ellipsis/
+  );
+});
+
+test("completed product archive import locks the card until a package file changes", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /const isArchivePickerActionable = computed\([\s\S]*?archiveImportProgress\.status !== "COMPLETED"/
+  );
+  assert.match(
+    workspace,
+    /function removeProductSlot\(slotId: SlotId\) \{[\s\S]*?archiveImportProgress\.status === "COMPLETED"[\s\S]*?resetArchiveProgress\(\)/
+  );
+});
+
+test("product archive import card presents the ZIP selection hint inline", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(workspace, /点击选择产品包导入，仅支持\.zip格式/);
+  assert.match(workspace, /border:\s*1px dashed #78b8d2;/);
+});
+
+test("product package collapse keeps the ZIP import card visible", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /<div\s+class="archive-import-panel"[\s\S]*?<\/div>\s*<div\s+v-if="isPackageContentVisible"\s+class="file-stack"/
+  );
+  assert.match(workspace, /请在下方上传对应产品包/);
+});
+
+test("canceling a product archive resets the import card state", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /await cancelArchiveUpload\(archiveUploadId\.value\);[\s\S]*?resetArchiveProgress\(\);/
+  );
+});
+
+test("processing plan title matches the product package heading size", () => {
+  const panel = readFileSync(
+    "src/components/LeftPanel/ProcessingPlanPanel.vue",
+    "utf8"
+  );
+
+  assert.match(panel, /\.processing-plan h4\s*\{[\s\S]*?font-size:\s*15px;/);
 });
 
 test("product package slots show parsed filenames and slot mapping", () => {
@@ -449,7 +546,7 @@ test("product package slots show parsed filenames and slot mapping", () => {
   );
 
   assert.match(workspace, /slotDisplayName\(slot\.id, slot\.label\)/);
-  assert.match(workspace, /slotSourceDescription\(slot\.id, slot\.label\)/);
+  assert.doesNotMatch(workspace, /slotSourceDescription/);
+  assert.doesNotMatch(workspace, /file-slot__source/);
   assert.match(workspace, /v-if="slots\[slot\.id\]\.status !== 'EMPTY'"/);
-  assert.match(workspace, /archiveMatchedSlots\.value\.has\(slotId\)/);
 });

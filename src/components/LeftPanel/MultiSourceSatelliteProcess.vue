@@ -5,7 +5,7 @@
       <select
         id="product-template"
         :value="activeTemplate.id"
-        :disabled="isTaskActive || isBusy || isUploading"
+        :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
         @change="handleTemplateChange"
       >
         <option
@@ -17,7 +17,7 @@
         </option>
       </select>
       <small
-        v-if="isTaskActive || isBusy || isUploading"
+        v-if="isTaskActive || isBusy || isUploading || isArchiveImporting"
         class="mission-panel__lock-note"
       >
         {{ templateLockMessage }}
@@ -27,7 +27,7 @@
     <section class="mission-section" aria-labelledby="package-title">
       <div class="mission-section__heading">
         <div>
-          <strong id="package-title">产品包</strong>
+          <strong id="package-title">上传产品包</strong>
           <el-tooltip
             class="package-requirements-tooltip"
             :content="activeTemplate.packageRequirements"
@@ -44,25 +44,7 @@
             </button>
           </el-tooltip>
         </div>
-        <div class="package-actions">
-          <button
-            class="package-archive-import"
-            type="button"
-            :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
-            @click="openArchivePicker"
-          >
-            <el-icon><Upload /></el-icon>
-            <span>{{ isArchiveImporting ? "解析中..." : "一键导入 ZIP" }}</span>
-          </button>
-          <input
-            ref="archiveInput"
-            class="visually-hidden"
-            type="file"
-            accept=".zip,application/zip"
-            :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
-            @change="handleArchiveChange"
-          />
-        </div>
+        <small class="package-upload-note">请在下方上传对应产品包</small>
         <button
           class="package-toggle"
           type="button"
@@ -76,113 +58,191 @@
           </el-icon>
         </button>
       </div>
-      <template v-if="isPackageContentVisible">
-        <div class="file-stack">
-          <article
-            v-for="slot in activeTemplate.slots"
-            :key="`${activeTemplate.id}-${slot.id}`"
-            class="file-slot"
-            :class="[
-              `is-${slots[slot.id].status.toLowerCase()}`,
-              {
-                'is-actionable': isSlotActionable(slots[slot.id].status)
-              }
-            ]"
-            :role="
-              isSlotActionable(slots[slot.id].status) ? 'button' : undefined
-            "
-            :tabindex="isSlotActionable(slots[slot.id].status) ? 0 : undefined"
-            :aria-label="
-              isSlotActionable(slots[slot.id].status)
-                ? `为 ${slot.label} 选择文件`
-                : undefined
-            "
-            @click="handleSlotActivate(slot.id, $event)"
-            @keydown.enter.prevent="handleSlotActivate(slot.id, $event)"
-            @keydown.space.prevent="handleSlotActivate(slot.id, $event)"
+      <div
+        class="archive-import-panel"
+        :class="{
+          'is-actionable': isArchivePickerActionable,
+          'is-importing': isArchiveImporting,
+          'is-completed': archiveImportProgress.status === 'COMPLETED'
+        }"
+        :role="isArchivePickerActionable ? 'button' : undefined"
+        :tabindex="isArchivePickerActionable ? 0 : undefined"
+        :aria-label="isArchivePickerActionable ? '导入 ZIP 产品包' : undefined"
+        :aria-disabled="isArchivePickerActionable ? undefined : true"
+        @click="handleArchivePanelActivate"
+        @keydown.enter.prevent="openArchivePicker"
+        @keydown.space.prevent="openArchivePicker"
+      >
+        <div class="archive-import-panel__copy">
+          <span class="archive-import-panel__mark" aria-hidden="true">
+            <el-icon><FolderOpened /></el-icon>
+          </span>
+          <div class="archive-import-panel__copy-text">
+            <strong>导入产品包</strong>
+            <small
+              v-if="isArchivePickerActionable"
+              title="点击选择产品包导入，仅支持.zip格式"
+            >
+              点击选择产品包导入，仅支持.zip格式
+            </small>
+            <small v-else-if="isArchiveImporting">正在导入，请稍候</small>
+            <small v-else-if="archiveImportProgress.status === 'COMPLETED'">
+              已完成，删除下方文件后可重新导入
+            </small>
+          </div>
+        </div>
+        <input
+          ref="archiveInput"
+          class="visually-hidden"
+          type="file"
+          accept=".zip,application/zip"
+          :disabled="!isArchivePickerActionable"
+          @change="handleArchiveChange"
+        />
+        <div
+          v-if="archiveImportProgress.status !== 'IDLE'"
+          class="archive-import-panel__status"
+          aria-live="polite"
+        >
+          <div class="archive-import-panel__status-line">
+            <span>{{ archiveStatusLabel(archiveImportProgress.status) }}</span>
+            <span v-if="archiveImportProgress.totalFiles"
+              >{{ archiveImportProgress.processedFiles }} /
+              {{ archiveImportProgress.totalFiles }} 个文件</span
+            >
+            <button
+              v-if="isArchiveImporting"
+              type="button"
+              class="archive-import-panel__cancel"
+              aria-label="取消导入产品包"
+              title="取消导入"
+              @click.stop="cancelArchiveImport"
+              @keydown.stop
+            >
+              <el-icon><Close /></el-icon>
+              <span class="visually-hidden">取消导入</span>
+            </button>
+          </div>
+          <div class="archive-import-panel__progress">
+            <span :style="{ width: `${archiveProgressPercent}%` }" />
+          </div>
+          <small
+            v-if="archiveImportProgress.currentFile"
+            class="archive-import-panel__current-file"
+            :title="archiveImportProgress.currentFile"
           >
-            <div class="file-slot__meta">
-              <div class="file-slot__details">
-                <el-tooltip
-                  :content="
-                    (slots[slot.id].status === 'EMPTY'
-                      ? '缺少' + slot.label + ' · '
-                      : '') +
-                    slot.role +
-                    ' · ' +
-                    slot.extensions.join(' / ')
-                  "
-                  placement="top"
-                  effect="light"
-                  :offset="6"
-                  :show-after="180"
-                >
-                  <strong>{{ slotDisplayName(slot.id, slot.label) }}</strong>
-                </el-tooltip>
-                <small
-                  v-if="slots[slot.id].status === 'EMPTY'"
-                  class="file-slot__upload-hint"
-                >
-                  点击卡片上传
-                </small>
-                <small v-else class="file-slot__source">
-                  {{ slotSourceDescription(slot.id, slot.label) }}
-                </small>
-              </div>
-              <span
-                v-if="slots[slot.id].status !== 'EMPTY'"
-                class="file-slot__status"
+            <span>当前：</span>
+            <span>{{ archiveImportProgress.currentFile }}</span>
+          </small>
+          <small v-if="archiveImportProgress.error" class="inline-error">{{
+            archiveImportProgress.error
+          }}</small>
+        </div>
+      </div>
+      <div
+        v-if="isPackageContentVisible"
+        class="file-stack"
+        :class="{ 'is-archive-importing': isArchiveImporting }"
+      >
+        <article
+          v-for="slot in activeTemplate.slots"
+          :key="`${activeTemplate.id}-${slot.id}`"
+          class="file-slot"
+          :class="[
+            `is-${slots[slot.id].status.toLowerCase()}`,
+            {
+              'is-actionable': isSlotActionable(slots[slot.id].status)
+            }
+          ]"
+          :role="isSlotActionable(slots[slot.id].status) ? 'button' : undefined"
+          :tabindex="isSlotActionable(slots[slot.id].status) ? 0 : undefined"
+          :aria-label="
+            isSlotActionable(slots[slot.id].status)
+              ? `为 ${slot.label} 选择文件`
+              : undefined
+          "
+          @click="handleSlotActivate(slot.id, $event)"
+          @keydown.enter.prevent="handleSlotActivate(slot.id, $event)"
+          @keydown.space.prevent="handleSlotActivate(slot.id, $event)"
+        >
+          <div class="file-slot__meta">
+            <div class="file-slot__details">
+              <el-tooltip
+                :content="
+                  (slots[slot.id].status === 'EMPTY'
+                    ? '缺少' + slot.label + ' · '
+                    : '') +
+                  slot.role +
+                  ' · ' +
+                  slot.extensions.join(' / ')
+                "
+                placement="top"
+                effect="light"
+                :offset="6"
+                :show-after="180"
               >
-                {{ slotStatusLabel(slots[slot.id].status) }}
-                <template v-if="slots[slot.id].status === 'UPLOADING'">
-                  {{ slots[slot.id].uploadProgress ?? 0 }}%
-                </template>
-              </span>
-              <input
-                :id="`file-${activeTemplate.id}-${slot.id}`"
-                class="visually-hidden"
-                type="file"
-                :accept="slot.extensions.join(',')"
-                :disabled="isTaskActive || isBusy"
-                @change="handleFileChange(slot.id, $event)"
+                <strong>{{ slotDisplayName(slot.id, slot.label) }}</strong>
+              </el-tooltip>
+              <small
+                v-if="slots[slot.id].status === 'EMPTY'"
+                class="file-slot__upload-hint"
+              >
+                点击卡片上传
+              </small>
+            </div>
+            <span
+              v-if="slots[slot.id].status !== 'EMPTY'"
+              class="file-slot__status"
+            >
+              {{ slotStatusLabel(slots[slot.id].status) }}
+              <template v-if="slots[slot.id].status === 'UPLOADING'">
+                {{ slots[slot.id].uploadProgress ?? 0 }}%
+              </template>
+            </span>
+            <input
+              :id="`file-${activeTemplate.id}-${slot.id}`"
+              class="visually-hidden"
+              type="file"
+              :accept="slot.extensions.join(',')"
+              :disabled="isTaskActive || isBusy || isArchiveImporting"
+              @change="handleFileChange(slot.id, $event)"
+            />
+          </div>
+          <div
+            v-if="slots[slot.id].status === 'UPLOADING'"
+            class="file-slot__progress"
+            aria-live="polite"
+          >
+            <div
+              class="file-slot__progress-track"
+              role="progressbar"
+              :aria-label="`${slot.label}上传进度`"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              :aria-valuenow="slots[slot.id].uploadProgress ?? 0"
+            >
+              <span
+                :style="{
+                  width: `${slots[slot.id].uploadProgress ?? 0}%`
+                }"
               />
             </div>
-            <div
-              v-if="slots[slot.id].status === 'UPLOADING'"
-              class="file-slot__progress"
-              aria-live="polite"
-            >
-              <div
-                class="file-slot__progress-track"
-                role="progressbar"
-                :aria-label="`${slot.label}上传进度`"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                :aria-valuenow="slots[slot.id].uploadProgress ?? 0"
-              >
-                <span
-                  :style="{
-                    width: `${slots[slot.id].uploadProgress ?? 0}%`
-                  }"
-                />
-              </div>
-            </div>
-            <small v-if="slots[slot.id].error" class="inline-error">
-              {{ slots[slot.id].error }}
-            </small>
-            <button
-              v-if="slots[slot.id].file"
-              class="file-slot__remove"
-              type="button"
-              title="移除文件"
-              :disabled="isTaskActive || isBusy"
-              @click.stop="removeProductSlot(slot.id)"
-            >
-              <el-icon><Delete /></el-icon>
-            </button>
-          </article>
-        </div>
-      </template>
+          </div>
+          <small v-if="slots[slot.id].error" class="inline-error">
+            {{ slots[slot.id].error }}
+          </small>
+          <button
+            v-if="slots[slot.id].file"
+            class="file-slot__remove"
+            type="button"
+            title="移除文件"
+            :disabled="isTaskActive || isBusy || isArchiveImporting"
+            @click.stop="removeProductSlot(slot.id)"
+          >
+            <el-icon><Delete /></el-icon>
+          </button>
+        </article>
+      </div>
     </section>
 
     <ProcessingPlanPanel
@@ -697,7 +757,7 @@ import {
   ArrowDown,
   Setting,
   QuestionFilled,
-  Upload
+  FolderOpened
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
@@ -749,6 +809,7 @@ import {
   getTargetSteps
 } from "@/features/multisource/pipelineDefinitions";
 import {
+  getCheckedSelectableStepKeys,
   getRequiredSelectableSteps,
   resolveProcessingPlan,
   type ProcessingPlan
@@ -764,6 +825,24 @@ import {
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
+import {
+  cancelArchiveUpload,
+  completeArchiveUpload,
+  createArchiveUpload,
+  getArchiveUploadStatus,
+  uploadArchiveChunk
+} from "@/api/multiSourceArchive";
+import {
+  ARCHIVE_CHUNK_SIZE,
+  ARCHIVE_MAX_SIZE,
+  ARCHIVE_SERVER_ONLY,
+  archiveStatusLabel as getArchiveStatusLabel,
+  assertArchiveSize,
+  getArchiveChunkCount,
+  getArchiveChunkRange,
+  isArchiveServerUnavailable,
+  type ArchiveImportProgress
+} from "@/features/multisource/archiveImport";
 import {
   matchProductArchiveEntries,
   type ProductArchiveEntry
@@ -851,6 +930,43 @@ const isPackageExpanded = ref(false);
 const isArchiveImporting = ref(false);
 const archiveInput = ref<HTMLInputElement | null>(null);
 const archiveMatchedSlots = ref(new Set<SlotId>());
+const archiveImportProgress = reactive<ArchiveImportProgress>({
+  status: "IDLE",
+  uploadedChunks: 0,
+  totalChunks: 0,
+  processedFiles: 0
+});
+const archiveUploadId = ref<string>();
+const archiveCancelRequested = ref(false);
+let archivePollTimer: ReturnType<typeof setTimeout> | undefined;
+const isArchivePickerActionable = computed(
+  () =>
+    !isTaskActive.value &&
+    !isBusy.value &&
+    !isUploading.value &&
+    !isArchiveImporting.value &&
+    archiveImportProgress.status !== "COMPLETED"
+);
+const archiveProgressPercent = computed(() => {
+  if (
+    archiveImportProgress.status === "PARSING" &&
+    archiveImportProgress.totalFiles
+  ) {
+    return Math.round(
+      (archiveImportProgress.processedFiles /
+        archiveImportProgress.totalFiles) *
+        100
+    );
+  }
+  return archiveImportProgress.totalChunks
+    ? Math.round(
+        (archiveImportProgress.uploadedChunks /
+          archiveImportProgress.totalChunks) *
+          100
+      )
+    : 0;
+});
+const archiveStatusLabel = getArchiveStatusLabel;
 const selectedTargets = ref<string[]>([]);
 const {
   activeTemplate,
@@ -865,6 +981,7 @@ const {
   progress,
   setTemplate,
   uploadSlot,
+  setUploadedSlot,
   removeSlot,
   startProcessing,
   translateError,
@@ -908,14 +1025,14 @@ const resolvedPlanSteps = computed(() =>
     .filter((step): step is NonNullable<typeof step> => Boolean(step))
 );
 const checkedTargetKeys = computed(() =>
-  resolvedPlanSteps.value
-    .filter(step => targetSteps.value.some(target => target.key === step.key))
-    .map(step => step.key)
+  getCheckedSelectableStepKeys(pipelineDefinition.value, selectedTargets.value)
 );
 const lockedTargetKeys = computed(() =>
   getRequiredSelectableSteps(pipelineDefinition.value, selectedTargets.value)
 );
 const templateLockMessage = computed(() => {
+  if (isArchiveImporting.value)
+    return "产品包正在导入；完成或取消后才能切换模板。";
   if (isUploading.value) return "文件正在上传；上传结束后才能切换模板。";
   if (isBusy.value) return "正在创建任务；请等待当前请求完成。";
   return "任务正在执行；结束或取消后才能切换模板。";
@@ -1057,6 +1174,7 @@ function isSlotActionable(status: string) {
   return (
     !isTaskActive.value &&
     !isBusy.value &&
+    !isArchiveImporting.value &&
     (status === "EMPTY" || status === "FAILED")
   );
 }
@@ -1071,12 +1189,109 @@ function slotDisplayName(slotId: SlotId, fallback: string) {
   return slots[slotId].file?.name ?? fallback;
 }
 
-function slotSourceDescription(slotId: SlotId, label: string) {
-  return `${archiveMatchedSlots.value.has(slotId) ? "已匹配" : "已选择"} → ${label}`;
+function openArchivePicker() {
+  if (!isArchivePickerActionable.value) return;
+  archiveInput.value?.click();
 }
 
-function openArchivePicker() {
-  archiveInput.value?.click();
+function handleArchivePanelActivate(event: MouseEvent) {
+  if (event.target instanceof HTMLInputElement) return;
+  openArchivePicker();
+}
+
+function resetArchiveProgress() {
+  if (archivePollTimer) clearTimeout(archivePollTimer);
+  archivePollTimer = undefined;
+  archiveUploadId.value = undefined;
+  archiveCancelRequested.value = false;
+  Object.assign(archiveImportProgress, {
+    status: "IDLE",
+    uploadedChunks: 0,
+    totalChunks: 0,
+    processedFiles: 0,
+    totalFiles: undefined,
+    currentFile: undefined,
+    error: undefined
+  });
+}
+
+async function importArchiveFromServer(archive: File) {
+  const totalChunks = getArchiveChunkCount(archive.size, ARCHIVE_CHUNK_SIZE);
+  const created = await createArchiveUpload({
+    fileName: archive.name,
+    fileSize: archive.size,
+    chunkSize: ARCHIVE_CHUNK_SIZE,
+    totalChunks,
+    templateId: activeTemplate.value.id
+  });
+  const uploadId = created.data?.uploadId;
+  if (!uploadId) throw new Error("服务端未返回 ZIP 上传会话");
+  archiveUploadId.value = uploadId;
+  archiveCancelRequested.value = false;
+  Object.assign(archiveImportProgress, { status: "UPLOADING", totalChunks });
+  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+    if (archiveCancelRequested.value) return;
+    const { start, end } = getArchiveChunkRange(
+      archive.size,
+      chunkIndex,
+      ARCHIVE_CHUNK_SIZE
+    );
+    await uploadArchiveChunk(uploadId, chunkIndex, archive.slice(start, end));
+    if (archiveCancelRequested.value) return;
+    archiveImportProgress.uploadedChunks = chunkIndex + 1;
+  }
+  archiveImportProgress.status = "MERGING";
+  await completeArchiveUpload(uploadId);
+  archiveImportProgress.status = "PARSING";
+  await pollArchiveImport(uploadId);
+}
+
+async function pollArchiveImport(uploadId: string): Promise<void> {
+  if (archiveCancelRequested.value) return;
+  const response = await getArchiveUploadStatus(uploadId);
+  if (archiveCancelRequested.value) return;
+  const status = response.data;
+  if (!status) throw new Error("服务端未返回 ZIP 解析状态");
+  Object.assign(archiveImportProgress, status);
+  if (status.status === "COMPLETED") {
+    isPackageExpanded.value = true;
+    for (const file of status.matchedFiles ?? []) {
+      const slotId = file.slotId as SlotId;
+      archiveMatchedSlots.value.add(slotId);
+      setUploadedSlot(slotId, file.fileName, file.sysFileId);
+    }
+    message(
+      `已从 ZIP 自动匹配并上传 ${status.matchedFiles?.length ?? status.processedFiles} 个文件`,
+      { type: "success" }
+    );
+    return;
+  }
+  if (status.status === "FAILED")
+    throw new Error(status.error || "ZIP 产品包解析失败");
+  if (status.status === "CANCELED") throw new Error("ZIP 解析已取消");
+  await new Promise<void>(resolve => {
+    archivePollTimer = setTimeout(resolve, 700);
+  });
+  return pollArchiveImport(uploadId);
+}
+
+async function cancelArchiveImport() {
+  if (!archiveUploadId.value) return;
+  archiveCancelRequested.value = true;
+  if (archivePollTimer) clearTimeout(archivePollTimer);
+  archivePollTimer = undefined;
+  try {
+    await cancelArchiveUpload(archiveUploadId.value);
+    archiveMatchedSlots.value.clear();
+    resetArchiveProgress();
+    isArchiveImporting.value = false;
+  } catch (error) {
+    archiveCancelRequested.value = false;
+    archiveImportProgress.error =
+      error instanceof Error ? error.message : "取消 ZIP 解析失败，请稍后重试";
+    message(archiveImportProgress.error, { type: "warning" });
+    return;
+  }
 }
 
 async function handleArchiveChange(event: Event) {
@@ -1086,8 +1301,29 @@ async function handleArchiveChange(event: Event) {
   isArchiveImporting.value = true;
   let reader: ZipReader<BlobReader> | undefined;
   try {
-    if (archive.size > 2 * 1024 * 1024 * 1024) {
-      throw new Error("ZIP 压缩包不能超过 2 GB");
+    assertArchiveSize(archive.size, ARCHIVE_MAX_SIZE);
+    try {
+      await importArchiveFromServer(archive);
+      return;
+    } catch (error) {
+      if (ARCHIVE_SERVER_ONLY) {
+        throw new Error(
+          isArchiveServerUnavailable(error)
+            ? "服务端分片解析接口不可用，请检查后端接口是否已部署"
+            : error instanceof Error
+              ? error.message
+              : "服务端 ZIP 解析失败"
+        );
+      }
+      if (!isArchiveServerUnavailable(error)) {
+        throw error;
+      }
+      if (archive.size > 2 * 1024 * 1024 * 1024) {
+        throw new Error(
+          "当前服务端分片接口不可用，20 GB 以内的大 ZIP 需要部署服务端解析后才能导入"
+        );
+      }
+      resetArchiveProgress();
     }
     reader = new ZipReader(new BlobReader(archive));
     const zipEntries = await reader.getEntries();
@@ -1102,14 +1338,25 @@ async function handleArchiveChange(event: Event) {
         name: entry.filename,
         zipEntry: entry
       }));
-    const result = matchProductArchiveEntries(archiveEntries, activeTemplate.value);
+    const result = matchProductArchiveEntries(
+      archiveEntries,
+      activeTemplate.value
+    );
     if (result.conflicts.length > 0) {
-      const conflictSlots = result.conflicts.map(conflict => conflict.slot.label).join("、");
-      throw new Error(`ZIP 中存在重复匹配文件：${conflictSlots}，请整理后重新导入`);
+      const conflictSlots = result.conflicts
+        .map(conflict => conflict.slot.label)
+        .join("、");
+      throw new Error(
+        `ZIP 中存在重复匹配文件：${conflictSlots}，请整理后重新导入`
+      );
     }
     if (result.missingRequired.length > 0) {
       const missingSlots = result.missingRequired
-        .map(slotId => activeTemplate.value.slots.find(slot => slot.id === slotId)?.label ?? slotId)
+        .map(
+          slotId =>
+            activeTemplate.value.slots.find(slot => slot.id === slotId)
+              ?.label ?? slotId
+        )
         .join("、");
       throw new Error(`ZIP 缺少必需文件：${missingSlots}`);
     }
@@ -1122,9 +1369,13 @@ async function handleArchiveChange(event: Event) {
         zipEntry: { getData: (writer: BlobWriter) => Promise<Blob> };
       };
       const blob = await archiveEntry.zipEntry.getData(new BlobWriter());
-      const file = new File([blob], match.entry.name.split("/").pop() ?? match.entry.name, {
-        type: blob.type || "application/octet-stream"
-      });
+      const file = new File(
+        [blob],
+        match.entry.name.split("/").pop() ?? match.entry.name,
+        {
+          type: blob.type || "application/octet-stream"
+        }
+      );
       archiveMatchedSlots.value.add(match.slot.id);
       await uploadSlot(match.slot.id, file);
       if (slots[match.slot.id].status === "FAILED") {
@@ -1142,6 +1393,8 @@ async function handleArchiveChange(event: Event) {
       type: "success"
     });
   } catch (error) {
+    archiveImportProgress.error =
+      error instanceof Error ? error.message : "ZIP 产品包解析失败";
     message(error instanceof Error ? error.message : "ZIP 产品包解析失败", {
       type: "warning"
     });
@@ -1149,6 +1402,13 @@ async function handleArchiveChange(event: Event) {
     if (reader) await reader.close();
     input.value = "";
     isArchiveImporting.value = false;
+    if (
+      archiveImportProgress.status === "UPLOADING" ||
+      archiveImportProgress.status === "MERGING" ||
+      archiveImportProgress.status === "PARSING"
+    ) {
+      archiveImportProgress.status = "FAILED";
+    }
   }
 }
 
@@ -1171,6 +1431,7 @@ function handleTemplateChange(event: Event) {
     setTemplate(template);
     resetMultisourceProductForms(productForms);
     archiveMatchedSlots.value.clear();
+    resetArchiveProgress();
     hy1cRoiSuggestion.value = null;
     selectedTargets.value = [];
     isPackageExpanded.value = false;
@@ -1218,8 +1479,14 @@ function applyHy1cMetadataRoi(xmlText: string) {
 
 function removeProductSlot(slotId: SlotId) {
   try {
+    const shouldResetArchiveImport =
+      archiveImportProgress.status === "COMPLETED";
     archiveMatchedSlots.value.delete(slotId);
     removeSlot(slotId);
+    if (shouldResetArchiveImport) {
+      archiveMatchedSlots.value.clear();
+      resetArchiveProgress();
+    }
     if (isHy1c.value && slotId === "metadata") {
       applyHy1cMetadataRoi("");
     }
@@ -1420,30 +1687,6 @@ function resetTask() {
   align-items: center;
   gap: 6px;
   margin-left: auto;
-}
-
-.package-archive-import {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 26px;
-  padding: 3px 7px;
-  color: #176fa8;
-  background: #e9f8fb;
-  border: 1px solid #9dd6e2;
-  border-radius: 2px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.package-archive-import:hover:not(:disabled) {
-  color: #0e4f77;
-  background: #d9f1f6;
-}
-
-.package-archive-import:disabled {
-  cursor: wait;
-  opacity: 0.65;
 }
 
 .mission-section__heading strong {
@@ -2318,6 +2561,192 @@ button:disabled {
   box-shadow: 0 9px 22px rgb(13 61 93 / 6%);
 }
 
+.satellite-workspace .archive-import-panel {
+  display: grid;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 14px 0 11px;
+  padding: 11px 12px;
+  background: #edf7fd;
+  border: 1px dashed #78b8d2;
+  border-radius: 6px;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.satellite-workspace .archive-import-panel.is-actionable {
+  cursor: pointer;
+}
+
+.satellite-workspace .archive-import-panel.is-actionable:hover {
+  background: #e3f3fc;
+  border-color: #3f94bb;
+}
+
+.satellite-workspace .archive-import-panel.is-actionable:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
+.satellite-workspace .archive-import-panel.is-importing {
+  cursor: wait;
+  background: #f1f8fb;
+  border-color: #9fc7d7;
+}
+
+.satellite-workspace .archive-import-panel.is-completed {
+  cursor: default;
+  background: #f3f8fa;
+  border-color: #b8d2de;
+}
+
+.satellite-workspace .archive-import-panel__copy {
+  display: flex;
+  min-width: 0;
+  gap: 9px;
+  align-items: center;
+}
+
+.satellite-workspace .archive-import-panel__copy-text {
+  display: flex;
+  min-width: 0;
+  gap: 7px;
+  align-items: baseline;
+}
+
+.satellite-workspace .archive-import-panel__mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  color: #1f536d;
+  background: #d9edf4;
+  border: 1px solid #b8d8e4;
+  border-radius: 4px;
+}
+
+.satellite-workspace .archive-import-panel__mark .el-icon {
+  font-size: 15px;
+}
+
+.satellite-workspace .archive-import-panel__copy strong {
+  flex: 0 0 auto;
+  color: var(--plain-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.satellite-workspace .archive-import-panel__copy small {
+  min-width: 0;
+  overflow: hidden;
+  color: #587687;
+  font-size: 10px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.satellite-workspace .package-upload-note {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-left: auto;
+  overflow: hidden;
+  color: #718895;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.satellite-workspace .archive-import-panel__status small {
+  color: var(--plain-muted);
+  font-size: 11px;
+}
+
+.satellite-workspace .archive-import-panel__status {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+}
+
+.satellite-workspace .archive-import-panel__status-line {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--plain-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.satellite-workspace .archive-import-panel__progress {
+  height: 4px;
+  overflow: hidden;
+  background: #dcebf0;
+  border-radius: 99px;
+}
+
+.satellite-workspace .archive-import-panel__progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2e7da3, #62b9c9);
+  border-radius: inherit;
+  transition: width 220ms ease;
+}
+
+.satellite-workspace .archive-import-panel__cancel {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #9f4545;
+  background: #fff;
+  border: 1px solid #e4aaaa;
+  border-radius: 3px;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.satellite-workspace .archive-import-panel__cancel:hover {
+  color: #903939;
+  background: #fff4f4;
+  border-color: #d98f8f;
+}
+
+.satellite-workspace .archive-import-panel__cancel .el-icon {
+  font-size: 13px;
+}
+
+.satellite-workspace .archive-import-panel__current-file {
+  display: flex;
+  min-width: 0;
+  gap: 3px;
+  align-items: center;
+  line-height: 1.35;
+}
+
+.satellite-workspace .archive-import-panel__current-file > span:first-child {
+  flex: 0 0 auto;
+}
+
+.satellite-workspace .archive-import-panel__current-file > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .satellite-workspace .mission-section__heading,
 .satellite-workspace .mission-section__heading > div,
 .satellite-workspace .artifact-shelf__title {
@@ -2370,6 +2799,20 @@ button:disabled {
 
 .satellite-workspace .file-stack {
   gap: 8px;
+}
+
+.satellite-workspace .file-stack.is-archive-importing {
+  opacity: 0.56;
+}
+
+.satellite-workspace .file-stack.is-archive-importing .file-slot {
+  cursor: wait;
+}
+
+.satellite-workspace .file-stack.is-archive-importing .file-slot:hover {
+  border-color: #d0e5ed;
+  box-shadow: none;
+  transform: none;
 }
 
 .satellite-workspace .file-slot {
@@ -3627,12 +4070,6 @@ button:disabled {
   line-height: 1.25;
 }
 
-.satellite-workspace .file-slot__source {
-  flex: 1 1 auto;
-  color: var(--plain-muted);
-  font-size: 10px;
-}
-
 .satellite-workspace .file-slot__details .el-tooltip {
   display: block;
   min-width: 0;
@@ -4110,8 +4547,12 @@ button:disabled {
   border-top: 2px solid #d8d0f0;
 }
 
-.satellite-workspace > .processing-plan {
+.satellite-workspace > .processing-plan-stack {
   margin-top: 8px;
+}
+
+.satellite-workspace > .processing-plan-stack > .processing-plan,
+.satellite-workspace > .processing-plan-stack > .execution-plan {
   padding: 12px;
   background: #f7fafb;
   border-color: #dce5ea;

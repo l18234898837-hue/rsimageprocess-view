@@ -25,7 +25,39 @@ test("processing plan panel exposes selectable targets and automatic prerequisit
   assert.match(panel, /专题处理/);
 });
 
-test("selected processing targets stay compact and open the workbench from the execution plan", () => {
+test("package heading uses upload wording", () => {
+  assert.match(workspace, /<strong id="package-title">上传产品包<\/strong>/);
+  assert.doesNotMatch(workspace, /<strong id="package-title">产品包<\/strong>/);
+});
+
+test("processing choices can be collapsed without hiding the execution plan", () => {
+  assert.match(panel, /class="processing-plan__toggle"/);
+  assert.match(panel, /:aria-expanded="isTargetsVisible"/);
+  assert.match(panel, /aria-controls="processing-plan-targets"/);
+  assert.match(
+    panel,
+    /v-if="isTargetsVisible"[\s\S]*?id="processing-plan-targets"/
+  );
+  assert.match(panel, /const isTargetsVisible = ref\(true\)/);
+});
+
+test("processing choice heading matches the package heading and keeps its empty hint inline", () => {
+  assert.doesNotMatch(panel, /\{\{ selectedTargets\.length \}\} 项目标/);
+  assert.match(
+    panel,
+    /class="processing-plan__title-row"[\s\S]*?选择处理功能[\s\S]*?class="processing-plan__empty-inline"/
+  );
+  assert.match(
+    panel,
+    /\.processing-plan h4\s*\{[\s\S]*?font-size:\s*15px;[\s\S]*?font-weight:\s*600;/
+  );
+  assert.match(
+    panel,
+    /\.processing-plan__header\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?flex-wrap:\s*nowrap;/
+  );
+});
+
+test("selected processing targets stay compact and open the workbench below", () => {
   assert.doesNotMatch(panel, /processing-plan__detail/);
   assert.match(panel, /processing-plan__step-row/);
   assert.match(panel, /grid-template-columns: minmax\(0, 1fr\)/);
@@ -73,6 +105,18 @@ test("processing target descriptions open directly above their cards", () => {
 });
 
 test("execution plan uses a compact heading without connector arrows", () => {
+  assert.match(
+    panel,
+    /<section\s+v-if="planSteps\.length"\s+class="execution-plan"/
+  );
+  assert.doesNotMatch(
+    panel,
+    /<section class="processing-plan"[\s\S]*?class="processing-plan__resolved"/
+  );
+  assert.match(
+    panel,
+    /\.execution-plan\s*\{[\s\S]*?border:\s*1px solid #d7e1e7;/
+  );
   assert.doesNotMatch(panel, /class="processing-plan__arrow"/);
   assert.doesNotMatch(panel, /↓/);
   assert.match(panel, /v-for="\(step, index\) in planSteps"/);
@@ -80,7 +124,7 @@ test("execution plan uses a compact heading without connector arrows", () => {
   assert.match(panel, /\{\{ index \+ 1 \}\}/);
   assert.match(
     panel,
-    /\.processing-plan__subheading strong\s*\{[\s\S]*?font-size:\s*13px;/
+    /\.processing-plan__subheading strong\s*\{[^}]*font-size:\s*15px;[^}]*font-weight:\s*600;/
   );
 });
 
@@ -217,7 +261,11 @@ test("multisource workspace keeps a compact, layered section rhythm", () => {
   );
   assert.match(
     workspace,
-    /\.satellite-workspace > \.processing-plan\s*\{[\s\S]*?margin-top:\s*8px;[\s\S]*?background:\s*#f7fafb;/
+    /\.satellite-workspace > \.processing-plan-stack\s*\{[\s\S]*?margin-top:\s*8px;/
+  );
+  assert.match(
+    workspace,
+    /\.satellite-workspace > \.processing-plan-stack > \.processing-plan,[\s\S]*?> \.execution-plan\s*\{[\s\S]*?background:\s*#f7fafb;/
   );
 });
 

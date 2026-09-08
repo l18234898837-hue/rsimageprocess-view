@@ -33,6 +33,24 @@ export function getRequiredSelectableSteps(
     .map(step => step.key);
 }
 
+export function getCheckedSelectableStepKeys(
+  definition: PipelineDefinition,
+  selectedTargets: readonly string[]
+): string[] {
+  const checked = new Set([
+    ...selectedTargets,
+    ...getRequiredSelectableSteps(definition, selectedTargets)
+  ]);
+
+  return definition.steps
+    .filter(
+      step =>
+        (step.kind === "target" || step.selectable === true) &&
+        checked.has(step.key)
+    )
+    .map(step => step.key);
+}
+
 function assertSelectableTargets(
   definition: PipelineDefinition,
   targetStepKeys: readonly string[]
