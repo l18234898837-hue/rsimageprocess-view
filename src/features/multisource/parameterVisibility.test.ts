@@ -27,6 +27,20 @@ test("GF-6 exposes only the groups required by selected functions", () => {
   );
 });
 
+test("automatic GF-6 prerequisites expose the preprocessing controls", () => {
+  assert.deepEqual(
+    getVisibleParameterGroups("gf6-wfv-l1a-v1", [
+      "upload-validation",
+      "tile-mosaic",
+      "rpc-geolocation",
+      "projection-standardization",
+      "standard-product",
+      "feature-extraction"
+    ]),
+    ["preprocess", "feature-extraction"]
+  );
+});
+
 test("visibility follows the selected product's supported functions", () => {
   assert.deepEqual(
     getVisibleParameterGroups("hy2d-altimeter-v1", ["anomaly-detection"]),

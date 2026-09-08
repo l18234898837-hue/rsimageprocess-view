@@ -32,10 +32,6 @@ test("feature metric keys keep their API values but render Chinese labels", () =
     workspace,
     /buildFy4bWorkbenchSummary\(fy4bForm, featureMetricLabel\)/
   );
-  assert.match(
-    workspace,
-    /buildGf6WorkbenchSummary\(gf6Form, featureMetricLabel\)/
-  );
 });
 
 test("teleported product drawers compile the shared theme as global CSS", async () => {
@@ -137,9 +133,9 @@ test("FY-4B and GF-6 drawers expose their constrained engineering controls", () 
   assert.match(gf6Drawer, /<h2 :id="titleId">GF-6 WFV L1A 参数<\/h2>/);
   assert.match(gf6Drawer, /GF-6 WFV L1A 参数/);
   assert.doesNotMatch(gf6Drawer, /OUTPUT PROFILE/);
-  assert.doesNotMatch(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
-  assert.doesNotMatch(gf6Drawer, /accuracyStatus=UNVALIDATED/);
-  assert.doesNotMatch(gf6Drawer, /CANDIDATE_ONLY/);
+  assert.match(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
+  assert.match(gf6Drawer, /accuracyStatus=UNVALIDATED/);
+  assert.match(gf6Drawer, /CANDIDATE_ONLY/);
   assert.match(gf6Drawer, /rpcHeightMode/);
   assert.match(gf6Drawer, /rpcHeight/);
   assert.match(gf6Drawer, /form\.resolution/);
@@ -149,13 +145,13 @@ test("FY-4B and GF-6 drawers expose their constrained engineering controls", () 
   assert.match(gf6Drawer, /form\.fusion/);
 });
 
-test("workspace selects FY-4B and GF-6 parameter contracts with integrated stages", () => {
+test("workspace selects FY-4B and GF-6 parameter drawers with integrated stages", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
   );
-  const gf6Workbench = readFileSync(
-    "src/features/multisource/Gf6ProcessingWorkbench.vue",
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
     "utf8"
   );
 
@@ -165,18 +161,13 @@ test("workspace selects FY-4B and GF-6 parameter contracts with integrated stage
   assert.match(workspace, /GF6_WFV_L1A_TEMPLATE/);
   assert.match(workspace, /buildFy4bAgriSnapshot/);
   assert.match(workspace, /buildGf6WfvL1aSnapshot/);
-  assert.match(workspace, /<Gf6ProcessingWorkbench/);
-  assert.match(
-    workspace,
-    /import Gf6ProcessingWorkbench from "@\/features\/multisource\/Gf6ProcessingWorkbench\.vue"/
-  );
-  assert.match(gf6Workbench, /<dt>处理范围<\/dt>\s*<dd>\{\{ roi \}\}<\/dd>/);
-  assert.match(
-    workspace,
-    /buildGf6WorkbenchSummary\(gf6Form, featureMetricLabel\)/
-  );
-  assert.match(workspace, /:roi="gf6Summary\.roi"/);
-  assert.match(gf6Workbench, /accuracyStatus=UNVALIDATED/);
+  assert.match(workspace, /<Gf6WfvL1aParameterDrawer/);
+  assert.match(workspace, /:visible-steps="visibleParameterGroups"/);
+  assert.doesNotMatch(workspace, /<Gf6ProcessingWorkbench/);
+  assert.doesNotMatch(workspace, /import Gf6ProcessingWorkbench/);
+  assert.match(gf6Drawer, /<legend>工程网格<\/legend>/);
+  assert.match(gf6Drawer, /<legend>输出波段<\/legend>/);
+  assert.match(gf6Drawer, /WGS84 ROI/);
   assert.match(
     workspace,
     /STANDARDIZE_FY4B_AGRI: "处理 FY-4B AGRI 全圆盘产品"/
@@ -204,7 +195,7 @@ test("GF-6 drawer limits algorithm controls to the selected processing steps", (
   assert.match(workspace, /:visible-steps="visibleParameterGroups"/);
 });
 
-test("parameter workbench is driven by selected targets, not automatic dependencies", () => {
+test("parameter workbench is driven by the resolved execution plan", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
@@ -217,15 +208,36 @@ test("parameter workbench is driven by selected targets, not automatic dependenc
   ];
 
   assert.match(workspace, /:visible-steps="visibleParameterGroups"/);
-  assert.doesNotMatch(
+  assert.match(
     workspace,
-    /:visible-steps="processingPlan\.resolvedSteps"/
+    /getVisibleParameterGroups\([\s\S]*?processingPlan\.value\.resolvedSteps/
   );
 
   for (const filename of drawerFiles) {
     const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
     assert.match(drawer, /visibleSteps: readonly string\[\]/);
     assert.match(drawer, /visibleSteps\.includes\(/);
+  }
+});
+
+test("product launch remains below the left-side execution plan", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(workspace, /<section class="mission-section mission-launch"/);
+  assert.match(workspace, /<el-icon class="el-icon--right"><ArrowRight \/><\/el-icon>/);
+  assert.doesNotMatch(workspace, /ProductProcessingLaunch/);
+
+  for (const filename of [
+    "Fy3hMersiParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue",
+    "Hy2dAltimeterParameterDrawer.vue"
+  ]) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.doesNotMatch(drawer, /<slot name="launch"\s*\/>/);
   }
 });
 
@@ -244,27 +256,26 @@ test("workspace delegates multisource form coordination to the shared adapter", 
   assert.doesNotMatch(workspace, /gf6Form\.saliency\.enabled\s*=/);
 });
 
-test("derived output status is a shared read-only checklist", () => {
-  const checklist = readFileSync(
-    "src/features/multisource/DerivedOutputChecklist.vue",
-    "utf8"
-  );
+test("derived output status remains on the left execution plan", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
   );
-  assert.match(checklist, /type="checkbox"/);
-  assert.match(checklist, /disabled/);
-  assert.match(checklist, /visibleSteps\.includes\(item\.key\)/);
-  assert.match(workspace, /DerivedOutputChecklist/);
+  const plan = readFileSync(
+    "src/components/LeftPanel/ProcessingPlanPanel.vue",
+    "utf8"
+  );
+  assert.match(plan, /processing-plan__target/);
+  assert.doesNotMatch(workspace, /DerivedOutputChecklist/);
 
   for (const filename of [
     "Fy3hMersiParameterDrawer.vue",
     "Fy4bAgriParameterDrawer.vue",
+    "Hy2dAltimeterParameterDrawer.vue",
     "Gf6WfvL1aParameterDrawer.vue"
   ]) {
     const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
-    assert.match(drawer, /DerivedOutputChecklist/);
+    assert.doesNotMatch(drawer, /DerivedOutputChecklist/);
     assert.doesNotMatch(
       drawer,
       /v-model="form\.(features|fusion|saliency)\.enabled"/
@@ -296,38 +307,48 @@ test("derived output checklist keeps three statuses legible in a vertical layout
   );
 });
 
-test("parameter workbench renders output bands as individual rows", () => {
-  const workspace = readFileSync(
-    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+test("right-side parameter drawers render editable output bands", () => {
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
     "utf8"
   );
-  const gf6Workbench = readFileSync(
-    "src/features/multisource/Gf6ProcessingWorkbench.vue",
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
     "utf8"
   );
-  assert.match(workspace, /v-for="band in l2aOutputBands"/);
-  assert.match(workspace, /v-for="band in fy3hOutputBands"/);
-  assert.match(gf6Workbench, /v-for="band in bands"/);
-  assert.match(workspace, /:deep\(\.derived-output-checklist__items\)/);
-  assert.match(
-    gf6Workbench,
-    /configuration-workbench__band-list[\s\S]*?width: fit-content;/
-  );
+
+  assert.match(fy3hDrawer, /<legend>输出波段<\/legend>/);
+  assert.match(fy3hDrawer, /v-for="band in FY3H_MERSI_BANDS"/);
+  assert.match(gf6Drawer, /<legend>输出波段<\/legend>/);
+  assert.match(gf6Drawer, /v-for="band in GF6_WFV_L1A_BANDS"/);
+  assert.match(gf6Drawer, /v-model="form\.bands"/);
 });
 
-test("parameter workbench uses distinct output, parameter, and constraint sections", () => {
+test("right-side workbench overview retains output, parameter, and constraint summaries", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
   );
-  const gf6Workbench = readFileSync(
-    "src/features/multisource/Gf6ProcessingWorkbench.vue",
+  const overview = readFileSync(
+    "src/features/multisource/ParameterWorkbenchOverview.vue",
     "utf8"
   );
-  assert.match(gf6Workbench, /configuration-workbench__section--bands/);
-  assert.match(gf6Workbench, /configuration-workbench__section--outputs/);
-  assert.match(gf6Workbench, /configuration-workbench__section--constraints/);
-  assert.match(gf6Workbench, /必要参数/);
+  const drawers = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue"
+  ].map(path => readFileSync(path, "utf8"));
+
+  assert.match(overview, /PARAMETER WORKBENCH/);
+  assert.match(overview, /parameter-workbench-overview__bands/);
+  assert.match(overview, /parameter-workbench-overview__parameters/);
+  assert.match(overview, /parameter-workbench-overview__constraints/);
+  assert.match(workspace, /<ParameterWorkbenchOverview/);
+  for (const drawer of drawers) {
+    assert.match(drawer, /import ParameterWorkbenchOverview/);
+    assert.match(drawer, /<ParameterWorkbenchOverview/);
+  }
   assert.doesNotMatch(workspace, /<dd>{{ gf6Summary\.bands }}<\/dd>/);
 });
 
@@ -355,17 +376,27 @@ test("GF-6 workbench summary owns the planned visual sections", () => {
   );
 });
 
-test("parameter summary is hidden until a processing target is selected", () => {
+test("parameter workbench opens from the execution plan after targets are selected", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
   );
+  const panel = readFileSync(
+    "src/components/LeftPanel/ProcessingPlanPanel.vue",
+    "utf8"
+  );
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
 
-  assert.match(workspace, /v-if="isHy1c && selectedTargets\.length"/);
-  assert.match(workspace, /v-if="isFy3h && selectedTargets\.length"/);
-  assert.match(workspace, /v-if="isHy2d && selectedTargets\.length"/);
-  assert.match(workspace, /v-if="isFy4b && selectedTargets\.length"/);
-  assert.match(workspace, /v-if="isGf6WfvL1a && selectedTargets\.length"/);
+  assert.match(workspace, /@configure="isParameterDrawerOpen = true"/);
+  assert.match(workspace, /v-model="isParameterDrawerOpen"/);
+  assert.doesNotMatch(workspace, /class="mission-section configuration-brief"/);
+  assert.doesNotMatch(workspace, /<Gf6ProcessingWorkbench/);
+  assert.match(panel, /v-if="planSteps\.length"/);
+  assert.match(panel, /class="processing-plan__configure"/);
+  assert.match(gf6Drawer, /完成配置/);
 });
 
 test("multisource prerequisite notices stay inline with the execution plan", () => {

@@ -47,7 +47,7 @@ test("GF-6 rejects non-positive resolution, malformed ROI, and duplicate bands",
   assert.equal(result.valid, false);
   assert.deepEqual(
     new Set(result.issues.map(issue => issue.field)),
-    new Set(["resolution", "roi", "bands", "fusion.bands", "saliency.source"])
+    new Set(["resolution", "roi", "bands"])
   );
 });
 
@@ -114,19 +114,34 @@ test("GF-6 applies the same 255-pixel neighbourhood limit before submission", ()
   assert.throws(() => buildGf6WfvL1aSnapshot(form), /255/);
 });
 
-test("GF-6 rejects disabled algorithms configured with unselected sources", () => {
+test("GF-6 ignores disabled algorithm values and normalizes their snapshot", () => {
   const form = defaultGf6WfvL1aForm();
-  form.bands = [1, 2];
+  form.bands = [1];
   form.fusion.red = 3;
+  form.fusion.green = 8;
+  form.fusion.blue = 6;
+  form.fusion.lowPercentile = 99;
+  form.fusion.highPercentile = 98;
   form.saliency.source = "B3";
+  form.saliency.threshold = 2;
+  form.saliency.windowSize = 4;
 
   const result = validateGf6WfvL1aForm(form);
 
-  assert.equal(result.valid, false);
-  assert.deepEqual(
-    new Set(result.issues.map(issue => issue.field)),
-    new Set(["fusion.bands", "saliency.source"])
-  );
+  assert.equal(result.valid, true);
+  assert.deepEqual(buildGf6WfvL1aSnapshot(form).fusion, {
+    enabled: false,
+    red: 1,
+    green: 1,
+    blue: 1,
+    percentiles: [2, 98]
+  });
+  assert.deepEqual(buildGf6WfvL1aSnapshot(form).saliency, {
+    enabled: false,
+    source: "B1",
+    threshold: 0.95,
+    windowSize: 9
+  });
 });
 
 test("GF-6 applies degree and metre resolution floors before submission", () => {

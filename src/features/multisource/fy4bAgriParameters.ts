@@ -134,10 +134,14 @@ export function validateFy4bAgriForm(form: Fy4bAgriForm) {
       message: "融合百分位必须满足 0 <= 低值 < 高值 <= 100"
     });
   }
-  if (!FY4B_AGRI_SALIENCY_SOURCES.includes(form.saliency.source)) {
+  if (
+    form.saliency.enabled &&
+    !FY4B_AGRI_SALIENCY_SOURCES.includes(form.saliency.source)
+  ) {
     issues.push({ field: "saliency.source", message: "请选择允许的显著性源" });
   }
   if (
+    form.saliency.enabled &&
     DERIVED_SALIENCY_SOURCES.includes(
       form.saliency.source as (typeof DERIVED_SALIENCY_SOURCES)[number]
     ) &&
@@ -150,16 +154,17 @@ export function validateFy4bAgriForm(form: Fy4bAgriForm) {
     });
   }
   if (
-    !Number.isFinite(form.saliency.threshold) ||
-    form.saliency.threshold < 0 ||
-    form.saliency.threshold > 1
+    form.saliency.enabled &&
+    (!Number.isFinite(form.saliency.threshold) ||
+      form.saliency.threshold < 0 ||
+      form.saliency.threshold > 1)
   ) {
     issues.push({
       field: "saliency.threshold",
       message: "显著性阈值必须在 0 到 1 之间"
     });
   }
-  if (!isOddWindow(form.saliency.windowSize)) {
+  if (form.saliency.enabled && !isOddWindow(form.saliency.windowSize)) {
     issues.push({
       field: "saliency.windowSize",
       message: "显著性窗口必须是不小于 3 的奇数"

@@ -34,14 +34,14 @@ const PREPROCESSING_STEPS = new Set([
   "swath-standardization"
 ]);
 
-/** Returns only user-selected parameter groups supported by the active product. */
+/** Returns parameter groups required by the active processing plan. */
 export function getVisibleParameterGroups(
   productId: string,
-  selectedTargets: readonly string[]
+  processingSteps: readonly string[]
 ): string[] {
   const supported = new Set(PRODUCT_PARAMETER_GROUPS[productId] ?? []);
   const groups: string[] = [];
-  for (const step of [...new Set(selectedTargets)]) {
+  for (const step of [...new Set(processingSteps)]) {
     const group = PREPROCESSING_STEPS.has(step) ? "preprocess" : step;
     if (!supported.has(group)) continue;
     if (!groups.includes(group)) groups.push(group);

@@ -147,6 +147,7 @@ export function validateGf6WfvL1aForm(form: Gf6WfvL1aForm) {
     });
   }
   if (
+    form.fusion.enabled &&
     [form.fusion.red, form.fusion.green, form.fusion.blue].some(
       band => !selectedBands.has(band)
     )
@@ -154,34 +155,39 @@ export function validateGf6WfvL1aForm(form: Gf6WfvL1aForm) {
     issues.push({ field: "fusion.bands", message: "RGB 融合只能使用已选波段" });
   }
   if (
-    !Number.isFinite(form.fusion.lowPercentile) ||
-    !Number.isFinite(form.fusion.highPercentile) ||
-    form.fusion.lowPercentile < 0 ||
-    form.fusion.lowPercentile >= form.fusion.highPercentile ||
-    form.fusion.highPercentile > 100
+    form.fusion.enabled &&
+    (!Number.isFinite(form.fusion.lowPercentile) ||
+      !Number.isFinite(form.fusion.highPercentile) ||
+      form.fusion.lowPercentile < 0 ||
+      form.fusion.lowPercentile >= form.fusion.highPercentile ||
+      form.fusion.highPercentile > 100)
   ) {
     issues.push({
       field: "fusion.percentiles",
       message: "融合百分位必须满足 0 <= 低值 < 高值 <= 100"
     });
   }
-  if (!selectedBands.has(Number(form.saliency.source.replace(/^B/i, "")))) {
+  if (
+    form.saliency.enabled &&
+    !selectedBands.has(Number(form.saliency.source.replace(/^B/i, "")))
+  ) {
     issues.push({
       field: "saliency.source",
       message: "显著性源必须来自已选波段"
     });
   }
   if (
-    !Number.isFinite(form.saliency.threshold) ||
-    form.saliency.threshold < 0 ||
-    form.saliency.threshold > 1
+    form.saliency.enabled &&
+    (!Number.isFinite(form.saliency.threshold) ||
+      form.saliency.threshold < 0 ||
+      form.saliency.threshold > 1)
   ) {
     issues.push({
       field: "saliency.threshold",
       message: "显著性阈值必须在 0 到 1 之间"
     });
   }
-  if (!isOddWindow(form.saliency.windowSize)) {
+  if (form.saliency.enabled && !isOddWindow(form.saliency.windowSize)) {
     issues.push({
       field: "saliency.windowSize",
       message: "显著性窗口必须是 3 到 255 之间的奇数"
@@ -191,6 +197,7 @@ export function validateGf6WfvL1aForm(form: Gf6WfvL1aForm) {
 }
 
 export function buildGf6WfvL1aSnapshot(form: Gf6WfvL1aForm): Gf6WfvL1aSnapshot {
+  const fallbackBand = form.bands[0];
   const validation = validateGf6WfvL1aForm(form);
   if (!validation.valid)
     throw new Error(validation.issues.map(issue => issue.message).join("；"));
@@ -211,11 +218,15 @@ export function buildGf6WfvL1aSnapshot(form: Gf6WfvL1aForm): Gf6WfvL1aSnapshot {
     },
     fusion: {
       enabled: form.fusion.enabled,
-      red: form.fusion.red,
-      green: form.fusion.green,
-      blue: form.fusion.blue,
-      percentiles: [form.fusion.lowPercentile, form.fusion.highPercentile]
+      red: form.fusion.enabled ? form.fusion.red : fallbackBand,
+      green: form.fusion.enabled ? form.fusion.green : fallbackBand,
+      blue: form.fusion.enabled ? form.fusion.blue : fallbackBand,
+      percentiles: form.fusion.enabled
+        ? [form.fusion.lowPercentile, form.fusion.highPercentile]
+        : [2, 98]
     },
-    saliency: { ...form.saliency }
+    saliency: form.saliency.enabled
+      ? { ...form.saliency }
+      : { enabled: false, source: `B${fallbackBand}`, threshold: 0.95, windowSize: 9 }
   };
 }

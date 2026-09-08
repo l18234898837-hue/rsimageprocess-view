@@ -54,6 +54,28 @@ test("reset restores all product forms", () => {
   assert.deepEqual(forms, createForms());
 });
 
+test("enabling GF-6 RGB uses the recommended natural-colour band mapping", () => {
+  const forms = createForms();
+  forms.gf6.bands = [8];
+
+  syncProductAlgorithmSelection(forms, ["rgb-fusion"]);
+
+  assert.deepEqual(forms.gf6.bands, [1, 2, 3, 8]);
+  assert.deepEqual(
+    [forms.gf6.fusion.red, forms.gf6.fusion.green, forms.gf6.fusion.blue],
+    [3, 2, 1]
+  );
+
+  forms.gf6.fusion.red = 3;
+  forms.gf6.fusion.green = 3;
+  forms.gf6.fusion.blue = 3;
+  syncProductAlgorithmSelection(forms, ["rgb-fusion"]);
+  assert.deepEqual(
+    [forms.gf6.fusion.red, forms.gf6.fusion.green, forms.gf6.fusion.blue],
+    [3, 3, 3]
+  );
+});
+
 test("GF-6 workbench summary keeps existing prop formatting", () => {
   assert.deepEqual(
     buildGf6WorkbenchSummary(defaultGf6WfvL1aForm(), value => value),

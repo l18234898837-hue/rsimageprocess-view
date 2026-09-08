@@ -45,12 +45,7 @@ test("HY-2D maps its existing form to the independent along-track steps", () => 
       getPipelineDefinition("hy2d-altimeter-v1"),
       registry
     ),
-    [
-      "quality-control",
-      "ssh-baseline",
-      "along-track-feature-extraction",
-      "anomaly-detection"
-    ]
+    ["along-track-feature-extraction", "anomaly-detection"]
   );
   assert.deepEqual(registry.validate(registry.createDefault()), []);
 });

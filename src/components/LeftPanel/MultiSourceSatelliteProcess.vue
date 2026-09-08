@@ -196,220 +196,6 @@
       @configure="isParameterDrawerOpen = true"
     />
 
-    <section
-      v-if="isHy1c && selectedTargets.length"
-      class="mission-section configuration-brief"
-      aria-labelledby="l2a-parameters-title"
-    >
-      <div class="configuration-brief__heading">
-        <div>
-          <span class="mission-section__signal is-violet" aria-hidden="true" />
-          <div>
-            <strong id="l2a-parameters-title">L2A 参数工作台</strong>
-            <small>参数会与本次任务一并保存。</small>
-          </div>
-        </div>
-        <el-button
-          class="configuration-brief__open"
-          text
-          type="primary"
-          @click="isParameterDrawerOpen = true"
-        >
-          <el-icon><Setting /></el-icon>
-          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
-        </el-button>
-      </div>
-
-      <div
-        v-if="visibleParameterGroups.includes('preprocess')"
-        class="spectral-signature"
-        aria-label="CZI 多光谱波段状态"
-      >
-        <span
-          v-for="band in HY1C_CZI_BANDS"
-          :key="band"
-          class="spectral-signature__band"
-          :class="[
-            `band-${band.toLowerCase()}`,
-            { 'is-selected': isBandSelected(band) }
-          ]"
-        >
-          <i aria-hidden="true" />
-          <strong>{{ band }}</strong>
-        </span>
-      </div>
-
-      <dl class="configuration-summary">
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>输出波段</dt>
-          <dd class="configuration-band-list">
-            <span v-for="band in l2aOutputBands" :key="band">{{ band }}</span>
-          </dd>
-        </div>
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>网格定义</dt>
-          <dd>{{ l2aSummary.grid }}</dd>
-        </div>
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>处理范围</dt>
-          <dd>{{ l2aSummary.roi }}</dd>
-        </div>
-      </dl>
-
-      <DerivedOutputChecklist
-        v-if="selectedTargets.some(step => step !== 'preprocess')"
-        :visible-steps="selectedTargets"
-      />
-    </section>
-
-    <section
-      v-if="isFy3h && selectedTargets.length"
-      class="mission-section configuration-brief"
-      aria-labelledby="fy3h-parameters-title"
-    >
-      <div class="configuration-brief__heading">
-        <div>
-          <span class="mission-section__signal is-violet" aria-hidden="true" />
-          <div>
-            <strong id="fy3h-parameters-title">MERSI 参数工作台</strong>
-            <small>扫描带网格化与可选派生算法。</small>
-          </div>
-        </div>
-        <el-button
-          class="configuration-brief__open"
-          text
-          type="primary"
-          @click="isParameterDrawerOpen = true"
-        >
-          <el-icon><Setting /></el-icon>
-          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
-        </el-button>
-      </div>
-      <dl class="configuration-summary">
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>输出波段</dt>
-          <dd class="configuration-band-list">
-            <span v-for="band in fy3hOutputBands" :key="band">{{ band }}</span>
-          </dd>
-        </div>
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>网格定义</dt>
-          <dd>{{ fy3hSummary.grid }}</dd>
-        </div>
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>处理范围</dt>
-          <dd>{{ fy3hSummary.roi }}</dd>
-        </div>
-      </dl>
-      <DerivedOutputChecklist
-        v-if="selectedTargets.some(step => step !== 'preprocess')"
-        :visible-steps="selectedTargets"
-      />
-    </section>
-
-    <section
-      v-if="isHy2d && selectedTargets.length"
-      class="mission-section configuration-brief"
-      aria-labelledby="hy2d-parameters-title"
-    >
-      <div class="configuration-brief__heading">
-        <div>
-          <span class="mission-section__signal is-violet" aria-hidden="true" />
-          <div>
-            <strong id="hy2d-parameters-title">高度计参数工作台</strong>
-            <small>沿轨质量、特征与异常检测配置。</small>
-          </div>
-        </div>
-        <el-button
-          class="configuration-brief__open"
-          text
-          type="primary"
-          @click="isParameterDrawerOpen = true"
-        >
-          <el-icon><Setting /></el-icon>
-          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
-        </el-button>
-      </div>
-      <dl class="configuration-summary">
-        <div v-if="selectedTargets.includes('along-track-feature-extraction')">
-          <dt>特征窗口</dt>
-          <dd>{{ hy2dSummary.window }}</dd>
-        </div>
-        <div v-if="selectedTargets.includes('anomaly-detection')">
-          <dt>异常阈值</dt>
-          <dd>{{ hy2dSummary.anomaly }}</dd>
-        </div>
-        <div v-if="selectedTargets.includes('track-gridding')">
-          <dt>空间输出</dt>
-          <dd>{{ hy2dSummary.grid }}</dd>
-        </div>
-      </dl>
-      <DerivedOutputChecklist
-        :visible-steps="selectedTargets"
-        :items="[
-          { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
-          { key: 'anomaly-detection', label: '异常检测' },
-          { key: 'track-gridding', label: '网格化输出' }
-        ]"
-      />
-    </section>
-
-    <section
-      v-if="isFy4b && selectedTargets.length"
-      class="mission-section configuration-brief"
-      aria-labelledby="fy4b-parameters-title"
-    >
-      <div class="configuration-brief__heading">
-        <div>
-          <span class="mission-section__signal is-violet" aria-hidden="true" />
-          <div>
-            <strong id="fy4b-parameters-title">FY-4B AGRI 参数工作台</strong>
-            <small>全圆盘名义定位与派生输出配置。</small>
-          </div>
-        </div>
-        <el-button
-          class="configuration-brief__open"
-          text
-          type="primary"
-          @click="isParameterDrawerOpen = true"
-        >
-          <el-icon><Setting /></el-icon>
-          {{ isConfigurationLocked ? "查看快照" : "配置参数" }}
-        </el-button>
-      </div>
-      <dl class="configuration-summary">
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>网格定义</dt>
-          <dd>{{ fy4bSummary.grid }}</dd>
-        </div>
-        <div v-if="visibleParameterGroups.includes('preprocess')">
-          <dt>处理范围</dt>
-          <dd>{{ fy4bSummary.roi }}</dd>
-        </div>
-      </dl>
-      <DerivedOutputChecklist
-        v-if="selectedTargets.some(step => step !== 'preprocess')"
-        :visible-steps="selectedTargets"
-      />
-      <div class="configuration-algorithms" aria-label="FY-4B 工程限制">
-        <span>NOMINAL_UNVERIFIED · 名义定位未验证</span>
-      </div>
-    </section>
-
-    <Gf6ProcessingWorkbench
-      v-if="isGf6WfvL1a && selectedTargets.length"
-      :selected-targets="selectedTargets"
-      :bands="gf6OutputBands"
-      :grid="gf6Summary.grid"
-      :roi="gf6Summary.roi"
-      :rgb-bands="gf6Summary.rgbBands"
-      :stretch="gf6Summary.stretch"
-      :feature-metrics="gf6Summary.featureMetrics"
-      :saliency="gf6Summary.saliency"
-      :locked="isConfigurationLocked"
-      @configure="isParameterDrawerOpen = true"
-    />
-
     <section class="mission-section mission-launch" aria-label="任务启动">
       <div>
         <strong>{{ activeTemplate.label }}</strong>
@@ -525,6 +311,7 @@
       class="mission-parameter-drawer product-parameter-drawer"
       direction="rtl"
       size="470px"
+      append-to-body
       title="HY-1C L2A 参数工作台"
       :lock-scroll="false"
       :modal="true"
@@ -555,7 +342,6 @@
       </template>
 
       <div class="parameter-drawer__body">
-        <DerivedOutputChecklist :visible-steps="visibleParameterGroups" />
         <section
           v-if="visibleParameterGroups.includes('preprocess')"
           class="parameter-drawer__signal"
@@ -576,6 +362,10 @@
             />
           </div>
         </section>
+        <ParameterWorkbenchOverview
+          :bands="visibleParameterGroups.includes('preprocess') ? l2aSummary.bands : []"
+          :parameters="hy1cOverviewParameters"
+        />
 
         <section
           class="l2a-console"
@@ -736,7 +526,7 @@
             :disabled="isConfigurationLocked"
           >
             <legend class="toggle-heading">
-              <span>RGB 显示融合</span>
+              <span>RGB 波段组合</span>
               <label class="toggle-control">
                 <input
                   :checked="selectedTargets.includes('rgb-fusion')"
@@ -915,9 +705,8 @@ import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterD
 import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
 import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
 import Gf6WfvL1aParameterDrawer from "@/features/multisource/Gf6WfvL1aParameterDrawer.vue";
-import Gf6ProcessingWorkbench from "@/features/multisource/Gf6ProcessingWorkbench.vue";
 import { getVisibleParameterGroups } from "@/features/multisource/parameterVisibility";
-import DerivedOutputChecklist from "@/features/multisource/DerivedOutputChecklist.vue";
+import ParameterWorkbenchOverview from "@/features/multisource/ParameterWorkbenchOverview.vue";
 import { featureMetricLabel } from "@/features/multisource/featureMetricLabels";
 import {
   buildFy4bAgriSnapshot,
@@ -981,7 +770,6 @@ import {
 } from "@/features/multisource/productArchiveImport";
 import {
   buildFy4bWorkbenchSummary,
-  buildGf6WorkbenchSummary,
   buildHy1cWorkbenchSummary,
   buildFy3hWorkbenchSummary,
   buildHy2dWorkbenchSummary,
@@ -1109,7 +897,10 @@ const processingPlan = computed<ProcessingPlan>(() =>
   resolveProcessingPlan(pipelineDefinition.value, selectedTargets.value)
 );
 const visibleParameterGroups = computed(() =>
-  getVisibleParameterGroups(activeTemplate.value.id, selectedTargets.value)
+  getVisibleParameterGroups(
+    activeTemplate.value.id,
+    processingPlan.value.resolvedSteps
+  )
 );
 const resolvedPlanSteps = computed(() =>
   processingPlan.value.resolvedSteps
@@ -1138,13 +929,18 @@ const uploadedSlotCount = computed(
 const parameterValidation = computed(() => validateHy1cCziL2aForm(l2aForm));
 const parameterIssues = computed(() => parameterValidation.value.issues);
 const l2aSummary = computed(() => buildHy1cWorkbenchSummary(l2aForm));
-const l2aOutputBands = computed(() => l2aSummary.value.bands);
+const hy1cOverviewParameters = computed(() => {
+  if (!visibleParameterGroups.value.includes("preprocess")) return [];
+  return [
+    { label: "网格定义", value: l2aSummary.value.grid },
+    { label: "处理范围", value: l2aSummary.value.roi }
+  ];
+});
 const fy3hParameterValidation = computed(() => validateFy3hMersiForm(fy3hForm));
 const fy3hParameterIssues = computed(
   () => fy3hParameterValidation.value.issues
 );
 const fy3hSummary = computed(() => buildFy3hWorkbenchSummary(fy3hForm));
-const fy3hOutputBands = computed(() => fy3hSummary.value.outputBands);
 const hy2dParameterValidation = computed(() =>
   validateHy2dAltimeterForm(hy2dForm)
 );
@@ -1161,20 +957,6 @@ const fy4bSummary = computed(() =>
 );
 const gf6ParameterValidation = computed(() => validateGf6WfvL1aForm(gf6Form));
 const gf6ParameterIssues = computed(() => gf6ParameterValidation.value.issues);
-const gf6Summary = computed(() => {
-  const summary = buildGf6WorkbenchSummary(gf6Form, featureMetricLabel);
-  return {
-    ...summary,
-    algorithms: [
-      gf6Form.features.enabled ? `特征: ${summary.featureMetrics}` : "特征关闭",
-      gf6Form.fusion.enabled ? "RGB 融合" : "RGB 关闭",
-      gf6Form.saliency.enabled
-        ? `显著性: ${gf6Form.saliency.source}`
-        : "显著性关闭"
-    ].join(" · ")
-  };
-});
-const gf6OutputBands = computed(() => gf6Summary.value.bands);
 const activeParametersValid = computed(() => {
   if (isHy1c.value) return parameterValidation.value.valid;
   if (isFy3h.value) return fy3hParameterValidation.value.valid;

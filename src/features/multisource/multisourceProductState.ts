@@ -95,7 +95,16 @@ export function syncProductAlgorithmSelection(
   applyImageAlgorithms(forms.hy1c.algorithms);
   applyImageAlgorithms(forms.fy3h);
   applyImageAlgorithms(forms.fy4b);
+  const wasGf6RgbEnabled = forms.gf6.fusion.enabled;
   applyImageAlgorithms(forms.gf6);
+  if (forms.gf6.fusion.enabled && !wasGf6RgbEnabled) {
+    forms.gf6.bands = [...new Set([...forms.gf6.bands, 1, 2, 3])].sort(
+      (left, right) => left - right
+    );
+    forms.gf6.fusion.red = 3;
+    forms.gf6.fusion.green = 2;
+    forms.gf6.fusion.blue = 1;
+  }
   forms.hy2d.grid.enabled = enabled.has("track-gridding");
 }
 

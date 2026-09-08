@@ -4,6 +4,7 @@
     class="product-parameter-drawer"
     direction="rtl"
     size="470px"
+    append-to-body
     :lock-scroll="false"
     :modal="true"
     :show-close="false"
@@ -28,14 +29,7 @@
     </template>
 
     <div class="drawer-body">
-      <DerivedOutputChecklist
-        :visible-steps="visibleSteps"
-        :items="[
-          { key: 'along-track-feature-extraction', label: '沿轨特征提取' },
-          { key: 'anomaly-detection', label: '异常检测' },
-          { key: 'track-gridding', label: '网格化输出' }
-        ]"
-      />
+      <ParameterWorkbenchOverview :parameters="overviewParameters" />
       <div
         v-if="visibleSteps.includes('along-track-decode')"
         class="profile-signal"
@@ -138,9 +132,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from "vue";
+import { computed, reactive, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
-import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
+import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import type { Hy2dAltimeterForm } from "./hy2dAltimeterParameters";
 
 const open = defineModel<boolean>({ required: true });
@@ -157,6 +151,19 @@ const emit = defineEmits<{
 const form = reactive<Hy2dAltimeterForm>(
   JSON.parse(JSON.stringify(props.form)) as Hy2dAltimeterForm
 );
+const overviewParameters = computed(() => {
+  const parameters: { label: string; value: string }[] = [];
+  if (props.visibleSteps.includes("along-track-feature-extraction")) {
+    parameters.push({ label: "特征窗口", value: props.summary.window });
+  }
+  if (props.visibleSteps.includes("anomaly-detection")) {
+    parameters.push({ label: "异常阈值", value: props.summary.anomaly });
+  }
+  if (props.visibleSteps.includes("track-gridding")) {
+    parameters.push({ label: "空间输出", value: props.summary.grid });
+  }
+  return parameters;
+});
 watch(
   form,
   value =>

@@ -4,6 +4,7 @@
     class="product-parameter-drawer"
     direction="rtl"
     size="520px"
+    append-to-body
     :lock-scroll="false"
     :modal="true"
     :show-close="false"
@@ -26,7 +27,11 @@
         </button></div
     ></template>
     <div class="drawer-body">
-      <DerivedOutputChecklist :visible-steps="visibleSteps" />
+      <ParameterWorkbenchOverview
+        :bands="overviewBands"
+        :parameters="overviewParameters"
+        :constraints="ENGINEERING_CONSTRAINTS"
+      />
       <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>工程网格</legend>
         <div class="field-grid">
@@ -128,7 +133,7 @@
       </fieldset>
       <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
         <legend class="toggle-heading">
-          <span>RGB 融合</span
+          <span>RGB 波段组合</span
           ><label class="toggle"
             ><input
               :checked="visibleSteps.includes('rgb-fusion')"
@@ -266,7 +271,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
-import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
+import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import { featureMetricLabel } from "./featureMetricLabels";
 import {
   GF6_WFV_L1A_BANDS,
@@ -286,11 +291,55 @@ const props = defineProps<{
   issues: { field: string; message: string }[];
 }>();
 const emit = defineEmits<{ "update-form": [value: Gf6WfvL1aForm] }>();
+const ENGINEERING_CONSTRAINTS = [
+  "NOMINAL_RPC_NO_DEM",
+  "accuracyStatus=UNVALIDATED",
+  "CANDIDATE_ONLY"
+] as const;
 const rpcHeightMode = "CONSTANT" as const;
 const rpcHeight = 0 as const;
 const form = reactive<Gf6WfvL1aForm>(
   JSON.parse(JSON.stringify(props.form)) as Gf6WfvL1aForm
 );
+const overviewBands = computed(() =>
+  props.visibleSteps.includes("preprocess")
+    ? form.bands.map(band => `B${band}`)
+    : []
+);
+const overviewParameters = computed(() => {
+  const parameters: { label: string; value: string }[] = [];
+  if (props.visibleSteps.includes("preprocess")) {
+    parameters.push(
+      { label: "工程网格", value: `${form.targetCrs} · ${form.resolution}` },
+      { label: "处理范围", value: form.roi ? form.roi.join(", ") : "全幅镶嵌" }
+    );
+  }
+  if (props.visibleSteps.includes("rgb-fusion")) {
+    parameters.push(
+      {
+        label: "RGB 波段",
+        value: `B${form.fusion.red} / B${form.fusion.green} / B${form.fusion.blue}`
+      },
+      {
+        label: "拉伸范围",
+        value: `${form.fusion.lowPercentile}% - ${form.fusion.highPercentile}%`
+      }
+    );
+  }
+  if (props.visibleSteps.includes("feature-extraction")) {
+    parameters.push({
+      label: "特征项",
+      value: form.features.metrics.map(featureMetricLabel).join("、")
+    });
+  }
+  if (props.visibleSteps.includes("anomaly-detection")) {
+    parameters.push({
+      label: "检测源",
+      value: `${form.saliency.source} · 阈值 ${form.saliency.threshold}`
+    });
+  }
+  return parameters;
+});
 const resolutionConstraint = computed(() =>
   gf6ResolutionConstraint(form.targetCrs)
 );

@@ -4,6 +4,7 @@
     class="product-parameter-drawer"
     direction="rtl"
     size="520px"
+    append-to-body
     :lock-scroll="false"
     :modal="true"
     :show-close="false"
@@ -28,13 +29,16 @@
     </template>
 
     <div class="drawer-body">
-      <DerivedOutputChecklist :visible-steps="visibleSteps" />
       <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
         <div>
           <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
         </div>
         <code>{{ form.bands.length }}/25 CHANNELS</code>
       </div>
+      <ParameterWorkbenchOverview
+        :bands="visibleSteps.includes('preprocess') ? summary.outputBands : []"
+        :parameters="overviewParameters"
+      />
 
       <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>网格</legend>
@@ -159,7 +163,7 @@
 
       <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
         <legend class="toggle-heading">
-          <span>RGB 显示融合</span>
+          <span>RGB 波段组合</span>
           <label class="toggle">
             <i aria-hidden="true" />
           </label>
@@ -270,7 +274,7 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
-import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
+import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import {
   FY3H_MERSI_BANDS,
   fy3hVariableName,
@@ -295,6 +299,16 @@ const emit = defineEmits<{
 const form = reactive<Fy3hMersiForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy3hMersiForm
 );
+const overviewParameters = computed(() => {
+  const parameters: { label: string; value: string }[] = [];
+  if (props.visibleSteps.includes("preprocess")) {
+    parameters.push(
+      { label: "网格定义", value: props.summary.grid },
+      { label: "处理范围", value: props.summary.roi }
+    );
+  }
+  return parameters;
+});
 watch(
   form,
   value =>

@@ -4,6 +4,7 @@
     class="product-parameter-drawer"
     direction="rtl"
     size="520px"
+    append-to-body
     :lock-scroll="false"
     :modal="true"
     :show-close="false"
@@ -28,7 +29,6 @@
     </template>
 
     <div class="drawer-body">
-      <DerivedOutputChecklist :visible-steps="visibleSteps" />
       <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
         <div>
           <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
@@ -42,6 +42,10 @@
       >
         <strong>NOMINAL_UNVERIFIED</strong>：名义定位尚未完成测绘级验证。
       </p>
+      <ParameterWorkbenchOverview
+        :parameters="overviewParameters"
+        :constraints="visibleSteps.includes('preprocess') ? ['NOMINAL_UNVERIFIED'] : []"
+      />
 
       <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
         <legend>空间范围</legend>
@@ -225,9 +229,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
-import DerivedOutputChecklist from "./DerivedOutputChecklist.vue";
+import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import { featureMetricLabel } from "./featureMetricLabels";
 import {
   FY4B_AGRI_DEFAULT_ROI,
@@ -243,12 +247,22 @@ const props = defineProps<{
   visibleSteps: readonly string[];
   locked: boolean;
   issues: Fy4bAgriValidationIssue[];
-  summary: { grid: string };
+  summary: { grid: string; roi: string };
 }>();
 const emit = defineEmits<{ "update-form": [value: Fy4bAgriForm] }>();
 const form = reactive<Fy4bAgriForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy4bAgriForm
 );
+const overviewParameters = computed(() => {
+  const parameters: { label: string; value: string }[] = [];
+  if (props.visibleSteps.includes("preprocess")) {
+    parameters.push(
+      { label: "网格定义", value: props.summary.grid },
+      { label: "处理范围", value: props.summary.roi }
+    );
+  }
+  return parameters;
+});
 const roiEnabled = ref(form.roi !== null);
 const roi = reactive<[number, number, number, number]>(
   form.roi ? [...form.roi] : [...FY4B_AGRI_DEFAULT_ROI]

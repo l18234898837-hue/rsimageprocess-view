@@ -102,6 +102,15 @@
             </button>
           </el-tooltip>
         </div>
+        <button
+          class="processing-plan__configure"
+          type="button"
+          :disabled="disabled"
+          @click="emit('configure')"
+        >
+          <el-icon><Setting /></el-icon>
+          <span>配置参数</span>
+        </button>
       </div>
       <div
         class="processing-plan__steps"
@@ -134,7 +143,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { InfoFilled, QuestionFilled } from "@element-plus/icons-vue";
+import { InfoFilled, QuestionFilled, Setting } from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
 
 const props = defineProps<{
@@ -265,6 +274,42 @@ function toggleTarget(stepKey: string) {
   min-width: 0;
   align-items: center;
   gap: 9px;
+}
+
+.processing-plan__configure {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  background: #2e7da3;
+  border: 1px solid #2e7da3;
+  border-radius: 4px;
+}
+
+.processing-plan__configure:hover:not(:disabled) {
+  background: #216889;
+  border-color: #216889;
+}
+
+.processing-plan__configure:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.processing-plan__configure .el-icon {
+  font-size: 14px;
+}
+
+.processing-plan__configure:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
 }
 
 .processing-plan__dependency-summary {

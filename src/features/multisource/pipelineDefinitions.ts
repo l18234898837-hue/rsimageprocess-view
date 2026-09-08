@@ -205,14 +205,14 @@ const PIPELINES: readonly PipelineDefinition[] = [
         title: "质量过滤",
         kind: "system",
         dependsOn: ["along-track-decode"],
-        configurable: true
+        configurable: false
       },
       {
         key: "ssh-baseline",
         title: "海面高度基线计算",
         kind: "system",
         dependsOn: ["quality-control"],
-        configurable: true
+        configurable: false
       },
       {
         key: "along-track-feature-extraction",
@@ -246,7 +246,7 @@ const PIPELINES: readonly PipelineDefinition[] = [
         productTitle: "沿轨地图展示",
         kind: "target",
         dependsOn: ["along-track-feature-extraction"],
-        configurable: true,
+        configurable: false,
         parallelGroup: "altimeter-analysis"
       }
     ]

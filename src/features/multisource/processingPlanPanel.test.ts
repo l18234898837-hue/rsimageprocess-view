@@ -25,14 +25,19 @@ test("processing plan panel exposes selectable targets and automatic prerequisit
   assert.match(panel, /专题处理/);
 });
 
-test("selected processing targets stay compact and open the workbench below", () => {
+test("selected processing targets stay compact and open the workbench from the execution plan", () => {
   assert.doesNotMatch(panel, /processing-plan__detail/);
   assert.match(panel, /processing-plan__step-row/);
   assert.match(panel, /grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(panel, /checkedTargets/);
   assert.match(panel, /lockedTargets/);
   assert.match(panel, /isLockedTarget/);
-  assert.match(workspace, /@configure="isParameterDrawerOpen = true"/);
+  assert.match(
+    workspace,
+    /@configure="isParameterDrawerOpen = true"/
+  );
+  assert.match(panel, /class="processing-plan__configure"/);
+  assert.match(panel, /@click="emit\('configure'\)"/);
 });
 
 test("execution plan keeps three compact rows visible and scrolls remaining steps", () => {
