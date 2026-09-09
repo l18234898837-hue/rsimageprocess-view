@@ -24,7 +24,7 @@
       <ParameterWorkbenchOverview :parameters="overviewParameters" />
       <fieldset
         v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card"
+        class="parameter-step-card roi-parameter-block"
         :disabled="locked"
       >
         <legend>
@@ -34,6 +34,9 @@
             text="定义标准产品的坐标参考、输出分辨率和处理范围。"
           />
         </legend>
+        <p class="roi-parameter-block__note">
+          WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
+        </p>
         <div class="field-grid">
           <label
             ><span
@@ -73,14 +76,20 @@
               <ParameterHint
                 label="高度模式"
                 text="RPC 正射校正使用的高程模式。当前名义工程产品固定为 CONSTANT，不可修改。" /></span
-            ><input :value="rpcHeightMode" readonly /></label
+            ><input :value="rpcHeightMode" readonly /><small
+              class="parameter-field__guide is-neutral"
+              >固定模式：CONSTANT</small
+            ></label
           ><label
             ><span
               >固定高程（米）
               <ParameterHint
                 label="固定高程"
                 text="名义 RPC 的固定高程值。该产品配置固定为 0 米，不可修改。" /></span
-            ><input :value="rpcHeight" readonly /></label
+            ><input :value="rpcHeight" readonly /><small
+              class="parameter-field__guide is-neutral"
+              >固定值：0 米</small
+            ></label
           ><label class="toggle-row"
             ><span
               >WGS84 ROI（默认开启）
@@ -200,7 +209,7 @@
         <div class="rgb-grid">
           <label
             ><span
-              >R
+              ><strong>R</strong> 红色通道
               <ParameterHint
                 label="红色通道"
                 text="作为彩色合成的红色显示通道，只能选择已输出的波段。" /></span
@@ -210,11 +219,13 @@
             >
               <option v-for="band in form.bands" :key="band" :value="band">
                 B{{ band }}
-              </option>
-            </select></label
+              </option></select
+            ><small class="parameter-field__guide is-neutral"
+              >暖色与高反射目标</small
+            ></label
           ><label
             ><span
-              >G
+              ><strong>G</strong> 绿色通道
               <ParameterHint
                 label="绿色通道"
                 text="作为彩色合成的绿色显示通道，只能选择已输出的波段。" /></span
@@ -224,11 +235,13 @@
             >
               <option v-for="band in form.bands" :key="band" :value="band">
                 B{{ band }}
-              </option>
-            </select></label
+              </option></select
+            ><small class="parameter-field__guide is-neutral"
+              >植被与中间色调</small
+            ></label
           ><label
             ><span
-              >B
+              ><strong>B</strong> 蓝色通道
               <ParameterHint
                 label="蓝色通道"
                 text="作为彩色合成的蓝色显示通道，只能选择已输出的波段。" /></span
@@ -238,8 +251,10 @@
             >
               <option v-for="band in form.bands" :key="band" :value="band">
                 B{{ band }}
-              </option>
-            </select></label
+              </option></select
+            ><small class="parameter-field__guide is-neutral"
+              >水体、薄雾与冷色调</small
+            ></label
           >
         </div>
         <ParameterFieldStatus :issues="issues" :fields="['fusion.bands']" />
@@ -315,6 +330,7 @@
             <ParameterFieldStatus
               :issues="issues"
               :fields="['saliency.source']"
+              guidance="用于检测的输出波段"
             /> </label
           ><label
             ><span

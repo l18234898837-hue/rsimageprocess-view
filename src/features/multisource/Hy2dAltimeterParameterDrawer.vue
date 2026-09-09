@@ -21,14 +21,6 @@
 
     <div class="drawer-body">
       <ParameterWorkbenchOverview :parameters="overviewParameters" />
-      <div
-        v-if="visibleSteps.includes('along-track-decode')"
-        class="profile-signal"
-      >
-        <div>
-          <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
-        </div>
-      </div>
       <fieldset
         v-if="visibleSteps.includes('along-track-feature-extraction')"
         class="parameter-step-card"

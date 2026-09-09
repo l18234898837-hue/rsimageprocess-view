@@ -7,6 +7,9 @@
     <div class="output-band-picker__summary">
       <span>已选 {{ selectedBands.length }} / {{ bands.length }}</span>
     </div>
+    <p class="output-band-picker__hint">
+      选择要写入标准产品的波段；后续 RGB 融合和显著性检测只能使用已选波段。
+    </p>
     <section
       v-for="group in groupedBands"
       :key="group.label"

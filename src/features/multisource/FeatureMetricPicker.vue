@@ -20,9 +20,9 @@
       </span>
       <span
         class="feature-metric-picker__meta"
-        :title="`用途：${metric.description} · ${metric.output}`"
+        :title="`${metric.description}，生成${metric.output.replace(/^输出：\\s*/, '')}`"
       >
-        用途：{{ metric.description }} · {{ metric.output }}
+        {{ metricSummary(metric) }}
       </span>
       <span
         v-if="
@@ -31,6 +31,7 @@
           $slots['local-variance']
         "
         class="feature-metric-picker__inline-parameter"
+        @click.stop
       >
         <slot name="local-variance" />
       </span>
@@ -55,6 +56,12 @@ const emit = defineEmits<{ "update:modelValue": [value: string[]] }>();
 
 function isSelected(metric: string) {
   return props.modelValue.includes(metric);
+}
+
+function metricSummary(metric: FeatureMetricOption) {
+  const description = metric.description;
+  const output = metric.output.replace(/^输出：\s*/, "");
+  return `${description}，生成${output}`;
 }
 
 function toggle(metric: string, event: Event) {

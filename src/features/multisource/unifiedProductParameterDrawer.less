@@ -572,6 +572,13 @@
   line-height: 1;
 }
 
+.product-parameter-drawer .output-band-picker__hint {
+  margin: 0 0 8px;
+  color: #6c8794;
+  font-size: var(--drawer-font-micro);
+  line-height: 1.5;
+}
+
 .product-parameter-drawer
   .output-band-picker__group
   + .output-band-picker__group {
@@ -743,11 +750,10 @@
 .product-parameter-drawer .feature-metric-picker__item input,
 .l2a-console .feature-metric-picker__item input[type="checkbox"] {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  cursor: inherit;
+  pointer-events: none;
   opacity: 0;
 }
 
@@ -811,10 +817,20 @@
 .product-parameter-drawer .feature-metric-picker__parameter,
 .l2a-console .feature-metric-picker__parameter {
   display: grid;
-  grid-template-columns: 104px 76px minmax(0, 1fr);
+  grid-template-columns: 104px 116px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   min-width: 0;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input {
+  width: 116px;
+  max-width: 100%;
 }
 
 .product-parameter-drawer .feature-metric-picker__parameter > span,
@@ -866,7 +882,7 @@
 
   .product-parameter-drawer .feature-metric-picker__parameter,
   .l2a-console .feature-metric-picker__parameter {
-    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-columns: 92px minmax(116px, 1fr);
   }
 
   .product-parameter-drawer
@@ -1360,6 +1376,47 @@
   position: relative;
   margin-top: 14px;
   border-color: #cbdde6;
+}
+
+.product-parameter-drawer .roi-parameter-block {
+  border-color: #b8d9e5;
+  background: linear-gradient(
+      180deg,
+      rgb(232 247 252 / 72%) 0,
+      rgb(255 255 255 / 0%) 92px
+    ),
+    var(--drawer-panel);
+}
+
+.product-parameter-drawer .roi-parameter-block__note {
+  margin: 2px 0 8px;
+  color: #5d7b89;
+  font-size: var(--drawer-font-micro);
+  line-height: 1.45;
+}
+
+.product-parameter-drawer .roi-parameter-block .toggle-row {
+  padding: 6px 10px;
+  background: #eef8fb;
+  border: 1px solid #d3e8ef;
+  border-radius: 4px 4px 0 0;
+}
+
+.product-parameter-drawer .roi-parameter-block > legend.toggle-heading {
+  padding: 6px 10px;
+  background: #eef8fb;
+  border: 1px solid #d3e8ef;
+  border-radius: 4px;
+}
+
+.product-parameter-drawer .roi-parameter-block > .field-grid.compact-grid,
+.product-parameter-drawer .roi-parameter-block > .roi-grid {
+  margin-top: 0;
+  padding: 8px 10px 9px;
+  background: #f8fcfd;
+  border: 1px solid #d3e8ef;
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
 }
 
 .product-parameter-drawer .parameter-step-card legend {

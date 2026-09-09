@@ -348,15 +348,33 @@
               @click="toggleStageArtifacts(stage.stageId)"
             >
               <strong>产物 {{ stageArtifacts(stage).length }} 个</strong>
-              <el-icon :class="{ 'is-expanded': isStageArtifactsExpanded(stage.stageId) }">
+              <el-icon
+                :class="{
+                  'is-expanded': isStageArtifactsExpanded(stage.stageId)
+                }"
+              >
                 <ArrowDown />
               </el-icon>
             </button>
-            <div v-if="isStageArtifactsExpanded(stage.stageId)" class="artifact-shelf__items">
-              <div v-for="artifact in stageArtifacts(stage)" :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`" class="artifact-row">
+            <div
+              v-if="isStageArtifactsExpanded(stage.stageId)"
+              class="artifact-shelf__items"
+            >
+              <div
+                v-for="artifact in stageArtifacts(stage)"
+                :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
+                class="artifact-row"
+              >
                 <div class="artifact-row__info">
-                  <code :title="artifactFileName(artifact)">{{ artifactFileName(artifact) }}</code>
-                  <small>{{ artifact.type }}<span v-if="artifact.sizeBytes"> · {{ artifactSize(artifact) }}</span></small>
+                  <code :title="artifactFileName(artifact)">{{
+                    artifactFileName(artifact)
+                  }}</code>
+                  <small
+                    >{{ artifact.type
+                    }}<span v-if="artifact.sizeBytes">
+                      · {{ artifactSize(artifact) }}</span
+                    ></small
+                  >
                 </div>
                 <el-button
                   v-if="isPreviewableArtifact(artifact)"
@@ -364,7 +382,8 @@
                   type="primary"
                   :loading="previewingArtifact === artifact"
                   @click="previewArtifact(artifact)"
-                >查看</el-button>
+                  >查看</el-button
+                >
                 <el-button
                   v-else
                   text
@@ -372,7 +391,8 @@
                   :loading="downloadingArtifact === artifact"
                   :disabled="artifact.downloadable === false"
                   @click="downloadStageArtifact(artifact)"
-                >下载</el-button>
+                  >下载</el-button
+                >
               </div>
             </div>
           </div>
@@ -419,10 +439,16 @@
       @closed="clearArtifactPreview"
     >
       <template #header>
-        <strong class="artifact-preview-dialog__title">{{ artifactPreviewName }}</strong>
+        <strong class="artifact-preview-dialog__title">{{
+          artifactPreviewName
+        }}</strong>
       </template>
       <div class="artifact-preview-dialog__body">
-        <img v-if="artifactPreviewUrl" :src="artifactPreviewUrl" :alt="artifactPreviewName" />
+        <img
+          v-if="artifactPreviewUrl"
+          :src="artifactPreviewUrl"
+          :alt="artifactPreviewName"
+        />
       </div>
     </el-dialog>
 
@@ -454,43 +480,9 @@
       </template>
 
       <div class="parameter-drawer__body">
-        <section
-          v-if="visibleParameterGroups.includes('preprocess')"
-          class="parameter-drawer__signal"
-          aria-label="当前产品配置"
-        >
-          <div>
-            <span>OUTPUT PROFILE</span>
-            <strong>{{ l2aSummary.grid }}</strong>
-          </div>
-          <div class="parameter-drawer__signal-rail" aria-hidden="true">
-            <i
-              v-for="band in HY1C_CZI_BANDS"
-              :key="band"
-              :class="[
-                `band-${band.toLowerCase()}`,
-                { 'is-selected': isBandSelected(band) }
-              ]"
-            />
-          </div>
-        </section>
         <ParameterWorkbenchOverview :parameters="hy1cOverviewParameters" />
 
-        <section
-          class="l2a-console"
-          aria-labelledby="l2a-drawer-controls-title"
-        >
-          <div class="l2a-console__heading">
-            <div>
-              <span
-                class="mission-section__signal is-violet"
-                aria-hidden="true"
-              />
-              <strong id="l2a-drawer-controls-title">处理参数</strong>
-            </div>
-            <span>nearest</span>
-          </div>
-
+        <section class="l2a-console">
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
             class="control-group parameter-step-card spectral-fieldset"
@@ -549,6 +541,7 @@
                 <ParameterFieldStatus
                   :issues="parameterIssues"
                   :fields="['grid.targetCrs']"
+                  guidance="可填写 AUTO_UTM 或 EPSG:编号"
                 />
               </label>
               <label class="control-field">
@@ -584,7 +577,7 @@
 
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group parameter-step-card"
+            class="control-group parameter-step-card roi-parameter-block"
             :disabled="isConfigurationLocked"
           >
             <legend class="toggle-heading">
@@ -603,6 +596,9 @@
                 <span aria-hidden="true" />
               </label>
             </legend>
+            <p class="roi-parameter-block__note">
+              开启后按经纬度范围处理；关闭后处理产品全幅。
+            </p>
             <div class="roi-grid">
               <label v-for="field in ROI_FIELDS" :key="field.key">
                 <span
@@ -729,6 +725,9 @@
                     {{ band }}
                   </option>
                 </select>
+                <small class="parameter-field__guide is-neutral">{{
+                  channel.guide
+                }}</small>
               </label>
             </div>
             <ParameterFieldStatus
@@ -1077,9 +1076,9 @@ const ROI_FIELDS = [
   { key: "maxLat", label: "最大纬度", longitude: false }
 ] as const;
 const RGB_CHANNELS = [
-  { key: "red", label: "R" },
-  { key: "green", label: "G" },
-  { key: "blue", label: "B" }
+  { key: "red", label: "R", guide: "红色：暖色与高反射目标" },
+  { key: "green", label: "G", guide: "绿色：植被与中间色调" },
+  { key: "blue", label: "B", guide: "蓝色：水体、薄雾与冷色调" }
 ] as const;
 const STAGE_LABELS: Record<string, string> = {
   VALIDATE_BROWSE: "验证浏览产品",

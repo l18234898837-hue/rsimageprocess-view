@@ -62,6 +62,125 @@ test("feature metrics explain their purpose and output in a shared selection lis
   );
 });
 
+test("feature metric rows keep the texture control independent from selection", () => {
+  const picker = readFileSync(
+    "src/features/multisource/FeatureMetricPicker.vue",
+    "utf8"
+  );
+  const theme = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(
+    picker,
+    /feature-metric-picker__inline-parameter[\s\S]*@click\.stop/
+  );
+  assert.doesNotMatch(
+    theme,
+    /feature-metric-picker__item input\s*\{[^}]*inset:\s*0;/s
+  );
+  assert.match(
+    theme,
+    /feature-metric-picker__item input[\s\S]*?pointer-events:\s*none;/
+  );
+  assert.match(
+    theme,
+    /feature-metric-picker__parameter[\s\S]*grid-template-columns:\s*104px\s+116px/
+  );
+  assert.match(
+    theme,
+    /feature-metric-picker__parameter[\s\S]*parameter-number-input[\s\S]*width:\s*116px/
+  );
+});
+
+test("output bands and feature metrics provide concise user guidance", () => {
+  const outputPicker = readFileSync(
+    "src/features/multisource/OutputBandPicker.vue",
+    "utf8"
+  );
+  assert.match(outputPicker, /output-band-picker__hint/);
+  assert.match(outputPicker, /选择要写入标准产品的波段/);
+
+  const picker = readFileSync(
+    "src/features/multisource/FeatureMetricPicker.vue",
+    "utf8"
+  );
+  assert.doesNotMatch(picker, /用途：\{\{ metric\.description \}\}/);
+  assert.doesNotMatch(picker, /\{\{ metric\.output \}\}/);
+  assert.match(picker, /metric\.description[\s\S]*生成/);
+});
+
+test("parameter drawers group ROI controls and explain the remaining sparse fields", () => {
+  const drawerFiles = [
+    "Fy3hMersiParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue"
+  ];
+  for (const filename of drawerFiles) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.match(drawer, /roi-parameter-block/);
+    assert.match(drawer, /按经纬度范围处理/);
+  }
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  assert.match(workspace, /roi-parameter-block/);
+  assert.match(workspace, /按经纬度范围处理/);
+
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+  assert.match(gf6Drawer, /固定模式：CONSTANT/);
+  assert.match(gf6Drawer, /固定值：0 米/);
+  assert.match(gf6Drawer, /用于检测的输出波段/);
+  assert.match(gf6Drawer, /红色通道/);
+  assert.match(gf6Drawer, /绿色通道/);
+  assert.match(gf6Drawer, /蓝色通道/);
+});
+
+test("product drawers remove legacy output profile and processing summary rows", () => {
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+  const hy2dDrawer = readFileSync(
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue",
+    "utf8"
+  );
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.doesNotMatch(fy3hDrawer, /class="profile-signal"/);
+  assert.doesNotMatch(fy3hDrawer, /OUTPUT PROFILE/);
+  assert.doesNotMatch(hy2dDrawer, /class="profile-signal"/);
+  assert.doesNotMatch(hy2dDrawer, /OUTPUT PROFILE/);
+  assert.doesNotMatch(workspace, /class="parameter-drawer__signal"/);
+  assert.doesNotMatch(workspace, /class="l2a-console__heading"/);
+  assert.doesNotMatch(workspace, /l2a-drawer-controls-title/);
+});
+
+test("all target CRS controls fill the dedicated guidance column", () => {
+  const files = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue"
+  ];
+  for (const filename of files) {
+    const source = readFileSync(filename, "utf8");
+    assert.match(source, /目标 CRS/);
+    assert.match(
+      source,
+      /guidance="(?:格式：EPSG:编号|仅支持 EPSG:4326 或 EPSG:4490|可填写 AUTO_UTM 或 EPSG:编号)"/
+    );
+  }
+});
+
 test("image parameter drawers synchronize algorithm enablement after target selection", () => {
   const drawerFiles = [
     "src/features/multisource/Fy3hMersiParameterDrawer.vue",
@@ -678,9 +797,18 @@ test("GF-6 RGB channels provide individual hover explanations", () => {
     "utf8"
   );
 
-  assert.match(gf6Drawer, /<span\s*>\s*R\s*<ParameterHint\s+label="红色通道"/);
-  assert.match(gf6Drawer, /<span\s*>\s*G\s*<ParameterHint\s+label="绿色通道"/);
-  assert.match(gf6Drawer, /<span\s*>\s*B\s*<ParameterHint\s+label="蓝色通道"/);
+  assert.match(
+    gf6Drawer,
+    /<strong>R<\/strong>\s*红色通道[\s\S]*label="红色通道"/
+  );
+  assert.match(
+    gf6Drawer,
+    /<strong>G<\/strong>\s*绿色通道[\s\S]*label="绿色通道"/
+  );
+  assert.match(
+    gf6Drawer,
+    /<strong>B<\/strong>\s*蓝色通道[\s\S]*label="蓝色通道"/
+  );
 });
 
 test("parameter workbenches use a single-line field layout with a dedicated status column", () => {

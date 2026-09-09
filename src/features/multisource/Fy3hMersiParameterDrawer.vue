@@ -20,12 +20,6 @@
     </template>
 
     <div class="drawer-body">
-      <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
-        <div>
-          <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
-        </div>
-        <code>{{ form.bands.length }}/25 CHANNELS</code>
-      </div>
       <ParameterWorkbenchOverview :parameters="overviewParameters" />
 
       <fieldset
@@ -108,7 +102,7 @@
 
       <fieldset
         v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card"
+        class="parameter-step-card roi-parameter-block"
         :disabled="locked"
       >
         <legend>
@@ -145,6 +139,9 @@
             <i aria-hidden="true" />
           </label>
         </legend>
+        <p class="roi-parameter-block__note">
+          开启后按经纬度范围处理；关闭后处理产品全幅。
+        </p>
         <div class="field-grid">
           <label v-for="field in ROI_FIELDS" :key="field.key">
             <span
@@ -235,7 +232,7 @@
         <div class="rgb-grid">
           <label v-for="channel in RGB_CHANNELS" :key="channel.key">
             <span
-              >{{ channel.label }}
+              ><strong>{{ channel.label }}</strong>
               <ParameterHint
                 :label="`${channel.label} 通道`"
                 text="RGB 组合通道，只能选择已选的反射通道。"
@@ -248,6 +245,9 @@
                 CH{{ String(band).padStart(2, "0") }}
               </option>
             </select>
+            <small class="parameter-field__guide is-neutral">{{
+              channel.guide
+            }}</small>
           </label>
         </div>
         <ParameterFieldStatus :issues="issues" :fields="['fusion.bands']" />
@@ -460,9 +460,9 @@ const ROI_FIELDS = [
   { key: "maxLat", label: "最大纬度", longitude: false }
 ] as const;
 const RGB_CHANNELS = [
-  { key: "red", label: "R" },
-  { key: "green", label: "G" },
-  { key: "blue", label: "B" }
+  { key: "red", label: "R", guide: "红色：暖色与高反射目标" },
+  { key: "green", label: "G", guide: "绿色：植被与中间色调" },
+  { key: "blue", label: "B", guide: "蓝色：水体、薄雾与冷色调" }
 ] as const;
 const isWgs84 = computed(() => isFy3hWgs84Crs(form.targetCrs));
 const reflectiveBands = computed(() => form.bands.filter(band => band <= 19));

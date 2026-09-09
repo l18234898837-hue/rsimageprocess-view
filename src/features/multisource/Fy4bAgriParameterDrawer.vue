@@ -26,13 +26,16 @@
 
       <fieldset
         v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card"
+        class="parameter-step-card roi-parameter-block"
         :disabled="locked"
       >
         <legend>
           空间范围
           <ParameterHint label="空间范围" text="限定产品输出坐标和处理范围。" />
         </legend>
+        <p class="roi-parameter-block__note">
+          开启后按经纬度范围处理；关闭后处理产品全幅。
+        </p>
         <div class="field-grid">
           <label
             ><span
