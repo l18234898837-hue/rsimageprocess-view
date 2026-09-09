@@ -10,8 +10,10 @@ import {
   mapStageStatus,
   processingStepStatusLabel,
   runtimeProgressPercent,
+  uiStepKeysForRemoteStage,
   type RuntimeStageView
 } from "./processingRunState";
+import { getPipelineDefinition } from "./pipelineDefinitions";
 
 const stage = (overrides: Partial<ExecutionProgressStage> = {}) => ({
   stageId: 1,
@@ -56,6 +58,45 @@ test("maps product-specific remote stage keys onto the shared UI steps", () => {
       ["upload-validation", "SUCCEEDED"],
       ["quality-control", "PROCESSING"]
     ]
+  );
+});
+
+test("maps HY-1C decode stage to decode and scale-factor UI steps", () => {
+  assert.deepEqual(
+    uiStepKeysForRemoteStage("DECODE_SCALE_AND_NODATA", "hy1c-czi-l2a-v1"),
+    ["band-metadata-decode", "scale-factor-processing"]
+  );
+});
+
+test("counts a shared HY-1C decode stage for both visible steps", () => {
+  const views = buildRuntimeStageViews(
+    getPipelineDefinition("hy1c-czi-l2a-v1").steps,
+    [
+      stage({
+        stageId: 10,
+        stageKey: "DECODE_SCALE_AND_NODATA",
+        status: "SUCCEEDED"
+      })
+    ]
+  );
+  assert.equal(
+    views.find(view => view.step.key === "band-metadata-decode")?.status,
+    "SUCCEEDED"
+  );
+  assert.equal(
+    views.find(view => view.step.key === "scale-factor-processing")?.status,
+    "SUCCEEDED"
+  );
+});
+
+test("does not add known internal CZI crop stage as remote-only", () => {
+  const views = buildRuntimeStageViews(
+    getPipelineDefinition("hy1c-czi-l2a-v1").steps,
+    [stage({ stageId: 11, stageKey: "CROP_CZI", status: "SUCCEEDED" })]
+  );
+  assert.equal(
+    views.some(view => view.remoteOnly && view.stage?.stageKey === "CROP_CZI"),
+    false
   );
 });
 

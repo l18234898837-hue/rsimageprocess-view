@@ -83,6 +83,40 @@ const REMOTE_STAGE_ALIASES: Record<string, string> = {
   DETECT_GF6_SALIENCY: "anomaly-detection"
 };
 
+const REMOTE_STAGE_UI_STEPS: Record<string, readonly string[]> = {
+  DECODE_SCALE_AND_NODATA: ["band-metadata-decode", "scale-factor-processing"],
+  CROP_CZI: ["projection-standardization"],
+  CALIBRATE_MERSI_L1: ["radiometric-calibration"],
+  CALIBRATE_AND_GEOREFERENCE_FY4B: [
+    "radiometric-calibration",
+    "projection-standardization"
+  ],
+  BUILD_FY4B_NOMINAL_GRID: ["geo-grid-construction"],
+  REPROJECT_AND_CROP_FY4B: ["projection-standardization"],
+  VALIDATE_GF6_WFV_L1A: ["upload-validation"],
+  WRITE_GF6_STANDARD_COG: ["standard-product"],
+  DECODE_ALTIMETER_TRACK: ["along-track-decode"],
+  APPLY_TRACK_QUALITY: ["quality-control"],
+  CALCULATE_BASELINE_SSH: ["ssh-baseline"],
+  WRITE_STANDARD_TRACK_OUTPUT: ["map-preview"]
+};
+
+const INTERNAL_STAGE_KEYS = new Set([
+  "CROP_CZI",
+  "BUILD_FY4B_NOMINAL_GRID",
+  "REPROJECT_AND_CROP_FY4B"
+]);
+
+export function uiStepKeysForRemoteStage(
+  stageKey: string,
+  _productId?: string
+): readonly string[] {
+  return (
+    REMOTE_STAGE_UI_STEPS[stageKey] ||
+    (REMOTE_STAGE_ALIASES[stageKey] ? [REMOTE_STAGE_ALIASES[stageKey]] : [])
+  );
+}
+
 export function uiStepKeyForRemoteStage(stageKey: string) {
   return REMOTE_STAGE_ALIASES[stageKey] || stageKey;
 }
@@ -124,10 +158,10 @@ export function groupArtifactsByStage(
 
 function stageMatchesStep(stage: ExecutionProgressStage, step: StepDefinition) {
   return (
+    uiStepKeysForRemoteStage(stage.stageKey).includes(step.key) ||
+    uiStepKeysForRemoteStage(stage.stageCode || "").includes(step.key) ||
     stage.stageKey === step.key ||
-    stage.stageCode === step.key ||
-    uiStepKeyForRemoteStage(stage.stageKey) === step.key ||
-    uiStepKeyForRemoteStage(stage.stageCode || "") === step.key
+    stage.stageCode === step.key
   );
 }
 
@@ -162,7 +196,8 @@ export function buildRuntimeStageViews(
   orderedStages.forEach(stage => {
     if (
       knownStageKeys.has(stage.stageKey) ||
-      views.some(view => view.stage?.stageId === stage.stageId)
+      views.some(view => view.stage?.stageId === stage.stageId) ||
+      INTERNAL_STAGE_KEYS.has(stage.stageKey)
     )
       return;
     views.push({
