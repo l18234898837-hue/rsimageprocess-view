@@ -29,6 +29,36 @@ test("maps remote stage lifecycle to stable UI statuses", () => {
   assert.equal(mapStageStatus(stage({ status: "RECOVERY_PENDING" })), "FAILED");
 });
 
+test("maps product-specific remote stage keys onto the shared UI steps", () => {
+  const steps = [
+    {
+      key: "upload-validation",
+      title: "Upload",
+      kind: "system" as const,
+      dependsOn: [],
+      configurable: false
+    },
+    {
+      key: "quality-control",
+      title: "Quality",
+      kind: "system" as const,
+      dependsOn: [],
+      configurable: false
+    }
+  ];
+  const views = buildRuntimeStageViews(steps, [
+    stage({ stageId: 10, stageKey: "VALIDATE_FY3H_PAIR", status: "SUCCEEDED" }),
+    stage({ stageId: 11, stageKey: "APPLY_MERSI_QUALITY", status: "RUNNING" })
+  ]);
+  assert.deepEqual(
+    views.map(view => [view.step.key, view.status]),
+    [
+      ["upload-validation", "SUCCEEDED"],
+      ["quality-control", "PROCESSING"]
+    ]
+  );
+});
+
 test("keeps a successful parallel stage successful when another stage fails", () => {
   assert.equal(
     mapStageStatus(stage({ status: "SUCCEEDED" }), ["feature-extraction"]),

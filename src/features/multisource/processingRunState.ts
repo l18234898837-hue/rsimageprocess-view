@@ -47,6 +47,46 @@ export interface ArtifactStageGroup {
   readonly artifacts: readonly ExecutionProgressArtifact[];
 }
 
+const REMOTE_STAGE_ALIASES: Record<string, string> = {
+  VALIDATE_SOURCE: "upload-validation",
+  VALIDATE_FY3H_PAIR: "upload-validation",
+  VALIDATE_FY4B_INPUTS: "upload-validation",
+  VALIDATE_FY4B_PACKAGE: "upload-validation",
+  VALIDATE_GF6_TILES: "upload-validation",
+  VALIDATE_BROWSE: "upload-validation",
+  DECODE_SCALE_AND_NODATA: "band-metadata-decode",
+  DECODE_MERSI_L1: "data-decode",
+  DECODE_ALTIMETER_TRACK: "along-track-decode",
+  APPLY_L2_FLAGS: "l2-quality-control",
+  APPLY_MERSI_QUALITY: "quality-control",
+  APPLY_FY4B_QUALITY: "quality-mask",
+  APPLY_TRACK_QUALITY: "quality-control",
+  GEOLOCATE_AND_GRID: "projection-standardization",
+  GRID_MERSI_SWATH: "swath-standardization",
+  GRID_FY4B_RASTERS: "projection-standardization",
+  GEOREFERENCE_BROWSE: "rpc-geolocation",
+  WRITE_STANDARD_COG: "standard-product",
+  WRITE_MERSI_STANDARD_COG: "standard-product",
+  WRITE_FY4B_STANDARD: "standard-product",
+  WRITE_GF6_STANDARD: "standard-product",
+  WRITE_STANDARD_TRACK_OUTPUT: "map-preview",
+  EXTRACT_CZI_FEATURES: "feature-extraction",
+  EXTRACT_MERSI_FEATURES: "feature-extraction",
+  EXTRACT_TRACK_FEATURES: "along-track-feature-extraction",
+  EXTRACT_VISUAL_FEATURES: "feature-extraction",
+  FUSE_CZI_BANDS: "rgb-fusion",
+  FUSE_MERSI_BANDS: "rgb-fusion",
+  FUSE_GF6_BANDS: "rgb-fusion",
+  DETECT_CZI_SALIENCY: "anomaly-detection",
+  DETECT_MERSI_SALIENCY: "anomaly-detection",
+  DETECT_TRACK_ANOMALIES: "anomaly-detection",
+  DETECT_GF6_SALIENCY: "anomaly-detection"
+};
+
+export function uiStepKeyForRemoteStage(stageKey: string) {
+  return REMOTE_STAGE_ALIASES[stageKey] || stageKey;
+}
+
 export function mapStageStatus(
   stage: Pick<ExecutionProgressStage, "status" | "stageKey">,
   invalidatedSteps: readonly string[] = []
@@ -83,7 +123,12 @@ export function groupArtifactsByStage(
 }
 
 function stageMatchesStep(stage: ExecutionProgressStage, step: StepDefinition) {
-  return stage.stageKey === step.key || stage.stageCode === step.key;
+  return (
+    stage.stageKey === step.key ||
+    stage.stageCode === step.key ||
+    uiStepKeyForRemoteStage(stage.stageKey) === step.key ||
+    uiStepKeyForRemoteStage(stage.stageCode || "") === step.key
+  );
 }
 
 export function buildRuntimeStageViews(
@@ -92,8 +137,13 @@ export function buildRuntimeStageViews(
   artifacts: readonly ExecutionProgressArtifact[] = [],
   invalidatedSteps: readonly string[] = []
 ): RuntimeStageView[] {
+  const orderedStages = [...stages].sort(
+    (left, right) => left.stageId - right.stageId
+  );
   const views: RuntimeStageView[] = steps.map(step => {
-    const stage = stages.find(candidate => stageMatchesStep(candidate, step));
+    const stage = orderedStages.find(candidate =>
+      stageMatchesStep(candidate, step)
+    );
     return {
       step,
       stage,
@@ -107,8 +157,12 @@ export function buildRuntimeStageViews(
   const knownStageKeys = new Set(
     views.filter(view => view.stage).map(view => view.stage?.stageKey)
   );
-  stages.forEach(stage => {
-    if (knownStageKeys.has(stage.stageKey)) return;
+  orderedStages.forEach(stage => {
+    if (
+      knownStageKeys.has(stage.stageKey) ||
+      views.some(view => view.stage?.stageId === stage.stageId)
+    )
+      return;
     views.push({
       step: {
         key: `remote:${stage.stageId}`,
