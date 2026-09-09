@@ -303,65 +303,86 @@
     >
       <div class="mission-section__heading">
         <div>
-          <span class="mission-section__signal" aria-hidden="true" />
+          <span
+            class="mission-section__signal"
+            :class="`is-${taskStatusTone}`"
+            aria-hidden="true"
+          />
           <strong id="progress-title">任务进度</strong>
         </div>
         <span>{{ taskStatusLabel }}</span>
       </div>
+      <div
+        v-if="runtimeCurrentStage"
+        class="runtime-current-stage"
+        aria-live="polite"
+      >
+        <span
+          class="runtime-current-stage__dot"
+          :class="`is-${taskStatusTone}`"
+          aria-hidden="true"
+        />
+        <div>
+          <small>当前阶段</small>
+          <strong>{{ runtimeStageTitle(runtimeCurrentStage) }}</strong>
+          <span>{{ runtimeStageDescription(runtimeCurrentStage) }}</span>
+        </div>
+      </div>
       <div class="stage-timeline">
         <article
-          v-for="stage in progress.stages"
-          :key="stage.stageId"
-          class="stage-row"
-          :class="`is-${stage.status.toLowerCase()}`"
+          v-for="view in runtimeStageViews"
+          :key="runtimeStageKey(view)"
+          class="stage-row runtime-stage-row"
+          :class="`is-${view.status.toLowerCase()}`"
         >
           <span class="stage-row__marker" aria-hidden="true" />
           <div class="stage-row__body">
             <div>
-              <strong>{{
-                stageLabel(stage.stageCode || stage.stageKey)
-              }}</strong>
-              <small>{{ stage.stageCode || stage.stageKey }}</small>
+              <strong>{{ runtimeStageTitle(view) }}</strong>
+              <small>{{ runtimeStageStatusLabel(view) }}</small>
             </div>
             <span class="stage-row__status">
-              {{ stage.status }} · {{ stage.attempt }}
+              {{ runtimeStageDescription(view) }}
             </span>
             <div
-              v-if="stage.errorCode || stage.errorMessage"
+              v-if="view.stage?.errorCode || view.stage?.errorMessage"
               class="server-error"
               role="alert"
             >
-              <code v-if="stage.errorCode">{{ stage.errorCode }}</code>
-              <p v-if="stage.errorMessage">
-                {{ translateProcessingErrorMessage(stage.errorMessage) }}
+              <code v-if="view.stage?.errorCode">{{
+                view.stage.errorCode
+              }}</code>
+              <p v-if="view.stage?.errorMessage">
+                {{ translateProcessingErrorMessage(view.stage.errorMessage) }}
               </p>
             </div>
-            <small v-if="stage.startedAt" class="stage-row__time">
-              {{ stage.startedAt }} → {{ stage.finishedAt || "运行中" }}
+            <small v-if="view.stage?.startedAt" class="stage-row__time">
+              {{ view.stage.startedAt }} →
+              {{ view.stage.finishedAt || "运行中" }}
             </small>
           </div>
-          <div v-if="stageArtifacts(stage).length" class="artifact-shelf">
+          <div v-if="view.artifacts.length" class="artifact-shelf">
             <button
               type="button"
               class="artifact-shelf__toggle"
-              :aria-expanded="isStageArtifactsExpanded(stage.stageId)"
-              @click="toggleStageArtifacts(stage.stageId)"
+              :aria-expanded="isStageArtifactsExpanded(view.stage?.stageId)"
+              @click="view.stage && toggleStageArtifacts(view.stage.stageId)"
             >
-              <strong>产物 {{ stageArtifacts(stage).length }} 个</strong>
+              <strong>产物 {{ view.artifacts.length }} 个</strong>
               <el-icon
                 :class="{
-                  'is-expanded': isStageArtifactsExpanded(stage.stageId)
+                  'is-expanded': isStageArtifactsExpanded(view.stage?.stageId)
                 }"
               >
                 <ArrowDown />
               </el-icon>
             </button>
             <div
-              v-if="isStageArtifactsExpanded(stage.stageId)"
+              v-if="view.stage && isStageArtifactsExpanded(view.stage.stageId)"
               class="artifact-shelf__items"
             >
               <div
-                v-for="artifact in stageArtifacts(stage)"
+                v-for="artifact in view.artifacts"
                 :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
                 class="artifact-row"
               >
@@ -397,11 +418,11 @@
             </div>
           </div>
           <el-button
-            v-if="canRetryStage(stage.status)"
+            v-if="view.stage && canRetryStage(view.stage.status)"
             text
             type="warning"
             :disabled="isBusy"
-            @click="retryTask(stage.stageId)"
+            @click="retryTask(view.stage.stageId)"
           >
             重试
           </el-button>
@@ -1024,6 +1045,10 @@ import {
   type ProcessingPlan
 } from "@/features/multisource/processingPlan";
 import {
+  buildRuntimeStageViews,
+  type RuntimeStageView
+} from "@/features/multisource/processingRunState";
+import {
   FY3H_MERSI_TEMPLATE,
   FY4B_AGRI_TEMPLATE,
   GF6_WFV_L1A_TEMPLATE,
@@ -1238,6 +1263,38 @@ const resolvedPlanSteps = computed(() =>
     .map(key => pipelineDefinition.value.steps.find(step => step.key === key))
     .filter((step): step is NonNullable<typeof step> => Boolean(step))
 );
+const runtimeStageViews = computed(() =>
+  buildRuntimeStageViews(
+    resolvedPlanSteps.value,
+    progress.value?.stages || [],
+    progress.value?.artifacts || []
+  ).map((view, index) => ({
+    ...view,
+    runtimeId: view.stage?.stageId ?? `planned-${view.step.key}-${index}`
+  }))
+);
+const runtimeConfirmedCount = computed(
+  () =>
+    runtimeStageViews.value.filter(
+      view => view.status === "SUCCEEDED" || view.status === "FAILED"
+    ).length
+);
+const runtimeCurrentStage = computed(
+  () =>
+    runtimeStageViews.value.find(view => view.status === "PROCESSING") ||
+    runtimeStageViews.value.find(view => view.status === "FAILED")
+);
+const taskStatusTone = computed(() => {
+  if (taskStatus.value === "SUCCEEDED") return "success";
+  if (
+    taskStatus.value === "FAILED" ||
+    taskStatus.value === "RECOVERY_PENDING"
+  ) {
+    return "danger";
+  }
+  if (taskStatus.value === "CANCELED") return "muted";
+  return "running";
+});
 const checkedTargetKeys = computed(() =>
   getCheckedSelectableStepKeys(pipelineDefinition.value, selectedTargets.value)
 );
@@ -1356,14 +1413,50 @@ const taskStatusLabel = computed(() => {
   return labels[taskStatus.value || ""] || "等待创建";
 });
 
+function runtimeStageKey(
+  view: RuntimeStageView & { runtimeId?: string | number }
+) {
+  return view.runtimeId ?? view.step.key;
+}
+
+function runtimeStageTitle(view: RuntimeStageView) {
+  return view.stage
+    ? stageLabel(view.stage.stageCode || view.stage.stageKey)
+    : view.step.title;
+}
+
+function runtimeStageStatusLabel(view: RuntimeStageView) {
+  const labels: Record<string, string> = {
+    WAITING: "等待执行",
+    PROCESSING: "正在执行",
+    SUCCEEDED: "已完成",
+    FAILED: "执行失败",
+    NEEDS_RERUN: "需要重新执行"
+  };
+  return labels[view.status] || "等待执行";
+}
+
+function runtimeStageDescription(view: RuntimeStageView) {
+  if (view.status === "PROCESSING") return "正在执行该阶段";
+  if (view.status === "SUCCEEDED") {
+    return view.stage?.finishedAt
+      ? `完成于 ${view.stage.finishedAt}`
+      : "阶段已完成";
+  }
+  if (view.status === "FAILED") return "请查看错误信息并重试";
+  return "等待前置阶段完成";
+}
+
 function stageArtifacts(stage: ExecutionProgressStage) {
   return (progress.value?.artifacts || []).filter(
     artifact => artifact.stageId === stage.stageId
   );
 }
 
-function isStageArtifactsExpanded(stageId: ExecutionProgressStage["stageId"]) {
-  return expandedArtifactStageIds.value.includes(stageId);
+function isStageArtifactsExpanded(stageId?: ExecutionProgressStage["stageId"]) {
+  return (
+    stageId !== undefined && expandedArtifactStageIds.value.includes(stageId)
+  );
 }
 
 function toggleStageArtifacts(stageId: ExecutionProgressStage["stageId"]) {
@@ -4902,6 +4995,119 @@ button:disabled {
   color: var(--plain-muted);
   font-family: inherit;
   font-size: 11px;
+}
+
+.satellite-workspace .runtime-stage-row {
+  position: relative;
+  min-height: 48px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.satellite-workspace .runtime-stage-row:last-child {
+  border-bottom: 0;
+}
+
+.satellite-workspace .runtime-stage-row.is-succeeded .stage-row__marker {
+  background: #2f9b68;
+  box-shadow: 0 0 0 2px #d9f1e4;
+}
+
+.satellite-workspace .runtime-stage-row.is-processing .stage-row__marker {
+  background: #2f8fb3;
+  box-shadow: 0 0 0 2px #d9edf4;
+  animation: runtime-stage-pulse 1.6s ease-in-out infinite;
+}
+
+.satellite-workspace .runtime-stage-row.is-failed .stage-row__marker {
+  background: #c44f55;
+  box-shadow: 0 0 0 2px #f6dddd;
+}
+
+.satellite-workspace .runtime-stage-row.is-succeeded .stage-row__status {
+  color: #238052;
+}
+
+.satellite-workspace .runtime-stage-row.is-processing .stage-row__status {
+  color: #247c9d;
+  font-weight: 600;
+}
+
+.satellite-workspace .runtime-stage-row.is-failed .stage-row__status {
+  color: #b13f46;
+  font-weight: 600;
+}
+
+.satellite-workspace .runtime-stage-row.is-waiting .stage-row__status {
+  color: #87949d;
+}
+
+.satellite-workspace .progress-console .mission-section__signal.is-success,
+.satellite-workspace .runtime-current-stage__dot.is-success {
+  background: #2f9b68;
+  box-shadow: 0 0 0 3px #d9f1e4;
+}
+
+.satellite-workspace .progress-console .mission-section__signal.is-danger,
+.satellite-workspace .runtime-current-stage__dot.is-danger {
+  background: #c44f55;
+  box-shadow: 0 0 0 3px #f6dddd;
+}
+
+.satellite-workspace .progress-console .mission-section__signal.is-muted,
+.satellite-workspace .runtime-current-stage__dot.is-muted {
+  background: #98a5ac;
+  box-shadow: 0 0 0 3px #e9edef;
+}
+
+.satellite-workspace .runtime-current-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0 4px;
+  padding: 9px 10px;
+  background: #f1f8fb;
+  border: 1px solid #d4e8ef;
+  border-radius: 5px;
+}
+
+.satellite-workspace .runtime-current-stage__dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  background: #2f8fb3;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px #d9edf4;
+}
+
+.satellite-workspace .runtime-current-stage div {
+  display: grid;
+  gap: 2px;
+}
+
+.satellite-workspace .runtime-current-stage small,
+.satellite-workspace .runtime-current-stage span {
+  color: #68808c;
+  font-size: 11px;
+}
+
+.satellite-workspace .runtime-current-stage strong {
+  color: #24556b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.satellite-workspace .runtime-stage-row .artifact-shelf {
+  min-width: 92px;
+  padding: 4px 7px;
+  background: #f7fafb;
+}
+
+@keyframes runtime-stage-pulse {
+  50% {
+    box-shadow: 0 0 0 4px #d9edf4;
+  }
 }
 
 .satellite-workspace .artifact-shelf {

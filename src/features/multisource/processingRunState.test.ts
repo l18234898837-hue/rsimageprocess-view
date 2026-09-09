@@ -4,7 +4,11 @@ import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage
 } from "@/api/multiSourceSatellite";
-import { groupArtifactsByStage, mapStageStatus } from "./processingRunState";
+import {
+  buildRuntimeStageViews,
+  groupArtifactsByStage,
+  mapStageStatus
+} from "./processingRunState";
 
 const stage = (overrides: Partial<ExecutionProgressStage> = {}) => ({
   stageId: 1,
@@ -69,4 +73,34 @@ test("groups artifacts by their execution stage and preserves download authoriza
       artifacts
     }
   ]);
+});
+
+test("keeps the full plan visible while trusting only reported stage states", () => {
+  const steps = [
+    {
+      key: "preprocess",
+      title: "Preprocess",
+      kind: "system" as const,
+      dependsOn: [],
+      configurable: false
+    },
+    {
+      key: "rgb-fusion",
+      title: "RGB Fusion",
+      kind: "target" as const,
+      dependsOn: ["preprocess"],
+      configurable: true
+    }
+  ];
+  const views = buildRuntimeStageViews(steps, [
+    stage({ stageId: 7, stageKey: "preprocess", status: "RUNNING" })
+  ]);
+
+  assert.deepEqual(
+    views.map(view => [view.step.key, view.status]),
+    [
+      ["preprocess", "PROCESSING"],
+      ["rgb-fusion", "WAITING"]
+    ]
+  );
 });
