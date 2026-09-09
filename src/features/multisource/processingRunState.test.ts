@@ -14,6 +14,7 @@ import {
   formatStageDuration,
   artifactPresentation,
   isStageCompletionEdge,
+  sameProcessingIdentifier,
   type RuntimeStageView
 } from "./processingRunState";
 import { getPipelineDefinition } from "./pipelineDefinitions";
@@ -192,6 +193,10 @@ test("groups artifacts by their execution stage and preserves download authoriza
       artifacts
     }
   ]);
+});
+
+test("matches artifact and stage identifiers across JSON number/string representations", () => {
+  assert.equal(sameProcessingIdentifier("201", 201), true);
 });
 
 test("keeps the full plan visible while trusting only reported stage states", () => {

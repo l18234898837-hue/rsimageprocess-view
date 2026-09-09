@@ -165,7 +165,7 @@ export function authorizeArtifactDownload(
 ) {
   const current = artifacts.find(
     item =>
-      item.stageId === requested.stageId &&
+      String(item.stageId) === String(requested.stageId) &&
       item.type === requested.type &&
       item.uri === requested.uri
   );

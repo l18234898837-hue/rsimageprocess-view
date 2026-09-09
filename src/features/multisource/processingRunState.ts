@@ -107,6 +107,13 @@ export function isStageCompletionEdge(
   return currentStatus === "SUCCEEDED" && previousStatus !== "SUCCEEDED";
 }
 
+export function sameProcessingIdentifier(
+  left: ProcessingIdentifier,
+  right: ProcessingIdentifier
+) {
+  return String(left) === String(right);
+}
+
 export interface RuntimeStageView {
   readonly step: StepDefinition;
   readonly stage?: ExecutionProgressStage;
@@ -241,8 +248,8 @@ export function groupArtifactsByStage(
     .map(stage => ({
       stageId: stage.stageId,
       stageKey: stage.stageKey,
-      artifacts: artifacts.filter(
-        artifact => artifact.stageId === stage.stageId
+      artifacts: artifacts.filter(artifact =>
+        sameProcessingIdentifier(artifact.stageId, stage.stageId)
       )
     }))
     .filter(group => group.artifacts.length > 0);
@@ -277,7 +284,9 @@ export function buildRuntimeStageViews(
       stage,
       status: stage ? mapStageStatus(stage, invalidatedSteps) : "WAITING",
       artifacts: stage
-        ? artifacts.filter(artifact => artifact.stageId === stage.stageId)
+        ? artifacts.filter(artifact =>
+            sameProcessingIdentifier(artifact.stageId, stage.stageId)
+          )
         : []
     };
   });
@@ -288,7 +297,11 @@ export function buildRuntimeStageViews(
   orderedStages.forEach(stage => {
     if (
       knownStageKeys.has(stage.stageKey) ||
-      views.some(view => view.stage?.stageId === stage.stageId) ||
+      views.some(
+        view =>
+          view.stage?.stageId !== undefined &&
+          sameProcessingIdentifier(view.stage.stageId, stage.stageId)
+      ) ||
       INTERNAL_STAGE_KEYS.has(stage.stageKey)
     )
       return;
@@ -302,8 +315,8 @@ export function buildRuntimeStageViews(
       },
       stage,
       status: mapStageStatus(stage, invalidatedSteps),
-      artifacts: artifacts.filter(
-        artifact => artifact.stageId === stage.stageId
+      artifacts: artifacts.filter(artifact =>
+        sameProcessingIdentifier(artifact.stageId, stage.stageId)
       ),
       remoteOnly: true
     });
