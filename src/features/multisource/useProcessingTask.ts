@@ -474,7 +474,7 @@ export function useProcessingTask(
     }
   }
 
-  async function downloadArtifact(artifact: ExecutionProgressArtifact) {
+  async function getArtifactBlob(artifact: ExecutionProgressArtifact) {
     if (taskId.value === undefined) throw new Error("任务标识已失效");
     const currentArtifact = authorizeArtifactDownload(
       progress.value?.artifacts || [],
@@ -484,7 +484,12 @@ export function useProcessingTask(
       taskId.value,
       currentArtifact.type
     );
-    saveBlob(responseBlob(response), artifactDownloadFileName(currentArtifact));
+    return responseBlob(response);
+  }
+
+  async function downloadArtifact(artifact: ExecutionProgressArtifact) {
+    const blob = await getArtifactBlob(artifact);
+    saveBlob(blob, artifactDownloadFileName(artifact));
   }
 
   function reset() {
@@ -522,6 +527,7 @@ export function useProcessingTask(
     retry,
     downloadResult,
     downloadArtifact,
+    getArtifactBlob,
     stopPolling,
     reset
   };
