@@ -123,15 +123,25 @@
             </button>
           </el-tooltip>
         </div>
-        <button
-          class="processing-plan__configure"
-          type="button"
-          :disabled="disabled"
-          @click="emit('configure')"
-        >
-          <el-icon><Setting /></el-icon>
-          <span>配置参数</span>
-        </button>
+        <div class="processing-plan__actions">
+          <button
+            class="processing-plan__progress"
+            type="button"
+            @click="emit('show-progress')"
+          >
+            <el-icon><Clock /></el-icon>
+            <span>任务进度</span>
+          </button>
+          <button
+            class="processing-plan__configure"
+            type="button"
+            :disabled="disabled"
+            @click="emit('configure')"
+          >
+            <el-icon><Setting /></el-icon>
+            <span>配置参数</span>
+          </button>
+        </div>
       </div>
       <div
         class="processing-plan__steps"
@@ -142,14 +152,23 @@
           :key="step.key"
           class="processing-plan__step-row"
         >
-          <div class="processing-plan__step" :class="`is-${step.kind}`">
+          <div
+            class="processing-plan__step"
+            :class="[
+              `is-${step.kind}`,
+              `is-${stepRuntimeStatus(step.key).toLowerCase()}`
+            ]"
+          >
             <span class="processing-plan__step-marker" aria-hidden="true" />
             <span class="processing-plan__step-copy">
               <span class="processing-plan__step-title-row">
                 <strong>{{ step.title }}</strong>
-                <small class="processing-plan__step-status">{{
-                  step.kind === "target" ? "用户选择" : "系统自动添加"
-                }}</small>
+                <small class="processing-plan__step-status">
+                  {{ step.kind === "target" ? "用户选择" : "系统自动添加" }}
+                </small>
+                <small class="processing-plan__step-runtime-status">
+                  {{ processingStepStatusLabel(stepRuntimeStatus(step.key)) }}
+                </small>
               </span>
             </span>
             <span class="processing-plan__step-index" aria-hidden="true">
@@ -166,11 +185,17 @@
 import { computed, ref } from "vue";
 import {
   ArrowDown,
+  Clock,
   InfoFilled,
   QuestionFilled,
   Setting
 } from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
+import {
+  processingStepStatusLabel,
+  type ProcessingStepViewStatus,
+  type RuntimeStageView
+} from "@/features/multisource/processingRunState";
 
 const props = defineProps<{
   targetSteps: readonly StepDefinition[];
@@ -178,12 +203,14 @@ const props = defineProps<{
   selectedTargets: readonly string[];
   checkedTargets: readonly string[];
   lockedTargets: readonly string[];
+  runtimeStageViews: readonly RuntimeStageView[];
   disabled?: boolean;
 }>();
 
 const emit = defineEmits<{
   "update:selectedTargets": [value: string[]];
   configure: [];
+  "show-progress": [];
 }>();
 
 const isTargetsVisible = ref(true);
@@ -206,6 +233,13 @@ const automaticPlanSteps = computed(() =>
 const automaticPlanSummary = computed(() =>
   automaticPlanSteps.value.map(step => step.title).join("、")
 );
+
+function stepRuntimeStatus(stepKey: string): ProcessingStepViewStatus {
+  return (
+    props.runtimeStageViews.find(view => view.step.key === stepKey)?.status ||
+    "WAITING"
+  );
+}
 
 function isAutomaticTarget(stepKey: string) {
   return (
@@ -580,6 +614,45 @@ function toggleTarget(stepKey: string) {
   margin-bottom: 9px;
 }
 
+.processing-plan__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.processing-plan__progress,
+.processing-plan__configure {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.processing-plan__progress {
+  color: #2e718d;
+  background: #edf7fa;
+  border: 1px solid #c7e3ea;
+}
+
+.processing-plan__progress:hover {
+  color: #1d5e79;
+  background: #e4f3f7;
+  border-color: #9fcbd8;
+}
+
+.processing-plan__progress:focus-visible,
+.processing-plan__configure:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
 .processing-plan__steps {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -660,6 +733,51 @@ function toggleTarget(stepKey: string) {
   font-size: 10px;
   line-height: 1.35;
   white-space: nowrap;
+}
+
+.processing-plan__step-runtime-status {
+  flex: 0 0 auto;
+  margin: 0;
+  color: #71838e;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.processing-plan__step.is-processing {
+  border-color: #8abed9;
+  background: #f0f8fc;
+}
+
+.processing-plan__step.is-succeeded {
+  border-color: #b9daca;
+  background: #f2faf6;
+}
+
+.processing-plan__step.is-failed {
+  border-color: #e3b9b9;
+  background: #fff6f6;
+}
+
+.processing-plan__step.is-needs_rerun {
+  border-color: #e6c38f;
+  background: #fffaf1;
+}
+
+.processing-plan__step.is-processing .processing-plan__step-marker {
+  background: #2e7da3;
+}
+
+.processing-plan__step.is-succeeded .processing-plan__step-marker {
+  background: #338467;
+}
+
+.processing-plan__step.is-failed .processing-plan__step-marker {
+  background: #b44c4c;
+}
+
+.processing-plan__step.is-needs_rerun .processing-plan__step-marker {
+  background: #b5792d;
 }
 
 .processing-plan__step-index {

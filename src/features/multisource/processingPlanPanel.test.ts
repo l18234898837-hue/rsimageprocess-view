@@ -64,10 +64,7 @@ test("selected processing targets stay compact and open the workbench below", ()
   assert.match(panel, /checkedTargets/);
   assert.match(panel, /lockedTargets/);
   assert.match(panel, /isLockedTarget/);
-  assert.match(
-    workspace,
-    /@configure="isParameterDrawerOpen = true"/
-  );
+  assert.match(workspace, /@configure="isParameterDrawerOpen = true"/);
   assert.match(panel, /class="processing-plan__configure"/);
   assert.match(panel, /@click="emit\('configure'\)"/);
 });
@@ -144,6 +141,20 @@ test("automatic prerequisites are summarized inline instead of blocking with a d
   assert.match(panel, /placement="top"/);
   assert.doesNotMatch(workspace, /<MultisourceDialog/);
   assert.doesNotMatch(workspace, /dependencyDialog(Open|Steps)/);
+});
+
+test("execution plan exposes runtime status and the detailed progress trigger", () => {
+  assert.match(panel, /RuntimeStageView/);
+  assert.match(panel, /runtimeStageViews: readonly RuntimeStageView\[\]/);
+  assert.match(
+    panel,
+    /processingStepStatusLabel\(stepRuntimeStatus\(step\.key\)\)/
+  );
+  assert.match(panel, /class="processing-plan__progress"/);
+  assert.match(panel, /任务进度/);
+  assert.match(panel, /emit\('show-progress'\)/);
+  assert.match(workspace, /:runtime-stage-views="runtimeStageViews"/);
+  assert.match(workspace, /@show-progress="isTaskProgressOpen = true"/);
 });
 
 test("multisource workspace integrates the plan before upload and requires a target", () => {

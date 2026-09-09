@@ -7,7 +7,10 @@ import type {
 import {
   buildRuntimeStageViews,
   groupArtifactsByStage,
-  mapStageStatus
+  mapStageStatus,
+  processingStepStatusLabel,
+  runtimeProgressPercent,
+  type RuntimeStageView
 } from "./processingRunState";
 
 const stage = (overrides: Partial<ExecutionProgressStage> = {}) => ({
@@ -103,4 +106,25 @@ test("keeps the full plan visible while trusting only reported stage states", ()
       ["rgb-fusion", "WAITING"]
     ]
   );
+});
+
+test("uses the shared Chinese status vocabulary", () => {
+  assert.equal(processingStepStatusLabel("WAITING"), "等待执行");
+  assert.equal(processingStepStatusLabel("PROCESSING"), "正在执行");
+  assert.equal(processingStepStatusLabel("SUCCEEDED"), "已完成");
+  assert.equal(processingStepStatusLabel("FAILED"), "执行失败");
+  assert.equal(processingStepStatusLabel("NEEDS_RERUN"), "需要重新执行");
+});
+
+test("counts only successful stages in the determinate dialog progress", () => {
+  assert.equal(
+    runtimeProgressPercent([
+      { status: "SUCCEEDED" },
+      { status: "PROCESSING" },
+      { status: "WAITING" },
+      { status: "FAILED" }
+    ] as RuntimeStageView[]),
+    25
+  );
+  assert.equal(runtimeProgressPercent([]), 0);
 });

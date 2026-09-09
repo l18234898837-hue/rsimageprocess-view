@@ -1,16 +1,24 @@
 <template>
   <div class="feature-metric-picker" role="group" aria-label="特征选择">
-    <label
+    <div
       v-for="metric in metrics"
       :key="metric.value"
       class="feature-metric-picker__item"
       :class="{ 'is-selected': isSelected(metric.value) }"
+      role="checkbox"
+      :aria-checked="isSelected(metric.value)"
+      :aria-disabled="disabled"
+      :tabindex="disabled ? -1 : 0"
+      @click="toggle(metric.value)"
+      @keydown.enter.prevent="toggle(metric.value)"
+      @keydown.space.prevent="toggle(metric.value)"
     >
       <input
         type="checkbox"
         :checked="isSelected(metric.value)"
         :disabled="disabled"
-        @change="toggle(metric.value, $event)"
+        tabindex="-1"
+        aria-hidden="true"
       />
       <span class="feature-metric-picker__content">
         <span class="feature-metric-picker__heading">
@@ -32,10 +40,12 @@
         "
         class="feature-metric-picker__inline-parameter"
         @click.stop
+        @pointerdown.stop
+        @mousedown.stop
       >
         <slot name="local-variance" />
       </span>
-    </label>
+    </div>
   </div>
 </template>
 
@@ -64,8 +74,9 @@ function metricSummary(metric: FeatureMetricOption) {
   return `${description}，生成${output}`;
 }
 
-function toggle(metric: string, event: Event) {
-  const selected = (event.target as HTMLInputElement).checked;
+function toggle(metric: string) {
+  if (props.disabled) return;
+  const selected = !isSelected(metric);
   const next = selected
     ? [...new Set([...props.modelValue, metric])]
     : props.modelValue.filter(value => value !== metric);

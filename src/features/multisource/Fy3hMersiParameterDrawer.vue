@@ -24,22 +24,25 @@
 
       <fieldset
         v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card"
+        class="parameter-step-card roi-parameter-block"
         :disabled="locked"
       >
         <legend>
-          网格
+          工程网格
           <ParameterHint
-            label="网格"
-            text="定义扫描带产品的输出坐标和像元大小。"
+            label="工程网格"
+            text="定义扫描带产品的输出坐标、像元大小、重采样方式和处理范围。"
           />
         </legend>
+        <p class="roi-parameter-block__note">
+          WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
+        </p>
         <div class="field-grid">
           <label class="is-wide">
             <span
-              >目标 CRS
+              >输出坐标系
               <ParameterHint
-                label="目标 CRS"
+                label="输出坐标系"
                 text="输出坐标系，可填写 EPSG:4326 或投影坐标系编号。"
             /></span>
             <input
@@ -89,20 +92,61 @@
               "
             />
           </label>
-          <div class="fixed-setting-row">
+          <label>
             <span
               >连续数据重采样
               <ParameterHint
                 label="连续数据重采样"
                 text="连续测量变量固定采用最近邻，避免改变原始测量值，因此不可调整。" /></span
-            ><strong>最近邻</strong>
-          </div>
+            ><input value="最近邻" readonly /><small
+              class="parameter-field__guide is-neutral"
+              >固定值：最近邻</small
+            ></label
+          >
+          <label class="toggle-row">
+            <span
+              >WGS84 ROI
+              <ParameterHint
+                label="WGS84 ROI"
+                text="限定处理范围。关闭后按产品全幅处理。"
+              />
+            </span>
+            <input v-model="form.roi.enabled" type="checkbox" />
+          </label>
+        </div>
+        <div v-if="form.roi.enabled" class="field-grid compact-grid">
+          <label v-for="field in ROI_FIELDS" :key="field.key">
+            <span
+              >{{ field.label }}
+              <ParameterHint
+                :label="field.label"
+                :text="
+                  field.longitude
+                    ? '经度范围为 -180 到 180。'
+                    : '纬度范围为 -90 到 90。'
+                "
+            /></span>
+            <ParameterNumberInput
+              v-model="form.roi[field.key]"
+              step="0.0001"
+              :min="field.longitude ? -180 : -90"
+              :max="field.longitude ? 180 : 90"
+              :disabled="locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['roi']"
+              :guidance="
+                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+              "
+            />
+          </label>
         </div>
       </fieldset>
 
       <fieldset
         v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card roi-parameter-block"
+        class="parameter-step-card"
         :disabled="locked"
       >
         <legend>
@@ -120,56 +164,6 @@
           aria-label="MERSI 输出波段选择"
         />
         <ParameterFieldStatus :issues="issues" :fields="['bands']" />
-      </fieldset>
-
-      <fieldset
-        v-if="visibleSteps.includes('preprocess')"
-        class="parameter-step-card"
-        :disabled="locked"
-      >
-        <legend class="toggle-heading">
-          <span
-            >WGS84 ROI
-            <ParameterHint
-              label="WGS84 ROI"
-              text="限定处理范围。关闭后按产品全幅处理。"
-          /></span>
-          <label class="toggle">
-            <input v-model="form.roi.enabled" type="checkbox" />
-            <i aria-hidden="true" />
-          </label>
-        </legend>
-        <p class="roi-parameter-block__note">
-          开启后按经纬度范围处理；关闭后处理产品全幅。
-        </p>
-        <div class="field-grid">
-          <label v-for="field in ROI_FIELDS" :key="field.key">
-            <span
-              >{{ field.label }}
-              <ParameterHint
-                :label="field.label"
-                :text="
-                  field.longitude
-                    ? '经度范围为 -180 到 180。'
-                    : '纬度范围为 -90 到 90。'
-                "
-            /></span>
-            <ParameterNumberInput
-              v-model="form.roi[field.key]"
-              step="0.0001"
-              :min="field.longitude ? -180 : -90"
-              :max="field.longitude ? 180 : 90"
-              :disabled="!form.roi.enabled || locked"
-            />
-            <ParameterFieldStatus
-              :issues="issues"
-              :fields="['roi']"
-              :guidance="
-                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
-              "
-            />
-          </label>
-        </div>
       </fieldset>
 
       <fieldset

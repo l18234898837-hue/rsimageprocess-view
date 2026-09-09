@@ -164,7 +164,7 @@ test("product drawers remove legacy output profile and processing summary rows",
   assert.doesNotMatch(workspace, /l2a-drawer-controls-title/);
 });
 
-test("all target CRS controls fill the dedicated guidance column", () => {
+test("all output coordinate system controls fill the dedicated guidance column", () => {
   const files = [
     "src/features/multisource/Fy3hMersiParameterDrawer.vue",
     "src/features/multisource/Fy4bAgriParameterDrawer.vue",
@@ -173,12 +173,80 @@ test("all target CRS controls fill the dedicated guidance column", () => {
   ];
   for (const filename of files) {
     const source = readFileSync(filename, "utf8");
-    assert.match(source, /目标 CRS/);
+    assert.match(source, /输出坐标系/);
     assert.match(
       source,
-      /guidance="(?:格式：EPSG:编号|仅支持 EPSG:4326 或 EPSG:4490|可填写 AUTO_UTM 或 EPSG:编号)"/
+      /guidance="(?:格式：EPSG:编号|仅支持 EPSG:4326 或 EPSG:4490|默认自动选择地图分区；也可填写 EPSG:编号)"/
     );
   }
+});
+
+test("HY-1C grid, ROI, and algorithm values use the shared parameter controls", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /import ParameterNumberInput from "@\/features\/multisource\/ParameterNumberInput\.vue"/
+  );
+  assert.match(workspace, /工程网格/);
+  assert.match(
+    workspace,
+    /roi-parameter-block[\s\S]*?<label class="toggle-row">/
+  );
+  assert.match(
+    workspace,
+    /<div class="field-grid">[\s\S]*?v-model="l2aForm\.roi\[field\.key\]"/
+  );
+
+  for (const control of [
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.grid\.resolutionMeters"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.roi\[field\.key\]"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.algorithms\.features\.windowSize"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.algorithms\.fusion\.lowPercentile"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.algorithms\.fusion\.highPercentile"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.algorithms\.saliency\.threshold"/,
+    /<ParameterNumberInput[\s\S]*?v-model="l2aForm\.algorithms\.saliency\.windowSize"/
+  ]) {
+    assert.match(workspace, control);
+  }
+  assert.doesNotMatch(workspace, /v-model\.number="l2aForm\./);
+});
+
+test("FY-3H keeps its grid and optional WGS84 ROI in one engineering grid block", () => {
+  const drawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+
+  assert.match(
+    drawer,
+    /工程网格[\s\S]*?<label class="toggle-row">[\s\S]*?v-model="form\.roi\.enabled"/
+  );
+  assert.match(
+    drawer,
+    /<div v-if="form\.roi\.enabled" class="field-grid compact-grid">[\s\S]*?v-model="form\.roi\[field\.key\]"/
+  );
+  assert.match(
+    drawer,
+    /<fieldset[\s\S]*?工程网格[\s\S]*?<\/fieldset>[\s\S]*?<fieldset[\s\S]*?输出波段/
+  );
+  assert.doesNotMatch(drawer, /<legend class="toggle-heading">/);
+});
+
+test("FY-3H presents fixed resampling as a standard read-only field", () => {
+  const drawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+
+  assert.match(
+    drawer,
+    /连续数据重采样[\s\S]*?<input value="最近邻" readonly \/>[\s\S]*?固定值：最近邻/
+  );
+  assert.doesNotMatch(drawer, /<div class="fixed-setting-row">/);
 });
 
 test("image parameter drawers synchronize algorithm enablement after target selection", () => {

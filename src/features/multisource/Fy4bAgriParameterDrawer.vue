@@ -39,9 +39,9 @@
         <div class="field-grid">
           <label
             ><span
-              >目标 CRS
+              >输出坐标系
               <ParameterHint
-                label="目标 CRS"
+                label="输出坐标系"
                 text="输出坐标系。FY-4B 产品仅支持 EPSG:4326 或 EPSG:4490。" /></span
             ><select v-model="form.targetCrs" class="crs-input">
               <option value="EPSG:4326">EPSG:4326</option>

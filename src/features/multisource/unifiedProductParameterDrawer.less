@@ -747,7 +747,7 @@
   box-shadow: inset 3px 0 0 #3593b1;
 }
 
-.product-parameter-drawer .feature-metric-picker__item input,
+.product-parameter-drawer .feature-metric-picker__item input[type="checkbox"],
 .l2a-console .feature-metric-picker__item input[type="checkbox"] {
   position: absolute;
   width: 1px;
@@ -829,8 +829,27 @@
 .l2a-console
   .feature-metric-picker__parameter
   .parameter-number-input {
-  width: 116px;
-  max-width: 100%;
+  justify-self: start;
+  width: 116px !important;
+  min-width: 116px !important;
+  max-width: 116px !important;
+  box-sizing: border-box;
+  grid-template-columns: 22px minmax(0, 1fr) 22px;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input__step,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input__step {
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 28px;
+  padding: 0;
+  line-height: 28px;
+  text-align: center;
 }
 
 .product-parameter-drawer .feature-metric-picker__parameter > span,
@@ -853,6 +872,16 @@
   background: #fff;
   border: 1px solid #bfd0d9;
   border-radius: 5px;
+  outline: none;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  input:not([type="checkbox"]):focus,
+.l2a-console .feature-metric-picker__parameter input:not([type="checkbox"]):focus {
+  outline: none;
+  border-color: var(--drawer-accent);
+  box-shadow: none;
 }
 
 .product-parameter-drawer
@@ -862,8 +891,10 @@
   grid-column: auto;
 }
 
-.product-parameter-drawer .feature-metric-picker__item:has(input:focus-visible),
-.l2a-console .feature-metric-picker__item:has(input:focus-visible) {
+.product-parameter-drawer
+  .feature-metric-picker__item:has(> input[type="checkbox"]:focus-visible),
+.l2a-console
+  .feature-metric-picker__item:has(> input[type="checkbox"]:focus-visible) {
   outline: 2px solid var(--drawer-accent);
   outline-offset: 2px;
 }
@@ -1194,7 +1225,8 @@
   border-color: var(--drawer-danger);
 }
 
-.product-parameter-drawer .parameter-number-input {
+.product-parameter-drawer .parameter-number-input,
+.l2a-console .parameter-number-input {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) 24px;
   grid-column: 2;
@@ -1211,17 +1243,20 @@
     box-shadow 140ms ease;
 }
 
-.product-parameter-drawer .parameter-number-input:hover:not(.is-disabled) {
+.product-parameter-drawer .parameter-number-input:hover:not(.is-disabled),
+.l2a-console .parameter-number-input:hover:not(.is-disabled) {
   border-color: #9cbcc9;
 }
 
-.product-parameter-drawer .parameter-number-input:focus-within {
+.product-parameter-drawer .parameter-number-input:focus-within,
+.l2a-console .parameter-number-input:focus-within {
   background: #fff;
   border-color: var(--drawer-accent);
   box-shadow: 0 0 0 2px rgb(24 127 156 / 12%);
 }
 
-.product-parameter-drawer .parameter-number-input input[type="number"] {
+.product-parameter-drawer .parameter-number-input input[type="number"],
+.l2a-console .parameter-number-input input[type="number"] {
   min-width: 0;
   min-height: 28px;
   padding: 0 5px;
@@ -1231,10 +1266,39 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
+  outline: none;
   appearance: textfield;
 }
 
 .product-parameter-drawer
+  .parameter-number-input
+  input[type="number"]:focus,
+.product-parameter-drawer
+  .parameter-number-input
+  input[type="number"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.l2a-console .parameter-number-input input[type="number"] {
+  outline: none;
+  box-shadow: none;
+}
+
+.l2a-console
+  .parameter-number-input
+  input[type="number"]:focus,
+.l2a-console
+  .parameter-number-input
+  input[type="number"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.product-parameter-drawer
+  .parameter-number-input
+  input[type="number"]::-webkit-inner-spin-button,
+.l2a-console
   .parameter-number-input
   input[type="number"]::-webkit-inner-spin-button,
 .product-parameter-drawer
@@ -1244,13 +1308,23 @@
   appearance: none;
 }
 
-.product-parameter-drawer .parameter-number-input__step {
+.l2a-console
+  .parameter-number-input
+  input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.product-parameter-drawer .parameter-number-input__step,
+.l2a-console .parameter-number-input__step {
   display: grid;
   place-items: center;
   min-width: 0;
   padding: 0;
   font-family: Arial, sans-serif;
-  font-size: 14px;
+  width: 22px;
+  height: 28px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
   color: #6b8492;
@@ -1262,41 +1336,121 @@
     background-color 140ms ease;
 }
 
-.product-parameter-drawer .parameter-number-input__step:first-child {
+.product-parameter-drawer .parameter-number-input__step:first-child,
+.l2a-console .parameter-number-input__step:first-child {
   border-right: 1px solid #e0eaee;
 }
 
-.product-parameter-drawer .parameter-number-input__step:last-child {
+.product-parameter-drawer .parameter-number-input__step:last-child,
+.l2a-console .parameter-number-input__step:last-child {
   border-left: 1px solid #e0eaee;
 }
 
-.product-parameter-drawer .parameter-number-input__step:hover:not(:disabled) {
+.product-parameter-drawer .parameter-number-input__step:hover:not(:disabled),
+.l2a-console .parameter-number-input__step:hover:not(:disabled) {
   color: #286a80;
   background: #dceff5;
 }
 
-.product-parameter-drawer .parameter-number-input__step:focus-visible {
+.product-parameter-drawer .parameter-number-input__step:focus-visible,
+.l2a-console .parameter-number-input__step:focus-visible {
   position: relative;
   z-index: 1;
   outline: 2px solid var(--drawer-accent-deep);
   outline-offset: -2px;
 }
 
-.product-parameter-drawer .parameter-number-input__step:disabled {
+.product-parameter-drawer .parameter-number-input__step:disabled,
+.l2a-console .parameter-number-input__step:disabled {
   color: #a3b4be;
   cursor: not-allowed;
   background: #f3f7f8;
 }
 
-.product-parameter-drawer .parameter-number-input.is-disabled {
+.product-parameter-drawer .parameter-number-input.is-disabled,
+.l2a-console .parameter-number-input.is-disabled {
   background: var(--drawer-control-muted);
   border-color: #dce6eb;
+}
+
+/* Keep the texture-window controls in a deterministic three-column layout.
+   Explicit placement prevents inherited grid rules from putting the plus
+   button beside the minus button instead of at the far right. */
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input {
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr) 22px !important;
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  width: 116px !important;
+  min-width: 116px !important;
+  max-width: 116px !important;
+  box-sizing: border-box;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input
+  input[type="number"],
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input
+  input[type="number"] {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input__step,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input__step {
+  display: grid !important;
+  width: 22px !important;
+  min-width: 22px !important;
+  max-width: 22px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 !important;
+  place-items: center;
+  font-size: 12px !important;
+  line-height: 1 !important;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input__step:first-child,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input__step:first-child {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+}
+
+.product-parameter-drawer
+  .feature-metric-picker__parameter
+  .parameter-number-input__step:last-child,
+.l2a-console
+  .feature-metric-picker__parameter
+  .parameter-number-input__step:last-child {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
 }
 
 .product-parameter-drawer input.crs-input,
 .product-parameter-drawer select.crs-input {
   min-height: 30px;
   padding: 5px 10px;
+  font-size: var(--drawer-font-helper);
   border-radius: 5px;
 }
 
@@ -1318,7 +1472,7 @@
 .product-parameter-drawer
   :is(.field-grid, .control-grid, .roi-grid, .rgb-grid)
   label {
-  grid-template-columns: 96px minmax(0, 1fr) minmax(116px, 136px);
+  grid-template-columns: 96px minmax(0, 1fr) 136px;
   column-gap: 10px;
   row-gap: 0;
   align-items: center;
@@ -1343,6 +1497,7 @@
 .product-parameter-drawer .parameter-field__guide {
   grid-column: 3;
   grid-row: 1;
+  width: 136px;
   min-height: 0;
   margin: 0;
   line-height: 1.35;

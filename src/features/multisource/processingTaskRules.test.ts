@@ -239,17 +239,34 @@ test("completed processing view exposes the ZIP action and stage artifacts", () 
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
   );
+  const progressDialog = readFileSync(
+    "src/components/LeftPanel/TaskProgressDialog.vue",
+    "utf8"
+  );
   const taskComposable = readFileSync(
     "src/features/multisource/useProcessingTask.ts",
     "utf8"
   );
 
-  assert.equal(component.includes('class="artifact-shelf"'), true);
-  assert.equal(component.includes("previewArtifact(artifact)"), true);
-  assert.equal(component.includes("downloadStageArtifact(artifact)"), true);
-  assert.equal(component.includes("下载最终 ZIP"), true);
-  assert.equal(component.includes(':loading="isDownloadingResult"'), true);
-  assert.equal(component.includes(':disabled="isDownloadingResult"'), true);
+  assert.equal(
+    progressDialog.includes('class="task-progress-dialog__artifacts"'),
+    true
+  );
+  assert.equal(
+    progressDialog.includes("emit('preview-artifact', artifact)"),
+    true
+  );
+  assert.equal(
+    progressDialog.includes("emit('download-artifact', artifact)"),
+    true
+  );
+  assert.equal(component.includes('@preview-artifact="previewArtifact"'), true);
+  assert.equal(
+    component.includes('@download-artifact="downloadStageArtifact"'),
+    true
+  );
+  assert.equal(progressDialog.includes("下载最终 ZIP"), true);
+  assert.equal(progressDialog.includes(':loading="isDownloadingResult"'), true);
   assert.equal(
     taskComposable.includes("if (isDownloadingResult.value) return false;"),
     true

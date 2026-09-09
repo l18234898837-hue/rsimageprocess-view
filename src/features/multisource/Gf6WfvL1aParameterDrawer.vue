@@ -40,9 +40,9 @@
         <div class="field-grid">
           <label
             ><span
-              >目标 CRS
+              >输出坐标系
               <ParameterHint
-                label="目标 CRS"
+                label="输出坐标系"
                 text="输出坐标系，按 EPSG:编号填写，例如 EPSG:4326。" /></span
             ><input
               v-model.trim="form.targetCrs"

@@ -11,6 +11,28 @@ export type ProcessingStepViewStatus =
   | "FAILED"
   | "NEEDS_RERUN";
 
+const PROCESSING_STEP_STATUS_LABELS: Record<ProcessingStepViewStatus, string> =
+  {
+    WAITING: "等待执行",
+    PROCESSING: "正在执行",
+    SUCCEEDED: "已完成",
+    FAILED: "执行失败",
+    NEEDS_RERUN: "需要重新执行"
+  };
+
+export function processingStepStatusLabel(status: ProcessingStepViewStatus) {
+  return PROCESSING_STEP_STATUS_LABELS[status];
+}
+
+export function runtimeProgressPercent(views: readonly RuntimeStageView[]) {
+  if (!views.length) return 0;
+  const succeeded = views.filter(view => view.status === "SUCCEEDED").length;
+  return Math.max(
+    0,
+    Math.min(100, Math.round((succeeded / views.length) * 100))
+  );
+}
+
 export interface RuntimeStageView {
   readonly step: StepDefinition;
   readonly stage?: ExecutionProgressStage;
@@ -70,7 +92,7 @@ export function buildRuntimeStageViews(
   artifacts: readonly ExecutionProgressArtifact[] = [],
   invalidatedSteps: readonly string[] = []
 ): RuntimeStageView[] {
-  const views = steps.map(step => {
+  const views: RuntimeStageView[] = steps.map(step => {
     const stage = stages.find(candidate => stageMatchesStep(candidate, step));
     return {
       step,

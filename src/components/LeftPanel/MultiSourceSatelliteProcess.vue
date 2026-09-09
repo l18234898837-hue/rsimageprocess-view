@@ -251,9 +251,44 @@
       :selected-targets="selectedTargets"
       :checked-targets="checkedTargetKeys"
       :locked-targets="lockedTargetKeys"
+      :runtime-stage-views="runtimeStageViews"
       :disabled="isTaskActive || isBusy || isUploading"
       @update:selected-targets="updateSelectedTargets"
       @configure="isParameterDrawerOpen = true"
+      @show-progress="isTaskProgressOpen = true"
+    />
+
+    <TaskProgressDialog
+      v-model="isTaskProgressOpen"
+      :task-status="taskStatus"
+      :task-status-label="taskStatusLabel"
+      :task-status-tone="taskStatusTone"
+      :runtime-stage-views="runtimeStageViews"
+      :runtime-current-stage="runtimeCurrentStage"
+      :completed-stage-count="runtimeConfirmedCount"
+      :progress-percent="runtimeProgressPercent(runtimeStageViews)"
+      :is-terminal="isTerminal"
+      :can-cancel="canCancel"
+      :is-busy="isBusy"
+      :is-downloading-result="isDownloadingResult"
+      :expanded-artifact-stage-ids="expandedArtifactStageIds"
+      :previewing-artifact="previewingArtifact"
+      :downloading-artifact="downloadingArtifact"
+      :runtime-key="runtimeStageKey"
+      :stage-title="runtimeStageTitle"
+      :stage-description="runtimeStageDescription"
+      :error-message="translateProcessingErrorMessage"
+      :artifact-name="artifactFileName"
+      :artifact-size="artifactSize"
+      :is-previewable="isPreviewableArtifact"
+      :can-retry="canRetryStage"
+      @toggle-artifacts="toggleStageArtifacts"
+      @preview-artifact="previewArtifact"
+      @download-artifact="downloadStageArtifact"
+      @retry-stage="retryTask"
+      @cancel="cancelTask"
+      @download-result="downloadTask"
+      @reset="resetTask"
     />
 
     <section
@@ -294,161 +329,6 @@
         {{ candidate.profileKey.productCode }} /
         {{ candidate.profileKey.profileVersion }}
       </small>
-    </section>
-
-    <section
-      v-if="progress"
-      class="mission-section progress-console"
-      aria-labelledby="progress-title"
-    >
-      <div class="mission-section__heading">
-        <div>
-          <span
-            class="mission-section__signal"
-            :class="`is-${taskStatusTone}`"
-            aria-hidden="true"
-          />
-          <strong id="progress-title">任务进度</strong>
-        </div>
-        <span>{{ taskStatusLabel }}</span>
-      </div>
-      <div
-        v-if="runtimeCurrentStage"
-        class="runtime-current-stage"
-        aria-live="polite"
-      >
-        <span
-          class="runtime-current-stage__dot"
-          :class="`is-${taskStatusTone}`"
-          aria-hidden="true"
-        />
-        <div>
-          <small>当前阶段</small>
-          <strong>{{ runtimeStageTitle(runtimeCurrentStage) }}</strong>
-          <span>{{ runtimeStageDescription(runtimeCurrentStage) }}</span>
-        </div>
-      </div>
-      <div class="stage-timeline">
-        <article
-          v-for="view in runtimeStageViews"
-          :key="runtimeStageKey(view)"
-          class="stage-row runtime-stage-row"
-          :class="`is-${view.status.toLowerCase()}`"
-        >
-          <span class="stage-row__marker" aria-hidden="true" />
-          <div class="stage-row__body">
-            <div>
-              <strong>{{ runtimeStageTitle(view) }}</strong>
-              <small>{{ runtimeStageStatusLabel(view) }}</small>
-            </div>
-            <span class="stage-row__status">
-              {{ runtimeStageDescription(view) }}
-            </span>
-            <div
-              v-if="view.stage?.errorCode || view.stage?.errorMessage"
-              class="server-error"
-              role="alert"
-            >
-              <code v-if="view.stage?.errorCode">{{
-                view.stage.errorCode
-              }}</code>
-              <p v-if="view.stage?.errorMessage">
-                {{ translateProcessingErrorMessage(view.stage.errorMessage) }}
-              </p>
-            </div>
-            <small v-if="view.stage?.startedAt" class="stage-row__time">
-              {{ view.stage.startedAt }} →
-              {{ view.stage.finishedAt || "运行中" }}
-            </small>
-          </div>
-          <div v-if="view.artifacts.length" class="artifact-shelf">
-            <button
-              type="button"
-              class="artifact-shelf__toggle"
-              :aria-expanded="isStageArtifactsExpanded(view.stage?.stageId)"
-              @click="view.stage && toggleStageArtifacts(view.stage.stageId)"
-            >
-              <strong>产物 {{ view.artifacts.length }} 个</strong>
-              <el-icon
-                :class="{
-                  'is-expanded': isStageArtifactsExpanded(view.stage?.stageId)
-                }"
-              >
-                <ArrowDown />
-              </el-icon>
-            </button>
-            <div
-              v-if="view.stage && isStageArtifactsExpanded(view.stage.stageId)"
-              class="artifact-shelf__items"
-            >
-              <div
-                v-for="artifact in view.artifacts"
-                :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
-                class="artifact-row"
-              >
-                <div class="artifact-row__info">
-                  <code :title="artifactFileName(artifact)">{{
-                    artifactFileName(artifact)
-                  }}</code>
-                  <small
-                    >{{ artifact.type
-                    }}<span v-if="artifact.sizeBytes">
-                      · {{ artifactSize(artifact) }}</span
-                    ></small
-                  >
-                </div>
-                <el-button
-                  v-if="isPreviewableArtifact(artifact)"
-                  text
-                  type="primary"
-                  :loading="previewingArtifact === artifact"
-                  @click="previewArtifact(artifact)"
-                  >查看</el-button
-                >
-                <el-button
-                  v-else
-                  text
-                  type="primary"
-                  :loading="downloadingArtifact === artifact"
-                  :disabled="artifact.downloadable === false"
-                  @click="downloadStageArtifact(artifact)"
-                  >下载</el-button
-                >
-              </div>
-            </div>
-          </div>
-          <el-button
-            v-if="view.stage && canRetryStage(view.stage.status)"
-            text
-            type="warning"
-            :disabled="isBusy"
-            @click="retryTask(view.stage.stageId)"
-          >
-            重试
-          </el-button>
-        </article>
-      </div>
-
-      <footer class="task-actions">
-        <el-button v-if="canCancel" plain @click="cancelTask"
-          >取消任务</el-button
-        >
-        <el-button
-          v-if="taskStatus === 'SUCCEEDED'"
-          class="final-zip-button"
-          type="primary"
-          :loading="isDownloadingResult"
-          :disabled="isDownloadingResult"
-          :aria-busy="isDownloadingResult"
-          @click="downloadTask"
-        >
-          <el-icon v-if="!isDownloadingResult"><Download /></el-icon>
-          {{ isDownloadingResult ? "正在准备 ZIP" : "下载最终 ZIP" }}
-        </el-button>
-        <el-button v-if="isTerminal" plain @click="resetTask"
-          >重新处理</el-button
-        >
-      </footer>
     </section>
 
     <el-dialog
@@ -531,38 +411,44 @@
 
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group parameter-step-card"
+            class="control-group parameter-step-card roi-parameter-block"
             :disabled="isConfigurationLocked"
           >
             <legend>
-              网格
+              工程网格
               <ParameterHint
-                label="网格"
-                text="定义输出坐标、空间分辨率和重采样方式。"
+                label="工程网格"
+                text="定义输出坐标、空间分辨率、重采样方式和处理范围。"
               />
             </legend>
-            <div class="control-grid">
+            <p class="roi-parameter-block__note">
+              WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
+            </p>
+            <div class="field-grid">
               <label class="control-field is-wide">
                 <span
-                  >目标 CRS
+                  >输出坐标系
                   <ParameterHint
-                    label="目标 CRS"
-                    text="输出坐标系，可填写 AUTO_UTM 或投影坐标系编号。"
+                    label="输出坐标系"
+                    text="输出地图使用的坐标表达方式。推荐保留 AUTO_UTM，系统会自动选择所在地图分区；只有有明确要求时才填写 EPSG:编号。"
                 /></span>
                 <input
                   v-model.trim="l2aForm.grid.targetCrs"
+                  class="crs-input"
                   list="l2a-crs-options"
-                  placeholder="AUTO_UTM 或投影 EPSG"
+                  placeholder="自动选择地图分区，或 EPSG:编号"
+                  title="默认自动选择所在地图分区；仅在有明确要求时填写 EPSG:编号"
+                  aria-label="输出坐标系，默认自动选择地图分区"
                 />
                 <datalist id="l2a-crs-options">
-                  <option value="AUTO_UTM" />
+                  <option value="AUTO_UTM" label="自动选择地图分区" />
                   <option value="EPSG:32650" />
                   <option value="EPSG:32651" />
                 </datalist>
                 <ParameterFieldStatus
                   :issues="parameterIssues"
                   :fields="['grid.targetCrs']"
-                  guidance="可填写 AUTO_UTM 或 EPSG:编号"
+                  guidance="默认自动选择地图分区；也可填写 EPSG:编号"
                 />
               </label>
               <label class="control-field">
@@ -572,11 +458,11 @@
                     label="分辨率"
                     text="输出像元大小，单位为米，必须大于 0。"
                 /></span>
-                <input
-                  v-model.number="l2aForm.grid.resolutionMeters"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.grid.resolutionMeters"
                   min="0.01"
                   step="1"
+                  :disabled="isConfigurationLocked"
                 />
                 <ParameterFieldStatus
                   :issues="parameterIssues"
@@ -593,34 +479,22 @@
                 /></span>
                 <strong>nearest</strong>
               </div>
-            </div>
-          </fieldset>
-
-          <fieldset
-            v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group parameter-step-card roi-parameter-block"
-            :disabled="isConfigurationLocked"
-          >
-            <legend class="toggle-heading">
-              <span
-                >WGS84 ROI
-                <ParameterHint
-                  label="WGS84 ROI"
-                  text="限定处理范围。关闭后按产品全幅处理。"
-              /></span>
-              <label class="toggle-control">
+              <label class="toggle-row">
+                <span
+                  >WGS84 ROI
+                  <ParameterHint
+                    label="WGS84 ROI"
+                    text="限定处理范围。关闭后按产品全幅处理。"
+                  />
+                </span>
                 <input
                   v-model="l2aForm.roi.enabled"
                   type="checkbox"
                   :disabled="isConfigurationLocked"
                 />
-                <span aria-hidden="true" />
               </label>
-            </legend>
-            <p class="roi-parameter-block__note">
-              开启后按经纬度范围处理；关闭后处理产品全幅。
-            </p>
-            <div class="roi-grid">
+            </div>
+            <div v-if="l2aForm.roi.enabled" class="field-grid compact-grid">
               <label v-for="field in ROI_FIELDS" :key="field.key">
                 <span
                   >{{ field.label }}
@@ -632,9 +506,8 @@
                         : '纬度范围为 -90 到 90。'
                     "
                 /></span>
-                <input
-                  v-model.number="l2aForm.roi[field.key]"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.roi[field.key]"
                   step="0.0001"
                   :min="field.longitude ? -180 : -90"
                   :max="field.longitude ? 180 : 90"
@@ -687,9 +560,8 @@
                       text="局部方差的计算邻域，必须为不小于 3 的奇数；数值越大，结果越平滑。"
                     />
                   </span>
-                  <input
-                    v-model.number="l2aForm.algorithms.features.windowSize"
-                    type="number"
+                  <ParameterNumberInput
+                    v-model="l2aForm.algorithms.features.windowSize"
                     min="3"
                     step="2"
                     :disabled="
@@ -763,9 +635,8 @@
                     label="低百分位"
                     text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。"
                 /></span>
-                <input
-                  v-model.number="l2aForm.algorithms.fusion.lowPercentile"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.algorithms.fusion.lowPercentile"
                   min="0"
                   max="100"
                   step="1"
@@ -786,9 +657,8 @@
                     label="高百分位"
                     text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。"
                 /></span>
-                <input
-                  v-model.number="l2aForm.algorithms.fusion.highPercentile"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.algorithms.fusion.highPercentile"
                   min="0"
                   max="100"
                   step="1"
@@ -853,9 +723,8 @@
                     label="阈值"
                     text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。"
                 /></span>
-                <input
-                  v-model.number="l2aForm.algorithms.saliency.threshold"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.algorithms.saliency.threshold"
                   min="0"
                   max="1"
                   step="0.05"
@@ -877,9 +746,8 @@
                     label="窗口"
                     text="检测的局部邻域，必须为不小于 3 的奇数。"
                 /></span>
-                <input
-                  v-model.number="l2aForm.algorithms.saliency.windowSize"
-                  type="number"
+                <ParameterNumberInput
+                  v-model="l2aForm.algorithms.saliency.windowSize"
                   min="3"
                   step="2"
                   :disabled="
@@ -962,7 +830,6 @@ import {
   ArrowRight,
   Close,
   Delete,
-  Download,
   ArrowDown,
   Setting,
   QuestionFilled,
@@ -971,6 +838,7 @@ import {
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
+import TaskProgressDialog from "@/components/LeftPanel/TaskProgressDialog.vue";
 import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterDrawer.vue";
 import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
 import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
@@ -979,6 +847,7 @@ import { getVisibleParameterGroups } from "@/features/multisource/parameterVisib
 import ParameterWorkbenchOverview from "@/features/multisource/ParameterWorkbenchOverview.vue";
 import ParameterHint from "@/features/multisource/ParameterHint.vue";
 import ParameterFieldStatus from "@/features/multisource/ParameterFieldStatus.vue";
+import ParameterNumberInput from "@/features/multisource/ParameterNumberInput.vue";
 import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
 import OutputBandPicker, {
   type OutputBandOption
@@ -1046,6 +915,7 @@ import {
 } from "@/features/multisource/processingPlan";
 import {
   buildRuntimeStageViews,
+  runtimeProgressPercent,
   type RuntimeStageView
 } from "@/features/multisource/processingRunState";
 import {
@@ -1224,6 +1094,7 @@ const {
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
 
 const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
+const isTaskProgressOpen = ref(false);
 const isArtifactPreviewOpen = ref(false);
 const artifactPreviewUrl = ref("");
 const artifactPreviewName = ref("");
@@ -1425,17 +1296,6 @@ function runtimeStageTitle(view: RuntimeStageView) {
     : view.step.title;
 }
 
-function runtimeStageStatusLabel(view: RuntimeStageView) {
-  const labels: Record<string, string> = {
-    WAITING: "等待执行",
-    PROCESSING: "正在执行",
-    SUCCEEDED: "已完成",
-    FAILED: "执行失败",
-    NEEDS_RERUN: "需要重新执行"
-  };
-  return labels[view.status] || "等待执行";
-}
-
 function runtimeStageDescription(view: RuntimeStageView) {
   if (view.status === "PROCESSING") return "正在执行该阶段";
   if (view.status === "SUCCEEDED") {
@@ -1445,12 +1305,6 @@ function runtimeStageDescription(view: RuntimeStageView) {
   }
   if (view.status === "FAILED") return "请查看错误信息并重试";
   return "等待前置阶段完成";
-}
-
-function stageArtifacts(stage: ExecutionProgressStage) {
-  return (progress.value?.artifacts || []).filter(
-    artifact => artifact.stageId === stage.stageId
-  );
 }
 
 function isStageArtifactsExpanded(stageId?: ExecutionProgressStage["stageId"]) {
@@ -1826,6 +1680,7 @@ function handleTemplateChange(event: Event) {
     selectedTargets.value = [];
     isPackageExpanded.value = false;
     isParameterDrawerOpen.value = false;
+    isTaskProgressOpen.value = false;
   } catch (error) {
     select.value = activeTemplate.value.id;
     message(error instanceof Error ? error.message : "无法切换产品模板", {
@@ -1951,6 +1806,7 @@ async function downloadTask() {
 function resetTask() {
   try {
     reset();
+    isTaskProgressOpen.value = false;
   } catch (error) {
     message(error instanceof Error ? error.message : "无法重置任务", {
       type: "warning"
@@ -4164,6 +4020,12 @@ button:disabled {
   background: rgb(2 23 39 / 62%);
   border-color: rgb(151 211 233 / 22%);
   border-radius: 4px;
+}
+
+.l2a-console .control-field input.crs-input {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .l2a-console .chip-list input:checked + span {
