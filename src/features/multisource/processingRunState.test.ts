@@ -11,6 +11,9 @@ import {
   processingStepStatusLabel,
   runtimeProgressPercent,
   uiStepKeysForRemoteStage,
+  formatStageDuration,
+  artifactPresentation,
+  isStageCompletionEdge,
   type RuntimeStageView
 } from "./processingRunState";
 import { getPipelineDefinition } from "./pipelineDefinitions";
@@ -109,6 +112,37 @@ test("maps actual FY-4B and GF-6 staged keys to visible steps", () => {
     "upload-validation"
   ]);
   assert.deepEqual(uiStepKeysForRemoteStage("FUSE_GF6_RGB"), ["rgb-fusion"]);
+});
+
+test("formats stage duration and classifies artifact presentation", () => {
+  assert.equal(
+    formatStageDuration({
+      startedAt: "2026-01-01T00:00:00Z",
+      finishedAt: "2026-01-01T00:01:05Z"
+    }),
+    "1 分 5 秒"
+  );
+  assert.equal(
+    artifactPresentation({
+      stageId: 1,
+      type: "SUMMARY_JSON",
+      uri: "rs://summary.json",
+      checksum: "x",
+      sizeBytes: 42
+    }).kind,
+    "json"
+  );
+  assert.equal(
+    artifactPresentation({
+      stageId: 1,
+      type: "COG",
+      uri: "rs://result.tif",
+      checksum: "x"
+    }).canPreview,
+    false
+  );
+  assert.equal(isStageCompletionEdge("RUNNING", "SUCCEEDED"), true);
+  assert.equal(isStageCompletionEdge("SUCCEEDED", "SUCCEEDED"), false);
 });
 
 test("keeps a successful parallel stage successful when another stage fails", () => {

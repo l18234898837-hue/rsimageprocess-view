@@ -33,6 +33,80 @@ export function runtimeProgressPercent(views: readonly RuntimeStageView[]) {
   );
 }
 
+export function formatStageDuration(
+  stage: Pick<
+    ExecutionProgressStage,
+    "startedAt" | "finishedAt" | "durationMs"
+  >,
+  now = Date.now()
+) {
+  const duration =
+    stage.durationMs ??
+    (stage.startedAt
+      ? Math.max(
+          0,
+          new Date(stage.finishedAt || now).getTime() -
+            new Date(stage.startedAt).getTime()
+        )
+      : 0);
+  if (!duration) return "—";
+  const seconds = Math.floor(duration / 1000);
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} 分 ${seconds % 60} 秒`;
+}
+
+export function artifactPresentation(artifact: ExecutionProgressArtifact) {
+  const name =
+    artifact.displayName ||
+    artifact.uri.split(/[\\/]/).pop()?.split(/[?#]/)[0] ||
+    artifact.type;
+  const media = artifact.mediaType || "";
+  const lower = `${media} ${name} ${artifact.type}`.toLowerCase();
+  const kind =
+    lower.includes("json") || lower.includes("summary")
+      ? "json"
+      : lower.includes("png") ||
+          lower.includes("jpeg") ||
+          lower.includes("jpg") ||
+          lower.includes("webp") ||
+          lower.includes("gif")
+        ? "image"
+        : lower.includes("cog") ||
+            lower.includes("tiff") ||
+            lower.includes("netcdf") ||
+            lower.includes("parquet") ||
+            lower.includes("hdf")
+          ? "scientific"
+          : "file";
+  const bytes = artifact.sizeBytes || 0;
+  const sizeLabel =
+    bytes < 1024
+      ? `${bytes} B`
+      : bytes < 1024 * 1024
+        ? `${(bytes / 1024).toFixed(1)} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return {
+    displayName: name,
+    kind,
+    canPreview: artifact.previewable ?? (kind === "image" || kind === "json"),
+    sizeLabel,
+    retentionLabel:
+      artifact.retention === "FINAL"
+        ? "最终产物"
+        : artifact.retention === "INTERMEDIATE"
+          ? "中间产物"
+          : "产物"
+  };
+}
+
+export function isStageCompletionEdge(
+  previousStatus: string | undefined,
+  currentStatus: string
+) {
+  return currentStatus === "SUCCEEDED" && previousStatus !== "SUCCEEDED";
+}
+
 export interface RuntimeStageView {
   readonly step: StepDefinition;
   readonly stage?: ExecutionProgressStage;

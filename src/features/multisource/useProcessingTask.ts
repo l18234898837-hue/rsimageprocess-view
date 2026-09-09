@@ -157,6 +157,8 @@ export function useProcessingTask(
   const taskId = ref<ProcessingIdentifier>();
   const taskStatus = ref<TaskStatus>();
   const progress = ref<ExecutionProgressResponse>();
+  const previousStageStatuses = new Map<ProcessingIdentifier, string>();
+  const newlyCompletedStageIds = ref<ProcessingIdentifier[]>([]);
   const errorMessage = ref("");
   const unchangedPollCount = ref(0);
   let pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -259,11 +261,16 @@ export function useProcessingTask(
   function setUploadedSlot(
     slotId: SlotId,
     fileName: string,
-    sysFileId: string | number
+    sysFileId: string | number,
+    uploadedFile?: File
   ) {
     assertTaskInactive();
     const slot = slotTemplate(slotId);
-    const file = new File([], fileName, { type: "application/octet-stream" });
+    // Archive status responses may only contain an id; keep the real file when
+    // the caller has it so metadata-dependent controls can still parse it.
+    const file =
+      uploadedFile ??
+      new File([], fileName, { type: "application/octet-stream" });
     if (!fileMatchesExtensions(fileName, slot.extensions)) {
       setSlotError(
         slotId,
@@ -420,6 +427,17 @@ export function useProcessingTask(
         signature === lastProgressSignature ? unchangedPollCount.value + 1 : 0;
       lastProgressSignature = signature;
       progress.value = result;
+      newlyCompletedStageIds.value = result.stages
+        .filter(
+          stage =>
+            stage.status === "SUCCEEDED" &&
+            previousStageStatuses.get(stage.stageId) !== "SUCCEEDED"
+        )
+        .map(stage => stage.stageId);
+      previousStageStatuses.clear();
+      result.stages.forEach(stage =>
+        previousStageStatuses.set(stage.stageId, stage.status)
+      );
       taskStatus.value = result.lifecycleStatus;
       if (!TERMINAL_STATUSES.has(result.lifecycleStatus)) {
         schedulePoll(unchangedPollCount.value >= 10 ? 5000 : 2000);
@@ -493,6 +511,8 @@ export function useProcessingTask(
   }
 
   function reset() {
+    previousStageStatuses.clear();
+    newlyCompletedStageIds.value = [];
     assertTaskInactive();
     clearTaskContext();
     clearSlots();
@@ -514,6 +534,7 @@ export function useProcessingTask(
     taskId,
     taskStatus,
     progress,
+    newlyCompletedStageIds,
     errorMessage,
     setTemplate,
     uploadSlot,

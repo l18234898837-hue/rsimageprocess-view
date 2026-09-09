@@ -80,6 +80,10 @@
               <span>{{ statusLabel(view.status) }}</span>
             </div>
             <p>{{ stageDescription(view) }}</p>
+            <small
+              >耗时 {{ formatStageDuration(view.stage || {}) }} · 产物
+              {{ view.artifacts.length }} 个</small
+            >
             <div
               v-if="view.stage?.errorCode || view.stage?.errorMessage"
               class="task-progress-dialog__error"
@@ -133,10 +137,9 @@
                       artifactName(artifact)
                     }}</code>
                     <small
-                      >{{ artifact.type
-                      }}<span v-if="artifact.sizeBytes">
-                        · {{ artifactSize(artifact) }}</span
-                      ></small
+                      >{{ artifactPresentation(artifact).kind }} ·
+                      {{ artifactPresentation(artifact).sizeLabel }} ·
+                      {{ artifactPresentation(artifact).retentionLabel }}</small
                     >
                   </div>
                   <el-button
@@ -206,6 +209,8 @@ import type {
 } from "@/api/multiSourceSatellite";
 import {
   processingStepStatusLabel,
+  formatStageDuration,
+  artifactPresentation,
   type ProcessingStepViewStatus,
   type RuntimeStageView
 } from "@/features/multisource/processingRunState";

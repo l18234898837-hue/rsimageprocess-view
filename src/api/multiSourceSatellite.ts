@@ -88,6 +88,9 @@ export interface ExecutionProgressStage {
   finishedAt?: string;
   errorCode?: string;
   errorMessage?: string;
+  durationMs?: number;
+  description?: string;
+  declaredOutputs?: string[];
 }
 
 export interface ExecutionProgressArtifact {
@@ -98,6 +101,9 @@ export interface ExecutionProgressArtifact {
   sizeBytes?: number;
   retention?: "INTERMEDIATE" | "FINAL" | string;
   downloadable?: boolean;
+  mediaType?: string;
+  previewable?: boolean;
+  displayName?: string;
 }
 
 export interface ExecutionProgressResponse {

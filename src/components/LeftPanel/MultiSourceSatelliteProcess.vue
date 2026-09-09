@@ -107,8 +107,12 @@
           <div class="archive-import-panel__status-line">
             <span>{{ archiveStatusLabel(archiveImportProgress.status) }}</span>
             <span v-if="archiveImportProgress.totalFiles"
-              >{{ archiveImportProgress.processedFiles }} /
-              {{ archiveImportProgress.totalFiles }} 个文件</span
+              >{{
+                archiveImportProgress.status === "MATCHING"
+                  ? archiveImportProgress.matchingFilesProcessed ?? 0
+                  : archiveImportProgress.processedFiles
+              }}
+              / {{ archiveImportProgress.totalFiles }} 个文件</span
             >
             <button
               v-if="isArchiveImporting"
@@ -470,15 +474,24 @@
                   guidance="必须大于 0 米，步长 1"
                 />
               </label>
-              <div class="fixed-setting-row">
+              <label class="control-field">
                 <span
                   >科学重采样
                   <ParameterHint
                     label="科学重采样"
                     text="固定采用 nearest，避免改变原始观测值，因此不可调整。"
                 /></span>
-                <strong>nearest</strong>
-              </div>
+                <input
+                  value="nearest"
+                  disabled
+                  aria-label="科学重采样，固定为 nearest"
+                />
+                <small class="parameter-field__guide is-neutral"
+                  >固定值：nearest</small
+                >
+              </label>
+            </div>
+            <div class="roi-control-card">
               <label class="toggle-row">
                 <span
                   >WGS84 ROI
@@ -490,39 +503,63 @@
                 <input
                   v-model="l2aForm.roi.enabled"
                   type="checkbox"
-                  :disabled="isConfigurationLocked"
-                />
-              </label>
-            </div>
-            <div v-if="l2aForm.roi.enabled" class="field-grid compact-grid">
-              <label v-for="field in ROI_FIELDS" :key="field.key">
-                <span
-                  >{{ field.label }}
-                  <ParameterHint
-                    :label="field.label"
-                    :text="
-                      field.longitude
-                        ? '经度范围为 -180 到 180。'
-                        : '纬度范围为 -90 到 90。'
-                    "
-                /></span>
-                <ParameterNumberInput
-                  v-model="l2aForm.roi[field.key]"
-                  step="0.0001"
-                  :min="field.longitude ? -180 : -90"
-                  :max="field.longitude ? 180 : 90"
-                  :disabled="!l2aForm.roi.enabled || isConfigurationLocked"
-                />
-                <ParameterFieldStatus
-                  :issues="parameterIssues"
-                  :fields="['roiWgs84']"
-                  :guidance="
-                    field.longitude
-                      ? '范围 -180 到 180 度'
-                      : '范围 -90 到 90 度'
+                  :disabled="
+                    isConfigurationLocked ||
+                    !allSlotsUploaded ||
+                    !hy1cRoiSuggestion
+                  "
+                  :title="
+                    allSlotsUploaded && hy1cRoiSuggestion
+                      ? '可开启 WGS84 ROI'
+                      : '请先完成当前产品所需文件上传并解析定位元数据'
                   "
                 />
               </label>
+              <p
+                v-if="!allSlotsUploaded"
+                class="roi-parameter-block__status is-warning"
+              >
+                请先完成当前产品所需文件上传，再开启 ROI。
+              </p>
+              <p v-if="l2aForm.roi.enabled" class="roi-control-card__note">
+                可手动输入或使用地图框选，最后一次修改生效；输入范围必须位于上传数据覆盖范围内。
+              </p>
+              <div v-if="l2aForm.roi.enabled" class="field-grid compact-grid">
+                <label v-for="field in ROI_FIELDS" :key="field.key">
+                  <span
+                    >{{ field.label }}
+                    <ParameterHint
+                      :label="field.label"
+                      :text="
+                        field.longitude
+                          ? '经度范围为 -180 到 180。'
+                          : '纬度范围为 -90 到 90。'
+                      "
+                  /></span>
+                  <ParameterNumberInput
+                    v-model="l2aForm.roi[field.key]"
+                    step="0.0001"
+                    :min="field.longitude ? -180 : -90"
+                    :max="field.longitude ? 180 : 90"
+                    :disabled="!l2aForm.roi.enabled || isConfigurationLocked"
+                  />
+                  <ParameterFieldStatus
+                    :issues="parameterIssues"
+                    :fields="['roiWgs84']"
+                    :guidance="
+                      field.longitude
+                        ? '范围 -180 到 180 度'
+                        : '范围 -90 到 90 度'
+                    "
+                  />
+                </label>
+              </div>
+              <RoiMapPicker
+                v-show="l2aForm.roi.enabled"
+                v-model="hy1cRoiModel"
+                :bounds="hy1cRoiSuggestion"
+                :disabled="isConfigurationLocked"
+              />
             </div>
           </fieldset>
 
@@ -598,9 +635,9 @@
             <div class="rgb-grid">
               <label v-for="channel in RGB_CHANNELS" :key="channel.key">
                 <span
-                  >{{ channel.label }}
+                  ><strong>{{ channel.label }}</strong> {{ channel.name }}
                   <ParameterHint
-                    :label="`${channel.label} 通道`"
+                    :label="channel.name"
                     text="RGB 组合通道，只能选择已输出的波段。"
                 /></span>
                 <select
@@ -787,6 +824,7 @@
       :form="fy3hForm"
       :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
+      :roi-data-ready="allSlotsUploaded"
       :issues="fy3hParameterIssues"
       :summary="fy3hSummary"
       @update-form="updateFy3hForm"
@@ -807,6 +845,7 @@
       :form="fy4bForm"
       :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
+      :roi-data-ready="allSlotsUploaded"
       :issues="fy4bParameterIssues"
       :summary="fy4bSummary"
       @update-form="updateFy4bForm"
@@ -818,6 +857,7 @@
       :metadata-file="slots.metadataXml.file"
       :visible-steps="visibleParameterGroups"
       :locked="isConfigurationLocked"
+      :roi-data-ready="allSlotsUploaded"
       :issues="gf6ParameterIssues"
       @update-form="updateGf6Form"
     />
@@ -825,7 +865,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import {
   ArrowRight,
   Close,
@@ -836,6 +876,7 @@ import {
   FolderOpened,
   WarningFilled
 } from "@element-plus/icons-vue";
+
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
 import TaskProgressDialog from "@/components/LeftPanel/TaskProgressDialog.vue";
@@ -848,6 +889,9 @@ import ParameterWorkbenchOverview from "@/features/multisource/ParameterWorkbenc
 import ParameterHint from "@/features/multisource/ParameterHint.vue";
 import ParameterFieldStatus from "@/features/multisource/ParameterFieldStatus.vue";
 import ParameterNumberInput from "@/features/multisource/ParameterNumberInput.vue";
+import RoiMapPicker, {
+  type RoiBounds
+} from "@/features/multisource/RoiMapPicker.vue";
 import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
 import OutputBandPicker, {
   type OutputBandOption
@@ -899,6 +943,7 @@ import {
   hy1cRoiStateAfterMetadataChange,
   type Hy1cCziL2aRoi
 } from "@/features/multisource/hy1cCziL2aRoi";
+import { gf6FootprintRoiFromXml } from "@/features/multisource/gf6WfvL1aRoi";
 import {
   processingStartSuccessMessage,
   translateProcessingErrorMessage
@@ -964,6 +1009,10 @@ import {
   syncProductAlgorithmSelection
 } from "@/features/multisource/multisourceProductState";
 
+const props = withDefaults(defineProps<{ active?: boolean }>(), {
+  active: true
+});
+
 const ROI_FIELDS = [
   { key: "minLon", label: "最小经度", longitude: true },
   { key: "minLat", label: "最小纬度", longitude: false },
@@ -971,9 +1020,9 @@ const ROI_FIELDS = [
   { key: "maxLat", label: "最大纬度", longitude: false }
 ] as const;
 const RGB_CHANNELS = [
-  { key: "red", label: "R", guide: "红色：暖色与高反射目标" },
-  { key: "green", label: "G", guide: "绿色：植被与中间色调" },
-  { key: "blue", label: "B", guide: "蓝色：水体、薄雾与冷色调" }
+  { key: "red", label: "R", name: "红色通道", guide: "暖色与高反射目标" },
+  { key: "green", label: "G", name: "绿色通道", guide: "植被与中间色调" },
+  { key: "blue", label: "B", name: "蓝色通道", guide: "水体、薄雾与冷色调" }
 ] as const;
 const STAGE_LABELS: Record<string, string> = {
   VALIDATE_BROWSE: "验证浏览产品",
@@ -1013,10 +1062,34 @@ const STAGE_LABELS: Record<string, string> = {
 
 const l2aForm = reactive(defaultL2aForm());
 const hy1cRoiSuggestion = ref<Hy1cCziL2aRoi | null>(null);
+const gf6RoiBounds = ref<[number, number, number, number] | null>(null);
+const hy1cRoiModel = computed<RoiBounds | null>({
+  get: () => {
+    const { minLon, minLat, maxLon, maxLat } = l2aForm.roi;
+    return l2aForm.roi.enabled &&
+      [minLon, minLat, maxLon, maxLat].every(Number.isFinite)
+      ? [minLon as number, minLat as number, maxLon as number, maxLat as number]
+      : null;
+  },
+  set: value => {
+    if (!value) {
+      l2aForm.roi.enabled = false;
+      return;
+    }
+    [
+      l2aForm.roi.minLon,
+      l2aForm.roi.minLat,
+      l2aForm.roi.maxLon,
+      l2aForm.roi.maxLat
+    ] = value;
+    l2aForm.roi.enabled = true;
+  }
+});
 const fy3hForm = reactive(defaultFy3hMersiForm());
 const hy2dForm = reactive(defaultHy2dAltimeterForm());
 const fy4bForm = reactive(defaultFy4bAgriForm());
 const gf6Form = reactive(defaultGf6WfvL1aForm());
+gf6Form.roi = null;
 const productForms = {
   hy1c: l2aForm,
   fy3h: fy3hForm,
@@ -1026,6 +1099,13 @@ const productForms = {
 };
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
+watch(
+  () => props.active,
+  active => {
+    if (!active) isParameterDrawerOpen.value = false;
+  },
+  { immediate: true }
+);
 const isPackageExpanded = ref(false);
 const isArchiveImporting = ref(false);
 const archiveInput = ref<HTMLInputElement | null>(null);
@@ -1034,7 +1114,8 @@ const archiveImportProgress = reactive<ArchiveImportProgress>({
   status: "IDLE",
   uploadedChunks: 0,
   totalChunks: 0,
-  processedFiles: 0
+  processedFiles: 0,
+  matchingFilesProcessed: 0
 });
 const archiveUploadId = ref<string>();
 const archiveCancelRequested = ref(false);
@@ -1048,23 +1129,29 @@ const isArchivePickerActionable = computed(
     archiveImportProgress.status !== "COMPLETED"
 );
 const archiveProgressPercent = computed(() => {
-  if (
-    archiveImportProgress.status === "PARSING" &&
-    archiveImportProgress.totalFiles
-  ) {
+  const { status } = archiveImportProgress;
+  if (status === "COMPLETED") return 100;
+  if (status === "MATCHING") {
+    const total = archiveImportProgress.totalFiles || 1;
     return Math.round(
-      (archiveImportProgress.processedFiles /
-        archiveImportProgress.totalFiles) *
-        100
+      85 + ((archiveImportProgress.matchingFilesProcessed ?? 0) / total) * 13
     );
   }
-  return archiveImportProgress.totalChunks
-    ? Math.round(
-        (archiveImportProgress.uploadedChunks /
-          archiveImportProgress.totalChunks) *
-          100
-      )
-    : 0;
+  if (status === "PARSING") {
+    const total = archiveImportProgress.totalFiles || 1;
+    return Math.round(55 + (archiveImportProgress.processedFiles / total) * 30);
+  }
+  if (status === "MERGING") return 50;
+  if (status === "UPLOADING") {
+    return archiveImportProgress.totalChunks
+      ? Math.round(
+          (archiveImportProgress.uploadedChunks /
+            archiveImportProgress.totalChunks) *
+            45
+        )
+      : 0;
+  }
+  return 0;
 });
 const archiveStatusLabel = getArchiveStatusLabel;
 const selectedTargets = ref<string[]>([]);
@@ -1079,6 +1166,7 @@ const {
   candidate,
   taskStatus,
   progress,
+  newlyCompletedStageIds,
   setTemplate,
   uploadSlot,
   setUploadedSlot,
@@ -1092,6 +1180,16 @@ const {
   getArtifactBlob,
   reset
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
+
+watch(
+  () => slots.metadataXml?.file,
+  async file => {
+    gf6RoiBounds.value = file
+      ? gf6FootprintRoiFromXml(await file.text())
+      : null;
+  },
+  { immediate: true }
+);
 
 const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
 const isTaskProgressOpen = ref(false);
@@ -1144,6 +1242,16 @@ const runtimeStageViews = computed(() =>
     runtimeId: view.stage?.stageId ?? `planned-${view.step.key}-${index}`
   }))
 );
+watch(newlyCompletedStageIds, ids => {
+  const latest = ids[ids.length - 1];
+  if (latest === undefined) return;
+  if (!expandedArtifactStageIds.value.includes(latest)) {
+    expandedArtifactStageIds.value = [
+      ...expandedArtifactStageIds.value,
+      latest
+    ];
+  }
+});
 const runtimeConfirmedCount = computed(
   () =>
     runtimeStageViews.value.filter(
@@ -1185,7 +1293,9 @@ const uploadedSlotCount = computed(
       slot => slots[slot.id].status === "UPLOADED"
     ).length
 );
-const parameterValidation = computed(() => validateHy1cCziL2aForm(l2aForm));
+const parameterValidation = computed(() =>
+  validateHy1cCziL2aForm(l2aForm, hy1cRoiSuggestion.value)
+);
 const parameterIssues = computed(() => parameterValidation.value.issues);
 const l2aSummary = computed(() => buildHy1cWorkbenchSummary(l2aForm));
 const hy1cOverviewParameters = computed(() => {
@@ -1214,7 +1324,9 @@ const fy4bParameterIssues = computed(
 const fy4bSummary = computed(() =>
   buildFy4bWorkbenchSummary(fy4bForm, featureMetricLabel)
 );
-const gf6ParameterValidation = computed(() => validateGf6WfvL1aForm(gf6Form));
+const gf6ParameterValidation = computed(() =>
+  validateGf6WfvL1aForm(gf6Form, gf6RoiBounds.value)
+);
 const gf6ParameterIssues = computed(() => gf6ParameterValidation.value.issues);
 const activeParametersValid = computed(() => {
   if (isHy1c.value) return parameterValidation.value.valid;
@@ -1453,6 +1565,7 @@ function resetArchiveProgress() {
     uploadedChunks: 0,
     totalChunks: 0,
     processedFiles: 0,
+    matchingFilesProcessed: 0,
     totalFiles: undefined,
     currentFile: undefined,
     error: undefined
@@ -1487,10 +1600,68 @@ async function importArchiveFromServer(archive: File) {
   archiveImportProgress.status = "MERGING";
   await completeArchiveUpload(uploadId);
   archiveImportProgress.status = "PARSING";
-  await pollArchiveImport(uploadId);
+  await pollArchiveImport(uploadId, archive);
 }
 
-async function pollArchiveImport(uploadId: string): Promise<void> {
+async function extractArchiveMetadataFiles(
+  archive: File,
+  matchedFiles: Array<{
+    slotId: string;
+    fileName: string;
+    content?: string;
+  }>
+) {
+  const metadataMatches = matchedFiles.filter(file =>
+    ["metadata", "metadataXml"].includes(file.slotId)
+  );
+  const files = new Map<SlotId, File>();
+  for (const match of metadataMatches) {
+    if (match.content !== undefined) {
+      files.set(
+        match.slotId as SlotId,
+        new File([match.content], match.fileName, { type: "application/xml" })
+      );
+    }
+  }
+  const unresolved = metadataMatches.filter(
+    match => !files.has(match.slotId as SlotId)
+  );
+  if (unresolved.length === 0) return files;
+
+  const reader = new ZipReader(new BlobReader(archive));
+  try {
+    const entries = await reader.getEntries();
+    for (const match of unresolved) {
+      const expectedName = match.fileName.replace(/\\/g, "/").toLowerCase();
+      const entry = entries.find(candidate => {
+        const entryName = candidate.filename.replace(/\\/g, "/").toLowerCase();
+        return (
+          !candidate.directory &&
+          Boolean(candidate.getData) &&
+          (entryName === expectedName ||
+            entryName.endsWith(`/${expectedName}`) ||
+            entryName.split("/").pop() === expectedName.split("/").pop())
+        );
+      });
+      if (!entry?.getData) continue;
+      const blob = await entry.getData(new BlobWriter());
+      files.set(
+        match.slotId as SlotId,
+        new File([blob], match.fileName, {
+          type: blob.type || "application/xml"
+        })
+      );
+    }
+  } finally {
+    await reader.close();
+  }
+  return files;
+}
+
+async function pollArchiveImport(
+  uploadId: string,
+  archive: File
+): Promise<void> {
   if (archiveCancelRequested.value) return;
   const response = await getArchiveUploadStatus(uploadId);
   if (archiveCancelRequested.value) return;
@@ -1498,11 +1669,38 @@ async function pollArchiveImport(uploadId: string): Promise<void> {
   if (!status) throw new Error("服务端未返回 ZIP 解析状态");
   Object.assign(archiveImportProgress, status);
   if (status.status === "COMPLETED") {
-    isPackageExpanded.value = true;
-    for (const file of status.matchedFiles ?? []) {
+    const matchedFiles = status.matchedFiles ?? [];
+    Object.assign(archiveImportProgress, {
+      status: "MATCHING",
+      totalFiles: matchedFiles.length,
+      processedFiles: 0,
+      matchingFilesProcessed: 0,
+      currentFile: undefined
+    });
+    const metadataFiles = await extractArchiveMetadataFiles(
+      archive,
+      matchedFiles
+    );
+    for (const file of matchedFiles) {
+      if (archiveCancelRequested.value) return;
       const slotId = file.slotId as SlotId;
+      archiveImportProgress.currentFile = file.fileName;
       archiveMatchedSlots.value.add(slotId);
-      setUploadedSlot(slotId, file.fileName, file.sysFileId);
+      setUploadedSlot(
+        slotId,
+        file.fileName,
+        file.sysFileId,
+        metadataFiles.get(slotId)
+      );
+      archiveImportProgress.matchingFilesProcessed =
+        (archiveImportProgress.matchingFilesProcessed ?? 0) + 1;
+    }
+    archiveImportProgress.currentFile = undefined;
+    archiveImportProgress.status = "COMPLETED";
+    isPackageExpanded.value = true;
+    const hy1cMetadata = metadataFiles.get("metadata");
+    if (isHy1c.value && hy1cMetadata) {
+      applyHy1cMetadataRoi(await hy1cMetadata.text());
     }
     message(
       `已从 ZIP 自动匹配并上传 ${status.matchedFiles?.length ?? status.processedFiles} 个文件`,
@@ -1516,7 +1714,7 @@ async function pollArchiveImport(uploadId: string): Promise<void> {
   await new Promise<void>(resolve => {
     archivePollTimer = setTimeout(resolve, 700);
   });
-  return pollArchiveImport(uploadId);
+  return pollArchiveImport(uploadId, archive);
 }
 
 async function cancelArchiveImport() {
@@ -1649,7 +1847,8 @@ async function handleArchiveChange(event: Event) {
     if (
       archiveImportProgress.status === "UPLOADING" ||
       archiveImportProgress.status === "MERGING" ||
-      archiveImportProgress.status === "PARSING"
+      archiveImportProgress.status === "PARSING" ||
+      archiveImportProgress.status === "MATCHING"
     ) {
       archiveImportProgress.status = "FAILED";
     }
@@ -1696,6 +1895,9 @@ async function handleFileChange(slotId: SlotId, event: Event) {
   try {
     archiveMatchedSlots.value.delete(slotId);
     await uploadSlot(slotId, file);
+    if (isGf6WfvL1a.value && slotId === "metadataXml") {
+      gf6RoiBounds.value = gf6FootprintRoiFromXml(await file.text());
+    }
     if (
       isHy1c.value &&
       slotId === "metadata" &&
@@ -1734,6 +1936,9 @@ function removeProductSlot(slotId: SlotId) {
     }
     if (isHy1c.value && slotId === "metadata") {
       applyHy1cMetadataRoi("");
+    }
+    if (isGf6WfvL1a.value && slotId === "metadataXml") {
+      gf6RoiBounds.value = null;
     }
   } catch (error) {
     message(error instanceof Error ? error.message : "无法移除文件", {
@@ -5188,6 +5393,50 @@ button:disabled {
   color: #8b9ca7;
   background: #f4f7f8;
   border-color: #e0e7eb;
+}
+
+/* Keep RGB rows aligned with the shared product-drawer workbench. */
+.l2a-console .rgb-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.l2a-console .rgb-grid label {
+  grid-template-columns: 96px minmax(0, 1fr) 136px;
+  column-gap: 10px;
+  row-gap: 0;
+  align-items: center;
+  min-height: var(--drawer-control-height);
+  line-height: 1.35;
+}
+
+.l2a-console .rgb-grid label > span {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.l2a-console .rgb-grid label > select {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  min-height: var(--drawer-control-height);
+  padding: 5px 10px;
+  font-family: "Cascadia Mono", SFMono-Regular, Consolas, monospace;
+  font-size: var(--drawer-font-control);
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.l2a-console .rgb-grid .parameter-field__guide {
+  grid-column: 3;
+  grid-row: 1;
+  width: 136px;
+  min-height: 0;
+  margin: 0;
+  color: #6d8492;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .l2a-console .spectral-channel {
