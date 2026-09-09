@@ -137,8 +137,10 @@ export function buildRuntimeStageViews(
   artifacts: readonly ExecutionProgressArtifact[] = [],
   invalidatedSteps: readonly string[] = []
 ): RuntimeStageView[] {
-  const orderedStages = [...stages].sort(
-    (left, right) => left.stageId - right.stageId
+  const orderedStages = [...stages].sort((left, right) =>
+    String(left.stageId).localeCompare(String(right.stageId), undefined, {
+      numeric: true
+    })
   );
   const views: RuntimeStageView[] = steps.map(step => {
     const stage = orderedStages.find(candidate =>
