@@ -68,19 +68,28 @@ const REMOTE_STAGE_ALIASES: Record<string, string> = {
   WRITE_STANDARD_COG: "standard-product",
   WRITE_MERSI_STANDARD_COG: "standard-product",
   WRITE_FY4B_STANDARD: "standard-product",
+  WRITE_FY4B_STANDARD_COG: "standard-product",
   WRITE_GF6_STANDARD: "standard-product",
+  WRITE_GF6_STANDARD_COG: "standard-product",
   WRITE_STANDARD_TRACK_OUTPUT: "map-preview",
   EXTRACT_CZI_FEATURES: "feature-extraction",
   EXTRACT_MERSI_FEATURES: "feature-extraction",
+  EXTRACT_FY4B_FEATURES: "feature-extraction",
+  EXTRACT_GF6_FEATURES: "feature-extraction",
   EXTRACT_TRACK_FEATURES: "along-track-feature-extraction",
   EXTRACT_VISUAL_FEATURES: "feature-extraction",
   FUSE_CZI_BANDS: "rgb-fusion",
   FUSE_MERSI_BANDS: "rgb-fusion",
   FUSE_GF6_BANDS: "rgb-fusion",
+  FUSE_FY4B_BANDS: "rgb-fusion",
+  FUSE_GF6_RGB: "rgb-fusion",
   DETECT_CZI_SALIENCY: "anomaly-detection",
   DETECT_MERSI_SALIENCY: "anomaly-detection",
   DETECT_TRACK_ANOMALIES: "anomaly-detection",
-  DETECT_GF6_SALIENCY: "anomaly-detection"
+  DETECT_GF6_SALIENCY: "anomaly-detection",
+  DETECT_FY4B_SALIENCY: "anomaly-detection",
+  WRITE_BROWSE_REPORT: "map-preview",
+  GRID_TRACK_OPTIONAL: "track-gridding"
 };
 
 const REMOTE_STAGE_UI_STEPS: Record<string, readonly string[]> = {
@@ -95,10 +104,19 @@ const REMOTE_STAGE_UI_STEPS: Record<string, readonly string[]> = {
   REPROJECT_AND_CROP_FY4B: ["projection-standardization"],
   VALIDATE_GF6_WFV_L1A: ["upload-validation"],
   WRITE_GF6_STANDARD_COG: ["standard-product"],
+  WRITE_FY4B_STANDARD_COG: ["standard-product"],
+  EXTRACT_FY4B_FEATURES: ["feature-extraction"],
+  FUSE_FY4B_BANDS: ["rgb-fusion"],
+  DETECT_FY4B_SALIENCY: ["anomaly-detection"],
+  EXTRACT_GF6_FEATURES: ["feature-extraction"],
+  FUSE_GF6_RGB: ["rgb-fusion"],
+  DETECT_GF6_SALIENCY: ["anomaly-detection"],
   DECODE_ALTIMETER_TRACK: ["along-track-decode"],
   APPLY_TRACK_QUALITY: ["quality-control"],
   CALCULATE_BASELINE_SSH: ["ssh-baseline"],
-  WRITE_STANDARD_TRACK_OUTPUT: ["map-preview"]
+  WRITE_STANDARD_TRACK_OUTPUT: ["map-preview"],
+  WRITE_BROWSE_REPORT: ["map-preview"],
+  GRID_TRACK_OPTIONAL: ["track-gridding"]
 };
 
 const INTERNAL_STAGE_KEYS = new Set([

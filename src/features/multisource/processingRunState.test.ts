@@ -100,6 +100,17 @@ test("does not add known internal CZI crop stage as remote-only", () => {
   );
 });
 
+test("maps actual FY-4B and GF-6 staged keys to visible steps", () => {
+  assert.deepEqual(uiStepKeysForRemoteStage("WRITE_FY4B_STANDARD_COG"), [
+    "standard-product"
+  ]);
+  assert.deepEqual(uiStepKeysForRemoteStage("FUSE_FY4B_BANDS"), ["rgb-fusion"]);
+  assert.deepEqual(uiStepKeysForRemoteStage("VALIDATE_GF6_WFV_L1A"), [
+    "upload-validation"
+  ]);
+  assert.deepEqual(uiStepKeysForRemoteStage("FUSE_GF6_RGB"), ["rgb-fusion"]);
+});
+
 test("keeps a successful parallel stage successful when another stage fails", () => {
   assert.equal(
     mapStageStatus(stage({ status: "SUCCEEDED" }), ["feature-extraction"]),
