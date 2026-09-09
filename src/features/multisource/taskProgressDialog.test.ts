@@ -34,7 +34,10 @@ test("task progress dialog renders shared runtime states and actions", () => {
     "download-result",
     "reset"
   ]) {
-    assert.match(dialog, new RegExp(`\\"${eventName}\\"`));
+    assert.match(
+      dialog,
+      new RegExp(eventName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"))
+    );
   }
   assert.match(dialog, /查看|下载/);
   assert.doesNotMatch(dialog, /getProcessingProgress|setInterval|setTimeout/);
