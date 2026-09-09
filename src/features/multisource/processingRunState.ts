@@ -2,6 +2,7 @@ import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage
 } from "@/api/multiSourceSatellite";
+import type { StepDefinition } from "./pipelineDefinitions";
 
 export type ProcessingStepViewStatus =
   | "WAITING"
@@ -9,6 +10,14 @@ export type ProcessingStepViewStatus =
   | "SUCCEEDED"
   | "FAILED"
   | "NEEDS_RERUN";
+
+export interface RuntimeStageView {
+  readonly step: StepDefinition;
+  readonly stage?: ExecutionProgressStage;
+  readonly status: ProcessingStepViewStatus;
+  readonly artifacts: readonly ExecutionProgressArtifact[];
+  readonly remoteOnly?: boolean;
+}
 
 export interface ArtifactStageGroup {
   readonly stageId: ExecutionProgressStage["stageId"];
@@ -49,4 +58,48 @@ export function groupArtifactsByStage(
       )
     }))
     .filter(group => group.artifacts.length > 0);
+}
+
+function stageMatchesStep(stage: ExecutionProgressStage, step: StepDefinition) {
+  return stage.stageKey === step.key || stage.stageCode === step.key;
+}
+
+export function buildRuntimeStageViews(
+  steps: readonly StepDefinition[],
+  stages: readonly ExecutionProgressStage[],
+  artifacts: readonly ExecutionProgressArtifact[] = [],
+  invalidatedSteps: readonly string[] = []
+): RuntimeStageView[] {
+  const views = steps.map(step => {
+    const stage = stages.find(candidate => stageMatchesStep(candidate, step));
+    return {
+      step,
+      stage,
+      status: stage ? mapStageStatus(stage, invalidatedSteps) : "WAITING",
+      artifacts: stage
+        ? artifacts.filter(artifact => artifact.stageId === stage.stageId)
+        : []
+    };
+  });
+
+  const knownStageKeys = new Set(
+    views.filter(view => view.stage).map(view => view.stage?.stageKey)
+  );
+  stages.forEach(stage => {
+    if (knownStageKeys.has(stage.stageKey)) return;
+    views.push({
+      step: {
+        key: `remote:${stage.stageId}`,
+        title: stage.stageCode || stage.stageKey,
+        kind: "system",
+        dependsOn: [],
+        configurable: false
+      },
+      stage,
+      status: mapStageStatus(stage, invalidatedSteps),
+      artifacts: artifacts.filter(artifact => artifact.stageId === stage.stageId),
+      remoteOnly: true
+    });
+  });
+  return views;
 }
