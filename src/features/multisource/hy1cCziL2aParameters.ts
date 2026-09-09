@@ -147,6 +147,8 @@ export function validateHy1cCziL2aForm(
 ): Hy1cCziL2aValidationResult {
   const issues: Hy1cCziL2aValidationIssue[] = [];
   const selectedBands = new Set(form.bands);
+  const isOddWindow = (value: number) =>
+    Number.isInteger(value) && value >= 3 && value % 2 === 1;
   const hasUnknownBand = form.bands.some(
     band => !HY1C_CZI_BANDS.includes(band)
   );
@@ -203,6 +205,29 @@ export function validateHy1cCziL2aForm(
         message: "融合 RGB 必须全部来自已选波段"
       });
     }
+    const { lowPercentile, highPercentile } = form.algorithms.fusion;
+    if (
+      !Number.isFinite(lowPercentile) ||
+      !Number.isFinite(highPercentile) ||
+      lowPercentile < 0 ||
+      lowPercentile >= highPercentile ||
+      highPercentile > 100
+    ) {
+      issues.push({
+        field: "algorithms.fusion.percentiles",
+        message: "拉伸百分位必须满足 0 <= 低值 < 高值 <= 100"
+      });
+    }
+  }
+  if (
+    form.algorithms.features.enabled &&
+    form.algorithms.features.metrics.includes("local_variance") &&
+    !isOddWindow(form.algorithms.features.windowSize)
+  ) {
+    issues.push({
+      field: "algorithms.features.windowSize",
+      message: "局部方差窗口必须为不小于 3 的奇数"
+    });
   }
   if (
     form.algorithms.saliency.enabled &&
@@ -212,6 +237,21 @@ export function validateHy1cCziL2aForm(
       field: "algorithms.saliency.source",
       message: "显著性源必须是已选波段"
     });
+  }
+  if (form.algorithms.saliency.enabled) {
+    const { threshold, windowSize } = form.algorithms.saliency;
+    if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+      issues.push({
+        field: "algorithms.saliency.threshold",
+        message: "显著性阈值必须在 0 到 1 之间"
+      });
+    }
+    if (!isOddWindow(windowSize)) {
+      issues.push({
+        field: "algorithms.saliency.windowSize",
+        message: "显著性窗口必须为不小于 3 的奇数"
+      });
+    }
   }
 
   return { valid: issues.length === 0, issues };

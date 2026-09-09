@@ -4,13 +4,29 @@ import { readFileSync } from "node:fs";
 import { compileStyleAsync, parse } from "@vue/compiler-sfc";
 import { featureMetricLabel } from "./featureMetricLabels";
 
-test("feature metric keys keep their API values but render Chinese labels", () => {
-  assert.equal(featureMetricLabel("statistics"), "统计特征");
-  assert.equal(featureMetricLabel("gradient"), "梯度特征");
-  assert.equal(featureMetricLabel("local_variance"), "局部方差");
-  assert.equal(featureMetricLabel("toa_nir_red_nd"), "近红外与红光归一化差异");
-  assert.equal(featureMetricLabel("btd_c13_c14"), "C13 与 C14 亮温差");
+test("feature metrics explain their purpose and output in a shared selection list", () => {
+  assert.equal(featureMetricLabel("statistics"), "影像质量统计");
+  assert.equal(featureMetricLabel("gradient"), "边界与变化");
+  assert.equal(featureMetricLabel("local_variance"), "纹理复杂度");
+  assert.equal(featureMetricLabel("toa_nir_red_nd"), "近红外-红光差异");
+  assert.equal(featureMetricLabel("btd_c13_c14"), "C13-C14 亮温差");
 
+  const metricLabels = readFileSync(
+    "src/features/multisource/featureMetricLabels.ts",
+    "utf8"
+  );
+  assert.match(metricLabels, /export function featureMetricOptions/);
+  assert.match(metricLabels, /输出：统计摘要 JSON/);
+  assert.match(metricLabels, /输出：梯度特征栅格/);
+  assert.match(metricLabels, /输出：局部方差特征栅格/);
+  assert.match(metricLabels, /description: "判断数据质量"/);
+  assert.match(metricLabels, /description: "突出边界与变化"/);
+  assert.match(metricLabels, /description: "识别纹理复杂地表"/);
+
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
   const fy4bDrawer = readFileSync(
     "src/features/multisource/Fy4bAgriParameterDrawer.vue",
     "utf8"
@@ -24,14 +40,42 @@ test("feature metric keys keep their API values but render Chinese labels", () =
     "utf8"
   );
 
-  assert.match(fy4bDrawer, /featureMetricLabel\(metric\)/);
-  assert.match(gf6Drawer, /featureMetricLabel\(metric\)/);
-  assert.doesNotMatch(fy4bDrawer, /<span>\{\{ metric \}\}<\/span>/);
-  assert.doesNotMatch(gf6Drawer, /<span>\{\{ metric \}\}<\/span>/);
+  for (const drawer of [fy3hDrawer, fy4bDrawer, gf6Drawer, workspace]) {
+    assert.match(drawer, /<FeatureMetricPicker/);
+    assert.match(drawer, /featureMetricOptions\(/);
+  }
+
+  const picker = readFileSync(
+    "src/features/multisource/FeatureMetricPicker.vue",
+    "utf8"
+  );
+  assert.match(picker, /feature-metric-picker__meta/);
+  assert.match(picker, /metric\.description[\s\S]*metric\.output/);
+  assert.doesNotMatch(picker, /feature-metric-picker__description/);
+  assert.doesNotMatch(picker, /feature-metric-picker__output/);
+  assert.match(picker, /<ParameterHint/);
+  assert.match(picker, /<slot name="local-variance"/);
+
   assert.match(
     workspace,
     /buildFy4bWorkbenchSummary\(fy4bForm, featureMetricLabel\)/
   );
+});
+
+test("image parameter drawers synchronize algorithm enablement after target selection", () => {
+  const drawerFiles = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue"
+  ];
+
+  for (const filename of drawerFiles) {
+    const drawer = readFileSync(filename, "utf8");
+    assert.match(
+      drawer,
+      /\(\) => \[\s*props\.form\.features\.enabled,[\s\S]*?props\.form\.fusion\.enabled,[\s\S]*?props\.form\.saliency\.enabled[\s\S]*?\][\s\S]*?form\.features\.enabled\s*=\s*featuresEnabled;[\s\S]*?form\.fusion\.enabled\s*=\s*fusionEnabled;[\s\S]*?form\.saliency\.enabled\s*=\s*saliencyEnabled;/
+    );
+  }
 });
 
 test("teleported product drawers compile the shared theme as global CSS", async () => {
@@ -85,7 +129,7 @@ test("teleported product drawers compile the shared theme as global CSS", async 
     /\.product-parameter-drawer\.mission-parameter-drawer\s*\{[\s\S]*?background:\s*var\(--drawer-canvas\)/
   );
   assert.match(compiled.code, /--drawer-font-control:\s*0\.8125rem/);
-  assert.match(compiled.code, /--drawer-control-height:\s*2\.5rem/);
+  assert.match(compiled.code, /--drawer-control-height:\s*30px/);
   assert.match(compiled.code, /min-height:\s*var\(--drawer-control-height\)/);
 });
 
@@ -107,7 +151,7 @@ test("parameter drawer keeps focused controls inside its scrolling body", () => 
   );
 });
 
-test("FY-4B and GF-6 drawers expose their constrained engineering controls", () => {
+test("FY-4B and GF-6 drawers keep engineering controls editable without technical warnings", () => {
   const fy4bDrawer = readFileSync(
     "src/features/multisource/Fy4bAgriParameterDrawer.vue",
     "utf8"
@@ -119,10 +163,14 @@ test("FY-4B and GF-6 drawers expose their constrained engineering controls", () 
 
   assert.match(fy4bDrawer, /class="product-parameter-drawer"/);
   assert.match(fy4bDrawer, /<template #header="\{ titleId \}"\s*>/);
-  assert.match(fy4bDrawer, /<h2 :id="titleId">FY-4B AGRI 参数<\/h2>/);
-  assert.match(fy4bDrawer, /FY-4B AGRI 参数/);
-  assert.match(fy4bDrawer, /NOMINAL_UNVERIFIED/);
-  assert.match(fy4bDrawer, /NIR_RED_BLUE/);
+  assert.match(
+    fy4bDrawer,
+    /<h2 :id="titleId" class="drawer-heading__workbench-title">\s*参数配置工作台\s*<\/h2>/
+  );
+  assert.doesNotMatch(fy4bDrawer, /FY-4B AGRI 参数/);
+  assert.doesNotMatch(fy4bDrawer, /NOMINAL_UNVERIFIED/);
+  assert.doesNotMatch(fy4bDrawer, /engineering-warning/);
+  assert.match(fy4bDrawer, /近红外、红光、蓝光/);
   assert.match(fy4bDrawer, /targetCrs/);
   assert.match(fy4bDrawer, /form\.roi/);
   assert.match(fy4bDrawer, /form\.features/);
@@ -130,17 +178,20 @@ test("FY-4B and GF-6 drawers expose their constrained engineering controls", () 
 
   assert.match(gf6Drawer, /class="product-parameter-drawer"/);
   assert.match(gf6Drawer, /<template #header="\{ titleId \}"\s*>/);
-  assert.match(gf6Drawer, /<h2 :id="titleId">GF-6 WFV L1A 参数<\/h2>/);
-  assert.match(gf6Drawer, /GF-6 WFV L1A 参数/);
+  assert.match(
+    gf6Drawer,
+    /<h2 :id="titleId" class="drawer-heading__workbench-title">\s*参数配置工作台\s*<\/h2>/
+  );
+  assert.doesNotMatch(gf6Drawer, /GF-6 WFV L1A 参数/);
   assert.doesNotMatch(gf6Drawer, /OUTPUT PROFILE/);
-  assert.match(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
-  assert.match(gf6Drawer, /accuracyStatus=UNVALIDATED/);
-  assert.match(gf6Drawer, /CANDIDATE_ONLY/);
+  assert.doesNotMatch(gf6Drawer, /NOMINAL_RPC_NO_DEM/);
+  assert.doesNotMatch(gf6Drawer, /accuracyStatus=UNVALIDATED/);
+  assert.doesNotMatch(gf6Drawer, /CANDIDATE_ONLY/);
   assert.match(gf6Drawer, /rpcHeightMode/);
   assert.match(gf6Drawer, /rpcHeight/);
   assert.match(gf6Drawer, /form\.resolution/);
   assert.match(gf6Drawer, /:min="resolutionConstraint\.minimum"/);
-  assert.match(gf6Drawer, /后端会在写入前按网格像元数和预估字节执行最终保护/);
+  assert.match(gf6Drawer, /后端会按网格像元数和预估字节执行最终保护/);
   assert.match(gf6Drawer, /form\.bands/);
   assert.match(gf6Drawer, /form\.fusion/);
 });
@@ -165,8 +216,8 @@ test("workspace selects FY-4B and GF-6 parameter drawers with integrated stages"
   assert.match(workspace, /:visible-steps="visibleParameterGroups"/);
   assert.doesNotMatch(workspace, /<Gf6ProcessingWorkbench/);
   assert.doesNotMatch(workspace, /import Gf6ProcessingWorkbench/);
-  assert.match(gf6Drawer, /<legend>工程网格<\/legend>/);
-  assert.match(gf6Drawer, /<legend>输出波段<\/legend>/);
+  assert.match(gf6Drawer, /<legend>\s*工程网格\s*<ParameterHint/);
+  assert.match(gf6Drawer, /<legend>\s*输出波段\s*<ParameterHint/);
   assert.match(gf6Drawer, /WGS84 ROI/);
   assert.match(
     workspace,
@@ -227,7 +278,10 @@ test("product launch remains below the left-side execution plan", () => {
   );
 
   assert.match(workspace, /<section class="mission-section mission-launch"/);
-  assert.match(workspace, /<el-icon class="el-icon--right"><ArrowRight \/><\/el-icon>/);
+  assert.match(
+    workspace,
+    /<el-icon class="el-icon--right"><ArrowRight \/><\/el-icon>/
+  );
   assert.doesNotMatch(workspace, /ProductProcessingLaunch/);
 
   for (const filename of [
@@ -317,14 +371,43 @@ test("right-side parameter drawers render editable output bands", () => {
     "utf8"
   );
 
-  assert.match(fy3hDrawer, /<legend>输出波段<\/legend>/);
-  assert.match(fy3hDrawer, /v-for="band in FY3H_MERSI_BANDS"/);
-  assert.match(gf6Drawer, /<legend>输出波段<\/legend>/);
-  assert.match(gf6Drawer, /v-for="band in GF6_WFV_L1A_BANDS"/);
-  assert.match(gf6Drawer, /v-model="form\.bands"/);
+  assert.match(fy3hDrawer, /<legend>\s*输出波段\s*<ParameterHint/);
+  assert.match(fy3hDrawer, /<OutputBandPicker[\s\S]*?v-model="form\.bands"/);
+  assert.match(gf6Drawer, /<legend>\s*输出波段\s*<ParameterHint/);
+  assert.match(gf6Drawer, /<OutputBandPicker[\s\S]*?v-model="form\.bands"/);
 });
 
-test("right-side workbench overview retains output, parameter, and constraint summaries", () => {
+test("all products use the shared output band picker", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+  const picker = readFileSync(
+    "src/features/multisource/OutputBandPicker.vue",
+    "utf8"
+  );
+
+  assert.match(picker, /defineModel<[^>]+\[\]>/);
+  assert.match(
+    picker,
+    /已选\s*\{\{ selectedBands\.length \}\}\s*\/\s*\{\{ bands\.length \}\}/
+  );
+  assert.match(picker, /output-band-picker__group/);
+  assert.doesNotMatch(picker, /output-band-picker__check|<Check/);
+  assert.match(workspace, /<OutputBandPicker[\s\S]*?v-model="l2aForm\.bands"/);
+  assert.match(fy3hDrawer, /<OutputBandPicker[\s\S]*?v-model="form\.bands"/);
+  assert.match(gf6Drawer, /<OutputBandPicker[\s\S]*?v-model="form\.bands"/);
+});
+
+test("workbench keeps processing risks out of the drawer and shows launch-time notices", () => {
   const workspace = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
@@ -340,16 +423,278 @@ test("right-side workbench overview retains output, parameter, and constraint su
     "src/features/multisource/Gf6WfvL1aParameterDrawer.vue"
   ].map(path => readFileSync(path, "utf8"));
 
-  assert.match(overview, /PARAMETER WORKBENCH/);
-  assert.match(overview, /parameter-workbench-overview__bands/);
+  assert.match(overview, /当前参数/);
+  assert.doesNotMatch(overview, /PARAMETER WORKBENCH/);
+  assert.doesNotMatch(overview, /parameter-workbench-overview__bands/);
+  assert.doesNotMatch(overview, /必要参数/);
   assert.match(overview, /parameter-workbench-overview__parameters/);
-  assert.match(overview, /parameter-workbench-overview__constraints/);
+  assert.doesNotMatch(overview, /constraints/);
+  assert.doesNotMatch(overview, /处理说明/);
+  assert.doesNotMatch(overview, /formatProcessingNote/);
   assert.match(workspace, /<ParameterWorkbenchOverview/);
+  assert.match(workspace, /const processingRiskNotice = computed/);
+  assert.match(
+    workspace,
+    /if \([\s\S]*?!canStart\.value[\s\S]*?!visibleParameterGroups\.value\.includes\("preprocess"\)/
+  );
+  assert.match(
+    workspace,
+    /当前处理未启用地形校正，山区或高差较大区域的定位可能存在偏差。/
+  );
+  assert.match(
+    workspace,
+    /当前产品的名义定位尚未完成测绘级验证；涉及坐标量测或边界判读前请先核验。/
+  );
+  assert.match(workspace, /v-if="processingRiskNotice"/);
+  assert.match(workspace, /class="mission-section processing-risk-notice"/);
   for (const drawer of drawers) {
     assert.match(drawer, /import ParameterWorkbenchOverview/);
     assert.match(drawer, /<ParameterWorkbenchOverview/);
+    assert.match(drawer, /参数配置工作台/);
+    assert.doesNotMatch(drawer, /:constraints=/);
+    assert.doesNotMatch(
+      drawer,
+      /ENGINEERING CONFIGURATION|SWATH CONFIGURATION|FULL-DISK CONFIGURATION|TRACK CONFIGURATION|CONFIGURATION WORKSPACE/
+    );
   }
+  assert.doesNotMatch(drawers[1], /engineering-warning/);
   assert.doesNotMatch(workspace, /<dd>{{ gf6Summary\.bands }}<\/dd>/);
+});
+
+test("parameter workbenches use compact stepper controls for editable numbers", () => {
+  const stepper = readFileSync(
+    "src/features/multisource/ParameterNumberInput.vue",
+    "utf8"
+  );
+  const styles = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(stepper, /parameter-number-input/);
+  assert.match(stepper, /stepDown/);
+  assert.match(stepper, /stepUp/);
+  assert.match(stepper, /emit\("update:modelValue"/);
+  assert.match(
+    styles,
+    /parameter-number-input\s*\{[\s\S]*?grid-template-columns:\s*24px minmax\(0, 1fr\) 24px;[\s\S]*?min-height:\s*30px;/
+  );
+
+  for (const filename of [
+    "Fy3hMersiParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Hy2dAltimeterParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue"
+  ]) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.match(drawer, /import ParameterNumberInput/);
+    assert.match(drawer, /<ParameterNumberInput/);
+  }
+});
+
+test("numeric steppers dispatch a single change event without rebinding it", () => {
+  const stepper = readFileSync(
+    "src/features/multisource/ParameterNumberInput.vue",
+    "utf8"
+  );
+
+  assert.doesNotMatch(stepper, /@change="notifyChange"/);
+  assert.match(
+    stepper,
+    /dispatchEvent\(new Event\("change", \{ bubbles: true \}\)\)/
+  );
+});
+
+test("target CRS controls use the compact field treatment", () => {
+  const styles = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(
+    styles,
+    /(?:input|select)\.crs-input\s*\{[\s\S]*?min-height:\s*30px;[\s\S]*?padding:\s*5px 10px;/
+  );
+
+  for (const filename of [
+    "Fy3hMersiParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue"
+  ]) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.match(drawer, /class="crs-input"/);
+  }
+});
+
+test("parameter workbench uses a light blue vertical header and compact summary card", () => {
+  const theme = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(theme, /width: 470px !important/);
+  assert.match(
+    theme,
+    /linear-gradient\(180deg, #1492f9 0%, #75c8f2 58%, #d8f0fd 100%\)/
+  );
+  assert.match(
+    theme,
+    /\.parameter-workbench-overview\s*\{[\s\S]*margin-top: 6px;[\s\S]*background: var\(--drawer-panel\);[\s\S]*border: 1px solid var\(--drawer-line\);[\s\S]*border-radius: 4px;/
+  );
+  assert.match(theme, /h2\.drawer-heading__workbench-title[\s\S]*color: #fff;/);
+  assert.match(
+    theme,
+    /\.parameter-workbench-overview__heading strong[\s\S]*padding: 0;[\s\S]*background: transparent;[\s\S]*border-left: 0;/
+  );
+});
+
+test("parameter drawers do not repeat selected processing states as heading switches", () => {
+  const drawers = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue"
+  ].map(path => readFileSync(path, "utf8"));
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  for (const drawer of drawers) {
+    assert.doesNotMatch(
+      drawer,
+      /<legend class="toggle-heading">[\s\S]*?:checked="visibleSteps\.includes/
+    );
+  }
+  assert.doesNotMatch(
+    workspace,
+    /<legend class="toggle-heading">[\s\S]*?:checked="selectedTargets\.includes/
+  );
+});
+
+test("parameter workbenches explain editable settings on hover without repeating the execution plan", () => {
+  const drawers = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue"
+  ].map(path => readFileSync(path, "utf8"));
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  const theme = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  for (const drawer of drawers) {
+    assert.doesNotMatch(drawer, /ExecutionPlanStrip/);
+    assert.match(drawer, /parameter-step-card/);
+    assert.match(drawer, /ParameterHint/);
+    assert.doesNotMatch(drawer, /parameter-step-card__purpose/);
+    assert.doesNotMatch(drawer, /class="field-note"/);
+    assert.doesNotMatch(drawer, /固定不可调整/);
+  }
+  assert.doesNotMatch(workspace, /<ExecutionPlanStrip/);
+  assert.match(workspace, /parameter-step-card/);
+  assert.match(theme, /\.parameter-step-card\s*\{/);
+  assert.match(theme, /\.fixed-setting-row\s*\{/);
+  assert.match(theme, /\.parameter-hint\s*\{/);
+});
+
+test("parameter workbenches show numeric guidance and matching validation beside inputs", () => {
+  const hy2dDrawer = readFileSync(
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue",
+    "utf8"
+  );
+  const fy4bDrawer = readFileSync(
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "utf8"
+  );
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+
+  for (const field of [
+    "featureWindowSize",
+    "anomaly.madThreshold",
+    "anomaly.jumpThresholdMeters",
+    "grid.spacingDegrees"
+  ]) {
+    assert.match(hy2dDrawer, new RegExp(`fields=\"\\['${field}'\\]`));
+  }
+  for (const field of [
+    "saliency.source",
+    "saliency.threshold",
+    "saliency.windowSize"
+  ]) {
+    assert.match(fy4bDrawer, new RegExp(`fields=\"\\['${field}'\\]`));
+  }
+  assert.match(workspace, /import ParameterFieldStatus/);
+  for (const field of [
+    "grid.resolutionMeters",
+    "algorithms.features.windowSize",
+    "algorithms.fusion.percentiles",
+    "algorithms.saliency.threshold",
+    "algorithms.saliency.windowSize"
+  ]) {
+    assert.match(workspace, new RegExp(`fields=\"\\['${field}'\\]`));
+  }
+  for (const [drawer, fields] of [
+    [fy4bDrawer, ["features.metrics", "saliency.source"]],
+    [gf6Drawer, ["features.metrics", "fusion.bands", "saliency.source"]],
+    [
+      fy3hDrawer,
+      ["bands", "features.metrics", "fusion.bands", "saliency.source"]
+    ]
+  ] as const) {
+    for (const field of fields) {
+      assert.match(drawer, new RegExp(`fields=\"\\['${field}'\\]`));
+    }
+  }
+  assert.match(
+    fy3hDrawer,
+    /<FeatureMetricPicker[\s\S]*?<\/FeatureMetricPicker>\s*<ParameterFieldStatus :issues="issues" :fields="\['features\.metrics'\]" \/>/
+  );
+  assert.match(
+    fy3hDrawer,
+    /<template #local-variance>[\s\S]*?fields="\['features\.windowSize'\]"/
+  );
+});
+
+test("GF-6 RGB channels provide individual hover explanations", () => {
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+
+  assert.match(gf6Drawer, /<span\s*>\s*R\s*<ParameterHint\s+label="红色通道"/);
+  assert.match(gf6Drawer, /<span\s*>\s*G\s*<ParameterHint\s+label="绿色通道"/);
+  assert.match(gf6Drawer, /<span\s*>\s*B\s*<ParameterHint\s+label="蓝色通道"/);
+});
+
+test("parameter workbenches use a single-line field layout with a dedicated status column", () => {
+  const theme = readFileSync(
+    "src/features/multisource/unifiedProductParameterDrawer.less",
+    "utf8"
+  );
+
+  assert.match(theme, /\.field-grid,[\s\S]*?grid-template-columns:\s*1fr;/);
+  assert.match(
+    theme,
+    /:is\(\.field-grid, \.control-grid, \.roi-grid, \.rgb-grid\)\s+label,[\s\S]*?grid-template-columns:\s*96px minmax\(0, 1fr\) minmax\(116px, 136px\);/
+  );
+  assert.match(theme, /\.parameter-field__guide\s*\{[\s\S]*?grid-column:\s*3;/);
 });
 
 test("GF-6 workbench summary owns the planned visual sections", () => {
@@ -419,12 +764,64 @@ test("product parameter drawers use an inset, content-sized floating workbench",
     "utf8"
   );
 
-  assert.match(styles, /top:\s*24px;/);
-  assert.match(styles, /right:\s*24px;/);
-  assert.match(styles, /bottom:\s*24px;/);
-  assert.match(styles, /height:\s*fit-content;/);
-  assert.match(styles, /max-height:\s*calc\(100vh - 48px\);/);
+  assert.match(styles, /position:\s*fixed\s*!important;/);
+  assert.match(styles, /top:\s*88px\s*!important;/);
+  assert.match(styles, /right:\s*24px\s*!important;/);
+  assert.match(styles, /bottom:\s*24px\s*!important;/);
+  assert.match(styles, /height:\s*auto\s*!important;/);
+  assert.match(styles, /max-height:\s*calc\(100vh - 112px\)\s*!important;/);
+  assert.match(styles, /top:\s*56px\s*!important;/);
+  assert.match(styles, /max-height:\s*calc\(100vh - 68px\)\s*!important;/);
   assert.match(styles, /\.el-drawer__body\s*\{[\s\S]*?overflow-y:\s*auto;/);
+});
+
+test("product parameter drawers stay available as non-modal right-side inspectors", () => {
+  const drawerFiles = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue",
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue"
+  ];
+
+  for (const filename of drawerFiles) {
+    const drawer = readFileSync(filename, "utf8");
+    assert.match(
+      drawer,
+      /:modal="false"/,
+      `${filename} should not dim the workspace`
+    );
+    assert.match(
+      drawer,
+      /modal-class="parameter-drawer-overlay"/,
+      `${filename} should let workspace clicks pass through the host`
+    );
+    assert.match(
+      drawer,
+      /append-to-body/,
+      `${filename} should remain above the map workspace`
+    );
+  }
+});
+
+test("product parameter drawers use compact desktop widths", () => {
+  const standardDrawers = [
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "src/features/multisource/Fy4bAgriParameterDrawer.vue",
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue"
+  ];
+  const compactDrawers = [
+    "src/features/multisource/Hy2dAltimeterParameterDrawer.vue",
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue"
+  ];
+
+  for (const filename of standardDrawers) {
+    assert.match(readFileSync(filename, "utf8"), /size="480px"/);
+  }
+
+  for (const filename of compactDrawers) {
+    assert.match(readFileSync(filename, "utf8"), /size="440px"/);
+  }
 });
 
 test("product package exposes ZIP import inside the existing upload section", () => {

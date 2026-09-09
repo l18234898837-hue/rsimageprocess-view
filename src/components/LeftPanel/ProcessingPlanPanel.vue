@@ -164,7 +164,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ArrowDown, InfoFilled, QuestionFilled, Setting } from "@element-plus/icons-vue";
+import {
+  ArrowDown,
+  InfoFilled,
+  QuestionFilled,
+  Setting
+} from "@element-plus/icons-vue";
 import type { StepDefinition } from "@/features/multisource/pipelineDefinitions";
 
 const props = defineProps<{
@@ -346,21 +351,27 @@ function toggleTarget(stepKey: string) {
   flex: 0 0 auto;
   align-items: center;
   gap: 5px;
-  min-height: 28px;
-  padding: 0 9px;
+  min-height: 30px;
+  padding: 0 10px;
   color: #fff;
   font: inherit;
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
-  background: #2e7da3;
-  border: 1px solid #2e7da3;
+  background: #1677b8;
+  border: 1px solid #1677b8;
   border-radius: 4px;
+  box-shadow: 0 1px 2px rgb(15 95 150 / 20%);
+}
+
+.processing-plan__configure span,
+.processing-plan__configure .el-icon {
+  color: inherit;
 }
 
 .processing-plan__configure:hover:not(:disabled) {
-  background: #216889;
-  border-color: #216889;
+  background: #0f5f96;
+  border-color: #0f5f96;
 }
 
 .processing-plan__configure:disabled {
@@ -373,7 +384,7 @@ function toggleTarget(stepKey: string) {
 }
 
 .processing-plan__configure:focus-visible {
-  outline: 2px solid #2e7da3;
+  outline: 2px solid #1677b8;
   outline-offset: 2px;
 }
 

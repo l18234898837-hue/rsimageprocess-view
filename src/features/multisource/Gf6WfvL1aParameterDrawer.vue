@@ -3,150 +3,207 @@
     v-model="open"
     class="product-parameter-drawer"
     direction="rtl"
-    size="520px"
+    size="480px"
     append-to-body
+    modal-class="parameter-drawer-overlay"
     :lock-scroll="false"
-    :modal="true"
+    :modal="false"
     :show-close="false"
   >
-    <template #header="{ titleId }"
-      ><div class="drawer-heading">
-        <div>
-          <span>ENGINEERING CONFIGURATION</span>
-          <h2 :id="titleId">GF-6 WFV L1A 参数</h2>
-          <p>
-            {{
-              locked
-                ? "当前显示已保存的参数快照。"
-                : "配置名义 RPC 工程产品输出。"
-            }}
-          </p>
-        </div>
+    <template #header="{ titleId }">
+      <div class="drawer-heading">
+        <h2 :id="titleId" class="drawer-heading__workbench-title">
+          参数配置工作台
+        </h2>
         <button type="button" aria-label="关闭参数工作台" @click="open = false">
           <el-icon><Close /></el-icon>
-        </button></div
-    ></template>
+        </button>
+      </div>
+    </template>
     <div class="drawer-body">
-      <ParameterWorkbenchOverview
-        :bands="overviewBands"
-        :parameters="overviewParameters"
-        :constraints="ENGINEERING_CONSTRAINTS"
-      />
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
-        <legend>工程网格</legend>
+      <ParameterWorkbenchOverview :parameters="overviewParameters" />
+      <fieldset
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          工程网格
+          <ParameterHint
+            label="工程网格"
+            text="定义标准产品的坐标参考、输出分辨率和处理范围。"
+          />
+        </legend>
         <div class="field-grid">
           <label
-            ><span>目标 CRS</span
+            ><span
+              >目标 CRS
+              <ParameterHint
+                label="目标 CRS"
+                text="输出坐标系，按 EPSG:编号填写，例如 EPSG:4326。" /></span
             ><input
               v-model.trim="form.targetCrs"
-              placeholder="EPSG:4326" /></label
+              class="crs-input"
+              placeholder="EPSG:4326"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['targetCrs']"
+              guidance="格式：EPSG:编号"
+            /> </label
           ><label
-            ><span>输出分辨率（{{ resolutionConstraint.unit }}）</span
-            ><input
-              v-model.number="form.resolution"
-              type="number"
+            ><span
+              >输出分辨率（{{ resolutionConstraint.unit }}）
+              <ParameterHint
+                label="输出分辨率"
+                text="输出像元大小。地理坐标系使用度，投影坐标系使用米；不得小于当前显示的最小值。后端会按网格像元数和预估字节执行最终保护。" /></span
+            ><ParameterNumberInput
+              v-model="form.resolution"
               :min="resolutionConstraint.minimum"
-              :step="resolutionConstraint.step" /></label
+              :step="resolutionConstraint.step"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['resolution']"
+              :guidance="`最小 ${resolutionConstraint.minimum} ${resolutionConstraint.unit}，步长 ${resolutionConstraint.step}`"
+            /> </label
           ><label
-            ><span>高度模式</span
+            ><span
+              >高度模式
+              <ParameterHint
+                label="高度模式"
+                text="RPC 正射校正使用的高程模式。当前名义工程产品固定为 CONSTANT，不可修改。" /></span
             ><input :value="rpcHeightMode" readonly /></label
           ><label
-            ><span>固定高程（米）</span
+            ><span
+              >固定高程（米）
+              <ParameterHint
+                label="固定高程"
+                text="名义 RPC 的固定高程值。该产品配置固定为 0 米，不可修改。" /></span
             ><input :value="rpcHeight" readonly /></label
           ><label class="toggle-row"
-            ><span>WGS84 ROI（默认开启）</span
+            ><span
+              >WGS84 ROI（默认开启）
+              <ParameterHint
+                label="WGS84 ROI"
+                text="限定处理范围。关闭后按产品全幅处理；元数据解析完成后才可调整。" /></span
             ><input v-model="roiEnabled" type="checkbox" :disabled="!roiReady"
           /></label>
         </div>
-        <small class="field-note"
-          >默认使用快速测试范围；取消勾选后按产品全幅处理。EPSG:4326/4490
-          按度，其余投影 CRS
-          按米；后端会在写入前按网格像元数和预估字节执行最终保护。</small
-        >
         <div v-if="roiEnabled" class="field-grid compact-grid">
           <label v-for="field in ROI_FIELDS" :key="field.key"
-            ><span>{{ field.label }}</span
-            ><input
-              v-model.number="roi[field.index]"
-              type="number"
+            ><span
+              >{{ field.label }}
+              <ParameterHint
+                :label="field.label"
+                :text="
+                  field.longitude
+                    ? '经度范围为 -180 到 180。'
+                    : '纬度范围为 -90 到 90。'
+                " /></span
+            ><ParameterNumberInput
+              v-model="roi[field.index]"
               step="0.0001"
               :min="field.longitude ? -180 : -90"
               :max="field.longitude ? 180 : 90"
-          /></label>
-        </div>
-      </fieldset>
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
-        <legend>输出波段</legend>
-        <div class="band-grid">
-          <label
-            v-for="band in GF6_WFV_L1A_BANDS"
-            :key="band"
-            :class="{ 'is-selected': form.bands.includes(band) }"
-            ><input v-model="form.bands" type="checkbox" :value="band" /><i
-              aria-hidden="true"
-            /><strong>B{{ band }}</strong
-            ><small>WFV</small></label
-          >
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['roi']"
+              :guidance="
+                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+              "
+            />
+          </label>
         </div>
       </fieldset>
       <fieldset
-        v-if="visibleSteps.includes('feature-extraction')"
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>特征提取</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('feature-extraction')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.features.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+        <legend>
+          输出波段
+          <ParameterHint
+            label="输出波段"
+            text="选择要写入标准产品的 WFV 波段。至少保留一个波段，后续 RGB 与检测只能使用已选波段。"
+          />
         </legend>
-        <div class="chip-list">
-          <label v-for="metric in GF6_WFV_L1A_METRICS" :key="metric"
-            ><input
-              v-model="form.features.metrics"
-              type="checkbox"
-              :value="metric"
-              :disabled="!form.features.enabled || locked"
-            /><span>{{ featureMetricLabel(metric) }}</span></label
-          >
-        </div>
-        <div
-          v-if="form.features.metrics.includes('local_variance')"
-          class="field-grid compact-grid"
-        >
-          <label
-            ><span>局部方差窗口</span
-            ><input
-              v-model.number="form.features.windowSize"
-              type="number"
-              min="3"
-              :max="GF6_WFV_L1A_MAX_WINDOW_SIZE"
-              step="2"
-              :disabled="!form.features.enabled || locked"
-          /></label>
-        </div>
+        <OutputBandPicker
+          v-model="form.bands"
+          :bands="GF6_OUTPUT_BANDS"
+          :columns="4"
+          :disabled="locked"
+          aria-label="GF-6 WFV 输出波段选择"
+        />
+        <ParameterFieldStatus
+          :issues="issues"
+          :fields="['bands']"
+          guidance="至少选择一个输出波段"
+        />
       </fieldset>
-      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
-        <legend class="toggle-heading">
-          <span>RGB 波段组合</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('rgb-fusion')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.fusion.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+      <fieldset
+        v-if="visibleSteps.includes('feature-extraction')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          特征提取
+          <ParameterHint
+            label="特征提取"
+            text="从已选波段计算统计、梯度或局部方差等空间特征。"
+          />
+        </legend>
+        <FeatureMetricPicker
+          v-model="form.features.metrics"
+          :metrics="featureMetricOptions(GF6_WFV_L1A_METRICS)"
+          :disabled="!form.features.enabled || locked"
+        >
+          <template #local-variance>
+            <div class="feature-metric-picker__parameter">
+              <span
+                >纹理窗口
+                <ParameterHint
+                  label="纹理窗口"
+                  text="局部方差的计算邻域，必须为 3 到 255 的奇数；数值越大，结果越平滑。"
+                />
+              </span>
+              <ParameterNumberInput
+                v-model="form.features.windowSize"
+                min="3"
+                :max="GF6_WFV_L1A_MAX_WINDOW_SIZE"
+                step="2"
+                :disabled="!form.features.enabled || locked"
+              />
+              <ParameterFieldStatus
+                :issues="issues"
+                :fields="['features.windowSize']"
+                guidance="范围 3 到 255，必须为奇数"
+              />
+            </div>
+          </template>
+        </FeatureMetricPicker>
+        <ParameterFieldStatus :issues="issues" :fields="['features.metrics']" />
+      </fieldset>
+      <fieldset
+        v-if="visibleSteps.includes('rgb-fusion')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          RGB 波段组合
+          <ParameterHint
+            label="RGB 波段组合"
+            text="指定彩色合成的红、绿、蓝通道及显示拉伸范围。只能选择已输出的波段。"
+          />
         </legend>
         <div class="rgb-grid">
           <label
-            ><span>R</span
+            ><span
+              >R
+              <ParameterHint
+                label="红色通道"
+                text="作为彩色合成的红色显示通道，只能选择已输出的波段。" /></span
             ><select
               v-model.number="form.fusion.red"
               :disabled="!form.fusion.enabled || locked"
@@ -156,7 +213,11 @@
               </option>
             </select></label
           ><label
-            ><span>G</span
+            ><span
+              >G
+              <ParameterHint
+                label="绿色通道"
+                text="作为彩色合成的绿色显示通道，只能选择已输出的波段。" /></span
             ><select
               v-model.number="form.fusion.green"
               :disabled="!form.fusion.enabled || locked"
@@ -166,7 +227,11 @@
               </option>
             </select></label
           ><label
-            ><span>B</span
+            ><span
+              >B
+              <ParameterHint
+                label="蓝色通道"
+                text="作为彩色合成的蓝色显示通道，只能选择已输出的波段。" /></span
             ><select
               v-model.number="form.fusion.blue"
               :disabled="!form.fusion.enabled || locked"
@@ -177,45 +242,64 @@
             </select></label
           >
         </div>
+        <ParameterFieldStatus :issues="issues" :fields="['fusion.bands']" />
         <div class="field-grid compact-grid">
           <label
-            ><span>低百分位</span
-            ><input
-              v-model.number="form.fusion.lowPercentile"
-              type="number"
-              min="0"
-              max="100"
-              :disabled="!form.fusion.enabled || locked" /></label
-          ><label
-            ><span>高百分位</span
-            ><input
-              v-model.number="form.fusion.highPercentile"
-              type="number"
+            ><span
+              >低百分位
+              <ParameterHint
+                label="低百分位"
+                text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.lowPercentile"
               min="0"
               max="100"
               :disabled="!form.fusion.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且小于高百分位"
+            /> </label
+          ><label
+            ><span
+              >高百分位
+              <ParameterHint
+                label="高百分位"
+                text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.highPercentile"
+              min="0"
+              max="100"
+              :disabled="!form.fusion.enabled || locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且大于低百分位"
+            />
+          </label>
         </div>
       </fieldset>
       <fieldset
         v-if="visibleSteps.includes('anomaly-detection')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>显著性检测</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('anomaly-detection')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.saliency.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+        <legend>
+          显著性检测
+          <ParameterHint
+            label="显著性检测"
+            text="在选定波段中识别局部异常区域。"
+          />
         </legend>
         <div class="field-grid">
           <label class="is-wide"
-            ><span>数据源</span
+            ><span
+              >数据源
+              <ParameterHint
+                label="数据源"
+                text="用于检测的输入波段，只能选择已输出的波段。" /></span
             ><select
               v-model="form.saliency.source"
               :disabled="!form.saliency.enabled || locked"
@@ -227,33 +311,50 @@
               >
                 B{{ band }}
               </option>
-            </select></label
+            </select>
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.source']"
+            /> </label
           ><label
-            ><span>阈值</span
-            ><input
-              v-model.number="form.saliency.threshold"
-              type="number"
+            ><span
+              >阈值
+              <ParameterHint
+                label="阈值"
+                text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.threshold"
               min="0"
               max="1"
               step="0.05"
-              :disabled="!form.saliency.enabled || locked" /></label
+              :disabled="!form.saliency.enabled || locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.threshold']"
+              guidance="范围 0 到 1，步长 0.05"
+            /> </label
           ><label
-            ><span>窗口</span
-            ><input
-              v-model.number="form.saliency.windowSize"
-              type="number"
+            ><span
+              >窗口
+              <ParameterHint
+                label="窗口"
+                text="检测的局部邻域，必须为 3 到 255 的奇数。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.windowSize"
               min="3"
               :max="GF6_WFV_L1A_MAX_WINDOW_SIZE"
               step="2"
               :disabled="!form.saliency.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.windowSize']"
+              guidance="范围 3 到 255，必须为奇数"
+            />
+          </label>
         </div>
       </fieldset>
-      <div v-if="issues.length" class="parameter-errors" role="alert">
-        <span v-for="issue in issues" :key="issue.field">{{
-          issue.message
-        }}</span>
-      </div>
     </div>
     <template #footer
       ><div class="drawer-footer">
@@ -272,7 +373,17 @@
 import { computed, reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
 import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
-import { featureMetricLabel } from "./featureMetricLabels";
+import ParameterHint from "./ParameterHint.vue";
+import ParameterFieldStatus from "./ParameterFieldStatus.vue";
+import ParameterNumberInput from "./ParameterNumberInput.vue";
+import FeatureMetricPicker from "./FeatureMetricPicker.vue";
+import OutputBandPicker, {
+  type OutputBandOption
+} from "./OutputBandPicker.vue";
+import {
+  featureMetricLabel,
+  featureMetricOptions
+} from "./featureMetricLabels";
 import {
   GF6_WFV_L1A_BANDS,
   GF6_WFV_L1A_MAX_WINDOW_SIZE,
@@ -281,6 +392,13 @@ import {
   type Gf6WfvL1aForm
 } from "./gf6WfvL1aParameters";
 import { gf6RoiStateAfterMetadataChange } from "./gf6WfvL1aRoi";
+
+const GF6_OUTPUT_BANDS: OutputBandOption[] = GF6_WFV_L1A_BANDS.map(band => ({
+  value: band,
+  label: `B${band}`,
+  category: "WFV 通道",
+  tone: "standard"
+}));
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
@@ -291,20 +409,22 @@ const props = defineProps<{
   issues: { field: string; message: string }[];
 }>();
 const emit = defineEmits<{ "update-form": [value: Gf6WfvL1aForm] }>();
-const ENGINEERING_CONSTRAINTS = [
-  "NOMINAL_RPC_NO_DEM",
-  "accuracyStatus=UNVALIDATED",
-  "CANDIDATE_ONLY"
-] as const;
 const rpcHeightMode = "CONSTANT" as const;
 const rpcHeight = 0 as const;
 const form = reactive<Gf6WfvL1aForm>(
   JSON.parse(JSON.stringify(props.form)) as Gf6WfvL1aForm
 );
-const overviewBands = computed(() =>
-  props.visibleSteps.includes("preprocess")
-    ? form.bands.map(band => `B${band}`)
-    : []
+watch(
+  () => [
+    props.form.features.enabled,
+    props.form.fusion.enabled,
+    props.form.saliency.enabled
+  ],
+  ([featuresEnabled, fusionEnabled, saliencyEnabled]) => {
+    form.features.enabled = featuresEnabled;
+    form.fusion.enabled = fusionEnabled;
+    form.saliency.enabled = saliencyEnabled;
+  }
 );
 const overviewParameters = computed(() => {
   const parameters: { label: string; value: string }[] = [];

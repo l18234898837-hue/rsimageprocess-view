@@ -256,6 +256,15 @@
       @configure="isParameterDrawerOpen = true"
     />
 
+    <section
+      v-if="processingRiskNotice"
+      class="mission-section processing-risk-notice"
+      role="note"
+    >
+      <el-icon aria-hidden="true"><WarningFilled /></el-icon>
+      <span>{{ processingRiskNotice }}</span>
+    </section>
+
     <section class="mission-section mission-launch" aria-label="任务启动">
       <div>
         <strong>{{ activeTemplate.label }}</strong>
@@ -370,26 +379,17 @@
       v-model="isParameterDrawerOpen"
       class="mission-parameter-drawer product-parameter-drawer"
       direction="rtl"
-      size="470px"
+      size="440px"
       append-to-body
-      title="HY-1C L2A 参数工作台"
+      title="参数配置工作台"
+      modal-class="parameter-drawer-overlay"
       :lock-scroll="false"
-      :modal="true"
+      :modal="false"
       :show-close="false"
     >
       <template #header>
         <div class="parameter-drawer__header">
-          <div>
-            <span>CONFIGURATION WORKSPACE</span>
-            <h2>HY-1C CZI L2A 参数</h2>
-            <p>
-              {{
-                isConfigurationLocked
-                  ? "任务已启动，当前显示已保存的参数快照。"
-                  : "参数将在任务创建时写入处理快照。"
-              }}
-            </p>
-          </div>
+          <h2 class="drawer-heading__workbench-title">参数配置工作台</h2>
           <button
             class="parameter-drawer__close"
             type="button"
@@ -422,10 +422,7 @@
             />
           </div>
         </section>
-        <ParameterWorkbenchOverview
-          :bands="visibleParameterGroups.includes('preprocess') ? l2aSummary.bands : []"
-          :parameters="hy1cOverviewParameters"
-        />
+        <ParameterWorkbenchOverview :parameters="hy1cOverviewParameters" />
 
         <section
           class="l2a-console"
@@ -444,42 +441,49 @@
 
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group spectral-fieldset"
+            class="control-group parameter-step-card spectral-fieldset"
             :disabled="isConfigurationLocked"
           >
-            <legend>输出波段</legend>
-            <div class="spectral-rail" aria-label="CZI 四通道波段选择">
-              <label
-                v-for="band in HY1C_CZI_BANDS"
-                :key="band"
-                class="spectral-channel"
-                :class="[
-                  `band-${band.toLowerCase()}`,
-                  { 'is-selected': isBandSelected(band) }
-                ]"
-              >
-                <input
-                  v-model="l2aForm.bands"
-                  type="checkbox"
-                  :value="band"
-                  :disabled="isConfigurationLocked"
-                />
-                <span class="spectral-channel__bar" aria-hidden="true" />
-                <strong>{{ band }}</strong>
-                <small>{{ band.slice(1) }} nm</small>
-              </label>
-            </div>
+            <legend>
+              输出波段
+              <ParameterHint
+                label="输出波段"
+                text="选择要写入标准产品的 CZI 波段。后续 RGB 与检测只能使用已选波段。"
+              />
+            </legend>
+            <OutputBandPicker
+              v-model="l2aForm.bands"
+              :bands="HY1C_OUTPUT_BANDS"
+              :columns="4"
+              :disabled="isConfigurationLocked"
+              aria-label="CZI 输出波段选择"
+            />
+            <ParameterFieldStatus
+              :issues="parameterIssues"
+              :fields="['bands']"
+            />
           </fieldset>
 
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group"
+            class="control-group parameter-step-card"
             :disabled="isConfigurationLocked"
           >
-            <legend>网格</legend>
+            <legend>
+              网格
+              <ParameterHint
+                label="网格"
+                text="定义输出坐标、空间分辨率和重采样方式。"
+              />
+            </legend>
             <div class="control-grid">
               <label class="control-field is-wide">
-                <span>目标 CRS</span>
+                <span
+                  >目标 CRS
+                  <ParameterHint
+                    label="目标 CRS"
+                    text="输出坐标系，可填写 AUTO_UTM 或投影坐标系编号。"
+                /></span>
                 <input
                   v-model.trim="l2aForm.grid.targetCrs"
                   list="l2a-crs-options"
@@ -490,30 +494,54 @@
                   <option value="EPSG:32650" />
                   <option value="EPSG:32651" />
                 </datalist>
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['grid.targetCrs']"
+                />
               </label>
               <label class="control-field">
-                <span>分辨率（米）</span>
+                <span
+                  >分辨率（米）
+                  <ParameterHint
+                    label="分辨率"
+                    text="输出像元大小，单位为米，必须大于 0。"
+                /></span>
                 <input
                   v-model.number="l2aForm.grid.resolutionMeters"
                   type="number"
                   min="0.01"
                   step="1"
                 />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['grid.resolutionMeters']"
+                  guidance="必须大于 0 米，步长 1"
+                />
               </label>
-              <label class="control-field">
-                <span>科学重采样</span>
-                <input value="nearest" readonly aria-readonly="true" />
-              </label>
+              <div class="fixed-setting-row">
+                <span
+                  >科学重采样
+                  <ParameterHint
+                    label="科学重采样"
+                    text="固定采用 nearest，避免改变原始观测值，因此不可调整。"
+                /></span>
+                <strong>nearest</strong>
+              </div>
             </div>
           </fieldset>
 
           <fieldset
             v-if="visibleParameterGroups.includes('preprocess')"
-            class="control-group"
+            class="control-group parameter-step-card"
             :disabled="isConfigurationLocked"
           >
             <legend class="toggle-heading">
-              <span>WGS84 ROI</span>
+              <span
+                >WGS84 ROI
+                <ParameterHint
+                  label="WGS84 ROI"
+                  text="限定处理范围。关闭后按产品全幅处理。"
+              /></span>
               <label class="toggle-control">
                 <input
                   v-model="l2aForm.roi.enabled"
@@ -521,18 +549,20 @@
                   :disabled="isConfigurationLocked"
                 />
                 <span aria-hidden="true" />
-                <small>{{
-                  l2aForm.roi.enabled
-                    ? "启用"
-                    : hy1cRoiSuggestion
-                      ? "建议范围已填充"
-                      : "关闭"
-                }}</small>
               </label>
             </legend>
             <div class="roi-grid">
               <label v-for="field in ROI_FIELDS" :key="field.key">
-                <span>{{ field.label }}</span>
+                <span
+                  >{{ field.label }}
+                  <ParameterHint
+                    :label="field.label"
+                    :text="
+                      field.longitude
+                        ? '经度范围为 -180 到 180。'
+                        : '纬度范围为 -90 到 90。'
+                    "
+                /></span>
                 <input
                   v-model.number="l2aForm.roi[field.key]"
                   type="number"
@@ -541,67 +571,97 @@
                   :max="field.longitude ? 180 : 90"
                   :disabled="!l2aForm.roi.enabled || isConfigurationLocked"
                 />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['roiWgs84']"
+                  :guidance="
+                    field.longitude
+                      ? '范围 -180 到 180 度'
+                      : '范围 -90 到 90 度'
+                  "
+                />
               </label>
             </div>
           </fieldset>
 
           <fieldset
             v-if="selectedTargets.includes('feature-extraction')"
-            class="control-group algorithm-group"
+            class="control-group parameter-step-card algorithm-group"
             :disabled="isConfigurationLocked"
           >
-            <legend class="toggle-heading">
-              <span>特征提取</span>
-              <label class="toggle-control">
-                <input
-                  :checked="selectedTargets.includes('feature-extraction')"
-                  disabled
-                  type="checkbox"
-                />
-                <span aria-hidden="true" />
-                <small>{{
-                  l2aForm.algorithms.features.enabled ? "启用" : "关闭"
-                }}</small>
-              </label>
+            <legend>
+              特征提取
+              <ParameterHint
+                label="特征提取"
+                text="从已选波段计算统计、梯度或局部方差等空间特征。"
+              />
             </legend>
-            <div class="chip-list">
-              <label v-for="metric in FEATURE_METRICS" :key="metric.value">
-                <input
-                  v-model="l2aForm.algorithms.features.metrics"
-                  type="checkbox"
-                  :value="metric.value"
-                  :disabled="
-                    !l2aForm.algorithms.features.enabled ||
-                    isConfigurationLocked
-                  "
-                />
-                <span>{{ metric.label }}</span>
-              </label>
-            </div>
+            <FeatureMetricPicker
+              v-model="l2aForm.algorithms.features.metrics"
+              :metrics="
+                featureMetricOptions([
+                  'statistics',
+                  'gradient',
+                  'local_variance'
+                ])
+              "
+              :disabled="
+                !l2aForm.algorithms.features.enabled || isConfigurationLocked
+              "
+            >
+              <template #local-variance>
+                <div class="feature-metric-picker__parameter">
+                  <span
+                    >纹理窗口
+                    <ParameterHint
+                      label="纹理窗口"
+                      text="局部方差的计算邻域，必须为不小于 3 的奇数；数值越大，结果越平滑。"
+                    />
+                  </span>
+                  <input
+                    v-model.number="l2aForm.algorithms.features.windowSize"
+                    type="number"
+                    min="3"
+                    step="2"
+                    :disabled="
+                      !l2aForm.algorithms.features.enabled ||
+                      isConfigurationLocked
+                    "
+                  />
+                  <ParameterFieldStatus
+                    :issues="parameterIssues"
+                    :fields="['algorithms.features.windowSize']"
+                    guidance="不小于 3，必须为奇数"
+                  />
+                </div>
+              </template>
+            </FeatureMetricPicker>
+            <ParameterFieldStatus
+              :issues="parameterIssues"
+              :fields="['algorithms.features.metrics']"
+            />
           </fieldset>
 
           <fieldset
             v-if="selectedTargets.includes('rgb-fusion')"
-            class="control-group algorithm-group"
+            class="control-group parameter-step-card algorithm-group"
             :disabled="isConfigurationLocked"
           >
-            <legend class="toggle-heading">
-              <span>RGB 波段组合</span>
-              <label class="toggle-control">
-                <input
-                  :checked="selectedTargets.includes('rgb-fusion')"
-                  disabled
-                  type="checkbox"
-                />
-                <span aria-hidden="true" />
-                <small>{{
-                  l2aForm.algorithms.fusion.enabled ? "启用" : "关闭"
-                }}</small>
-              </label>
+            <legend>
+              RGB 波段组合
+              <ParameterHint
+                label="RGB 波段组合"
+                text="选择红、绿、蓝通道组成彩色输出，只能选择已输出的波段。"
+              />
             </legend>
             <div class="rgb-grid">
               <label v-for="channel in RGB_CHANNELS" :key="channel.key">
-                <span>{{ channel.label }}</span>
+                <span
+                  >{{ channel.label }}
+                  <ParameterHint
+                    :label="`${channel.label} 通道`"
+                    text="RGB 组合通道，只能选择已输出的波段。"
+                /></span>
                 <select
                   v-model="l2aForm.algorithms.fusion[channel.key]"
                   :disabled="
@@ -619,30 +679,80 @@
                 </select>
               </label>
             </div>
+            <ParameterFieldStatus
+              :issues="parameterIssues"
+              :fields="['algorithms.fusion']"
+            />
+            <div class="control-grid compact-grid">
+              <label class="control-field">
+                <span
+                  >低百分位
+                  <ParameterHint
+                    label="低百分位"
+                    text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。"
+                /></span>
+                <input
+                  v-model.number="l2aForm.algorithms.fusion.lowPercentile"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :disabled="
+                    !l2aForm.algorithms.fusion.enabled || isConfigurationLocked
+                  "
+                />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['algorithms.fusion.percentiles']"
+                  guidance="范围 0 到 100 %，且小于高百分位"
+                />
+              </label>
+              <label class="control-field">
+                <span
+                  >高百分位
+                  <ParameterHint
+                    label="高百分位"
+                    text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。"
+                /></span>
+                <input
+                  v-model.number="l2aForm.algorithms.fusion.highPercentile"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  :disabled="
+                    !l2aForm.algorithms.fusion.enabled || isConfigurationLocked
+                  "
+                />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['algorithms.fusion.percentiles']"
+                  guidance="范围 0 到 100 %，且大于低百分位"
+                />
+              </label>
+            </div>
           </fieldset>
 
           <fieldset
             v-if="selectedTargets.includes('anomaly-detection')"
-            class="control-group algorithm-group"
+            class="control-group parameter-step-card algorithm-group"
             :disabled="isConfigurationLocked"
           >
-            <legend class="toggle-heading">
-              <span>对比度显著性</span>
-              <label class="toggle-control">
-                <input
-                  :checked="selectedTargets.includes('anomaly-detection')"
-                  disabled
-                  type="checkbox"
-                />
-                <span aria-hidden="true" />
-                <small>{{
-                  l2aForm.algorithms.saliency.enabled ? "启用" : "关闭"
-                }}</small>
-              </label>
+            <legend>
+              对比度显著性
+              <ParameterHint
+                label="对比度显著性"
+                text="在指定波段中识别局部对比度异常区域。"
+              />
             </legend>
             <div class="control-grid">
               <label class="control-field">
-                <span>源波段</span>
+                <span
+                  >源波段
+                  <ParameterHint
+                    label="源波段"
+                    text="用于显著性检测的输入波段，只能选择已输出的波段。"
+                /></span>
                 <select
                   v-model="l2aForm.algorithms.saliency.source"
                   :disabled="
@@ -659,9 +769,18 @@
                     {{ band }}
                   </option>
                 </select>
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['algorithms.saliency.source']"
+                />
               </label>
               <label class="control-field">
-                <span>阈值</span>
+                <span
+                  >阈值
+                  <ParameterHint
+                    label="阈值"
+                    text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。"
+                /></span>
                 <input
                   v-model.number="l2aForm.algorithms.saliency.threshold"
                   type="number"
@@ -673,19 +792,37 @@
                     isConfigurationLocked
                   "
                 />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['algorithms.saliency.threshold']"
+                  guidance="范围 0 到 1，步长 0.05"
+                />
+              </label>
+              <label class="control-field">
+                <span
+                  >窗口
+                  <ParameterHint
+                    label="窗口"
+                    text="检测的局部邻域，必须为不小于 3 的奇数。"
+                /></span>
+                <input
+                  v-model.number="l2aForm.algorithms.saliency.windowSize"
+                  type="number"
+                  min="3"
+                  step="2"
+                  :disabled="
+                    !l2aForm.algorithms.saliency.enabled ||
+                    isConfigurationLocked
+                  "
+                />
+                <ParameterFieldStatus
+                  :issues="parameterIssues"
+                  :fields="['algorithms.saliency.windowSize']"
+                  guidance="不小于 3，必须为奇数"
+                />
               </label>
             </div>
           </fieldset>
-
-          <div
-            v-if="parameterIssues.length"
-            class="diagnostic-strip"
-            role="alert"
-          >
-            <span v-for="issue in parameterIssues" :key="issue.field">
-              {{ issue.message }}
-            </span>
-          </div>
         </section>
       </div>
 
@@ -757,7 +894,8 @@ import {
   ArrowDown,
   Setting,
   QuestionFilled,
-  FolderOpened
+  FolderOpened,
+  WarningFilled
 } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
@@ -767,7 +905,16 @@ import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDra
 import Gf6WfvL1aParameterDrawer from "@/features/multisource/Gf6WfvL1aParameterDrawer.vue";
 import { getVisibleParameterGroups } from "@/features/multisource/parameterVisibility";
 import ParameterWorkbenchOverview from "@/features/multisource/ParameterWorkbenchOverview.vue";
-import { featureMetricLabel } from "@/features/multisource/featureMetricLabels";
+import ParameterHint from "@/features/multisource/ParameterHint.vue";
+import ParameterFieldStatus from "@/features/multisource/ParameterFieldStatus.vue";
+import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
+import OutputBandPicker, {
+  type OutputBandOption
+} from "@/features/multisource/OutputBandPicker.vue";
+import {
+  featureMetricLabel,
+  featureMetricOptions
+} from "@/features/multisource/featureMetricLabels";
 import {
   buildFy4bAgriSnapshot,
   defaultFy4bAgriForm,
@@ -793,9 +940,20 @@ import {
   buildHy1cCziL2aSnapshot,
   defaultL2aForm,
   validateHy1cCziL2aForm,
-  type Hy1cCziBand,
-  type Hy1cFeatureMetric
+  type Hy1cCziBand
 } from "@/features/multisource/hy1cCziL2aParameters";
+
+const HY1C_OUTPUT_BANDS: OutputBandOption[] = [
+  { value: "B460", label: "B460", category: "蓝光 460 nm", tone: "blue" },
+  { value: "B560", label: "B560", category: "绿光 560 nm", tone: "green" },
+  { value: "B650", label: "B650", category: "红光 650 nm", tone: "red" },
+  {
+    value: "B825",
+    label: "B825",
+    category: "近红外 825 nm",
+    tone: "infrared"
+  }
+];
 import {
   hy1cRoiStateAfterMetadataChange,
   type Hy1cCziL2aRoi
@@ -856,14 +1014,6 @@ import {
   syncProductAlgorithmSelection
 } from "@/features/multisource/multisourceProductState";
 
-const FEATURE_METRICS: readonly {
-  value: Hy1cFeatureMetric;
-  label: string;
-}[] = [
-  { value: "statistics", label: "统计" },
-  { value: "gradient", label: "梯度" },
-  { value: "local_variance", label: "局部方差" }
-];
 const ROI_FIELDS = [
   { key: "minLon", label: "最小经度", longitude: true },
   { key: "minLat", label: "最小纬度", longitude: false },
@@ -1112,6 +1262,18 @@ const canStart = computed(
     activeParametersValid.value &&
     selectedTargets.value.length > 0
 );
+const processingRiskNotice = computed(() => {
+  if (!canStart.value || !visibleParameterGroups.value.includes("preprocess")) {
+    return "";
+  }
+  if (isGf6WfvL1a.value) {
+    return "当前处理未启用地形校正，山区或高差较大区域的定位可能存在偏差。";
+  }
+  if (isFy4b.value) {
+    return "当前产品的名义定位尚未完成测绘级验证；涉及坐标量测或边界判读前请先核验。";
+  }
+  return "";
+});
 const isTerminal = computed(() =>
   ["SUCCEEDED", "FAILED", "CANCELED"].includes(taskStatus.value || "")
 );
@@ -4401,6 +4563,28 @@ button:disabled {
   color: var(--plain-ink);
   background: var(--plain-panel);
   border-color: #bfd5e0;
+}
+
+.satellite-workspace .processing-risk-notice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+  padding: 8px 10px;
+  color: #795814;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #fff9e8;
+  border: 1px solid #ecd89e;
+  border-left: 3px solid #d7a62e;
+  border-radius: 4px;
+}
+
+.satellite-workspace .processing-risk-notice .el-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: #b47b09;
+  font-size: 14px;
 }
 
 .satellite-workspace .mission-launch::after {

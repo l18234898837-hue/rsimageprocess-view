@@ -3,25 +3,16 @@
     v-model="open"
     class="product-parameter-drawer"
     direction="rtl"
-    size="520px"
+    size="480px"
     append-to-body
+    modal-class="parameter-drawer-overlay"
     :lock-scroll="false"
-    :modal="true"
+    :modal="false"
     :show-close="false"
   >
     <template #header>
       <div class="drawer-heading">
-        <div>
-          <span>SWATH CONFIGURATION</span>
-          <h2>FY-3H MERSI L1 参数</h2>
-          <p>
-            {{
-              locked
-                ? "当前显示已保存的参数快照。"
-                : "配置扫描带输出与派生算法。"
-            }}
-          </p>
-        </div>
+        <h2 class="drawer-heading__workbench-title">参数配置工作台</h2>
         <button type="button" aria-label="关闭参数工作台" @click="open = false">
           <el-icon><Close /></el-icon>
         </button>
@@ -35,18 +26,31 @@
         </div>
         <code>{{ form.bands.length }}/25 CHANNELS</code>
       </div>
-      <ParameterWorkbenchOverview
-        :bands="visibleSteps.includes('preprocess') ? summary.outputBands : []"
-        :parameters="overviewParameters"
-      />
+      <ParameterWorkbenchOverview :parameters="overviewParameters" />
 
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
-        <legend>网格</legend>
+      <fieldset
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          网格
+          <ParameterHint
+            label="网格"
+            text="定义扫描带产品的输出坐标和像元大小。"
+          />
+        </legend>
         <div class="field-grid">
           <label class="is-wide">
-            <span>目标 CRS</span>
+            <span
+              >目标 CRS
+              <ParameterHint
+                label="目标 CRS"
+                text="输出坐标系，可填写 EPSG:4326 或投影坐标系编号。"
+            /></span>
             <input
               v-model.trim="form.targetCrs"
+              class="crs-input"
               list="fy3h-crs-options"
               placeholder="EPSG:4326 或投影 EPSG"
             />
@@ -56,68 +60,116 @@
               <option value="EPSG:32650" />
               <option value="EPSG:32651" />
             </datalist>
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['targetCrs']"
+              guidance="格式：EPSG:编号"
+            />
           </label>
           <label>
-            <span>{{ isWgs84 ? "分辨率（度）" : "分辨率（米）" }}</span>
-            <input
+            <span
+              >{{ isWgs84 ? "分辨率（度）" : "分辨率（米）" }}
+              <ParameterHint
+                label="输出分辨率"
+                text="输出像元大小。地理坐标系使用度，投影坐标系使用米，数值必须大于 0。"
+            /></span>
+            <ParameterNumberInput
               v-if="isWgs84"
-              v-model.number="form.resolutionDegrees"
-              type="number"
+              v-model="form.resolutionDegrees"
               min="0.000001"
               step="0.001"
             />
-            <input
+            <ParameterNumberInput
               v-else
-              v-model.number="form.resolutionMeters"
-              type="number"
+              v-model="form.resolutionMeters"
               min="0.01"
               step="10"
             />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['resolution']"
+              :guidance="
+                isWgs84
+                  ? '最小 0.000001 度，步长 0.001'
+                  : '最小 0.01 米，步长 10'
+              "
+            />
           </label>
-          <label
-            ><span>连续数据重采样</span><input value="nearest" readonly
-          /></label>
+          <div class="fixed-setting-row">
+            <span
+              >连续数据重采样
+              <ParameterHint
+                label="连续数据重采样"
+                text="连续测量变量固定采用最近邻，避免改变原始测量值，因此不可调整。" /></span
+            ><strong>最近邻</strong>
+          </div>
         </div>
       </fieldset>
 
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
-        <legend>输出波段</legend>
-        <div class="band-grid">
-          <label
-            v-for="band in FY3H_MERSI_BANDS"
-            :key="band"
-            :class="[
-              { 'is-selected': form.bands.includes(band) },
-              band <= 19 ? 'is-reflective' : 'is-emissive'
-            ]"
-          >
-            <input v-model="form.bands" type="checkbox" :value="band" />
-            <i aria-hidden="true" />
-            <strong>CH{{ String(band).padStart(2, "0") }}</strong>
-            <small>{{ band <= 19 ? "REF" : "TIR" }}</small>
-          </label>
-        </div>
+      <fieldset
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          输出波段
+          <ParameterHint
+            label="输出波段"
+            text="选择写入标准产品的 MERSI 通道。后续 RGB 与检测只能使用已选通道。"
+          />
+        </legend>
+        <OutputBandPicker
+          v-model="form.bands"
+          :bands="FY3H_OUTPUT_BANDS"
+          :columns="5"
+          :disabled="locked"
+          aria-label="MERSI 输出波段选择"
+        />
+        <ParameterFieldStatus :issues="issues" :fields="['bands']" />
       </fieldset>
 
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
+      <fieldset
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
         <legend class="toggle-heading">
-          <span>WGS84 ROI</span>
+          <span
+            >WGS84 ROI
+            <ParameterHint
+              label="WGS84 ROI"
+              text="限定处理范围。关闭后按产品全幅处理。"
+          /></span>
           <label class="toggle">
             <input v-model="form.roi.enabled" type="checkbox" />
             <i aria-hidden="true" />
-            <small>{{ form.roi.enabled ? "启用" : "关闭" }}</small>
           </label>
         </legend>
         <div class="field-grid">
           <label v-for="field in ROI_FIELDS" :key="field.key">
-            <span>{{ field.label }}</span>
-            <input
-              v-model.number="form.roi[field.key]"
-              type="number"
+            <span
+              >{{ field.label }}
+              <ParameterHint
+                :label="field.label"
+                :text="
+                  field.longitude
+                    ? '经度范围为 -180 到 180。'
+                    : '纬度范围为 -90 到 90。'
+                "
+            /></span>
+            <ParameterNumberInput
+              v-model="form.roi[field.key]"
               step="0.0001"
               :min="field.longitude ? -180 : -90"
               :max="field.longitude ? 180 : 90"
               :disabled="!form.roi.enabled || locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['roi']"
+              :guidance="
+                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+              "
             />
           </label>
         </div>
@@ -125,52 +177,69 @@
 
       <fieldset
         v-if="visibleSteps.includes('feature-extraction')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>特征提取</span>
-          <label class="toggle">
-            <i aria-hidden="true" />
-          </label>
+        <legend>
+          特征提取
+          <ParameterHint
+            label="特征提取"
+            text="从已选通道计算统计、梯度或局部方差等特征。"
+          />
         </legend>
-        <div class="chip-list">
-          <label v-for="metric in FEATURE_METRICS" :key="metric.value">
-            <input
-              v-model="form.features.metrics"
-              type="checkbox"
-              :value="metric.value"
-              :disabled="!form.features.enabled || locked"
-            />
-            <span>{{ metric.label }}</span>
-          </label>
-        </div>
-        <div
-          v-if="form.features.metrics.includes('local_variance')"
-          class="field-grid compact-grid"
+        <FeatureMetricPicker
+          v-model="form.features.metrics"
+          :metrics="
+            featureMetricOptions(['statistics', 'gradient', 'local_variance'])
+          "
+          :disabled="!form.features.enabled || locked"
         >
-          <label>
-            <span>局部方差窗口</span>
-            <input
-              v-model.number="form.features.windowSize"
-              type="number"
-              min="3"
-              step="2"
-              :disabled="!form.features.enabled || locked"
-            />
-          </label>
-        </div>
+          <template #local-variance>
+            <div class="feature-metric-picker__parameter">
+              <span
+                >纹理窗口
+                <ParameterHint
+                  label="纹理窗口"
+                  text="局部方差的计算邻域，必须为不小于 3 的奇数；数值越大，结果越平滑。"
+                />
+              </span>
+              <ParameterNumberInput
+                v-model="form.features.windowSize"
+                min="3"
+                step="2"
+                :disabled="!form.features.enabled || locked"
+              />
+              <ParameterFieldStatus
+                :issues="issues"
+                :fields="['features.windowSize']"
+                guidance="不小于 3，必须为奇数"
+              />
+            </div>
+          </template>
+        </FeatureMetricPicker>
+        <ParameterFieldStatus :issues="issues" :fields="['features.metrics']" />
       </fieldset>
 
-      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
-        <legend class="toggle-heading">
-          <span>RGB 波段组合</span>
-          <label class="toggle">
-            <i aria-hidden="true" />
-          </label>
+      <fieldset
+        v-if="visibleSteps.includes('rgb-fusion')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          RGB 波段组合
+          <ParameterHint
+            label="RGB 波段组合"
+            text="选择反射通道作为红、绿、蓝输出，并设置显示拉伸范围。"
+          />
         </legend>
         <div class="rgb-grid">
           <label v-for="channel in RGB_CHANNELS" :key="channel.key">
-            <span>{{ channel.label }}</span>
+            <span
+              >{{ channel.label }}
+              <ParameterHint
+                :label="`${channel.label} 通道`"
+                text="RGB 组合通道，只能选择已选的反射通道。"
+            /></span>
             <select
               v-model.number="form.fusion[channel.key]"
               :disabled="!form.fusion.enabled || locked"
@@ -181,41 +250,67 @@
             </select>
           </label>
         </div>
+        <ParameterFieldStatus :issues="issues" :fields="['fusion.bands']" />
         <div class="field-grid compact-grid">
           <label
-            ><span>低百分位</span
-            ><input
-              v-model.number="form.fusion.lowPercentile"
-              type="number"
+            ><span
+              >低百分位
+              <ParameterHint
+                label="低百分位"
+                text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.lowPercentile"
               min="0"
               max="100"
               :disabled="!form.fusion.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且小于高百分位"
+            />
+          </label>
           <label
-            ><span>高百分位</span
-            ><input
-              v-model.number="form.fusion.highPercentile"
-              type="number"
+            ><span
+              >高百分位
+              <ParameterHint
+                label="高百分位"
+                text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.highPercentile"
               min="0"
               max="100"
               :disabled="!form.fusion.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且大于低百分位"
+            />
+          </label>
         </div>
       </fieldset>
 
       <fieldset
         v-if="visibleSteps.includes('anomaly-detection')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>显著性检测</span>
-          <label class="toggle">
-            <i aria-hidden="true" />
-          </label>
+        <legend>
+          显著性检测
+          <ParameterHint
+            label="显著性检测"
+            text="在选定通道或特征中识别局部异常区域。"
+          />
         </legend>
         <div class="field-grid">
           <label class="is-wide">
-            <span>数据源</span>
+            <span
+              >数据源
+              <ParameterHint
+                label="数据源"
+                text="用于检测的已选通道或由其计算出的特征。"
+            /></span>
             <select
               v-model="form.saliency.source"
               :disabled="!form.saliency.enabled || locked"
@@ -228,34 +323,50 @@
                 {{ source }}
               </option>
             </select>
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.source']"
+            />
           </label>
           <label
-            ><span>窗口</span
-            ><input
-              v-model.number="form.saliency.windowSize"
-              type="number"
+            ><span
+              >窗口
+              <ParameterHint
+                label="窗口"
+                text="检测的局部邻域，必须为不小于 3 的奇数。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.windowSize"
               min="3"
               step="2"
               :disabled="!form.saliency.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.windowSize']"
+              guidance="不小于 3，必须为奇数"
+            />
+          </label>
           <label
-            ><span>阈值</span
-            ><input
-              v-model.number="form.saliency.threshold"
-              type="number"
+            ><span
+              >阈值
+              <ParameterHint
+                label="阈值"
+                text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.threshold"
               min="0"
               max="1"
               step="0.05"
               :disabled="!form.saliency.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.threshold']"
+              guidance="范围 0 到 1，步长 0.05"
+            />
+          </label>
         </div>
       </fieldset>
-
-      <div v-if="issues.length" class="parameter-errors" role="alert">
-        <span v-for="issue in issues" :key="issue.field">{{
-          issue.message
-        }}</span>
-      </div>
     </div>
 
     <template #footer>
@@ -275,15 +386,30 @@
 import { computed, reactive, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
 import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
+import ParameterHint from "./ParameterHint.vue";
+import ParameterFieldStatus from "./ParameterFieldStatus.vue";
+import ParameterNumberInput from "./ParameterNumberInput.vue";
+import FeatureMetricPicker from "./FeatureMetricPicker.vue";
+import OutputBandPicker, {
+  type OutputBandOption
+} from "./OutputBandPicker.vue";
+import { featureMetricOptions } from "./featureMetricLabels";
 import {
   FY3H_MERSI_BANDS,
   fy3hVariableName,
   isFy3hWgs84Crs,
-  type Fy3hFeatureMetric,
   type Fy3hMersiForm,
   type Fy3hMersiPanelSummary,
   type Fy3hMersiValidationIssue
 } from "./fy3hMersiParameters";
+
+const FY3H_OUTPUT_BANDS: OutputBandOption[] = FY3H_MERSI_BANDS.map(band => ({
+  value: band,
+  label: `CH${String(band).padStart(2, "0")}`,
+  category: band <= 19 ? "反射通道" : "热红外通道",
+  group: band <= 19 ? "反射通道" : "热红外通道",
+  tone: band <= 19 ? "blue" : "thermal"
+}));
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{
@@ -298,6 +424,18 @@ const emit = defineEmits<{
 }>();
 const form = reactive<Fy3hMersiForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy3hMersiForm
+);
+watch(
+  () => [
+    props.form.features.enabled,
+    props.form.fusion.enabled,
+    props.form.saliency.enabled
+  ],
+  ([featuresEnabled, fusionEnabled, saliencyEnabled]) => {
+    form.features.enabled = featuresEnabled;
+    form.fusion.enabled = fusionEnabled;
+    form.saliency.enabled = saliencyEnabled;
+  }
 );
 const overviewParameters = computed(() => {
   const parameters: { label: string; value: string }[] = [];
@@ -315,12 +453,6 @@ watch(
     emit("update-form", JSON.parse(JSON.stringify(value)) as Fy3hMersiForm),
   { deep: true }
 );
-const FEATURE_METRICS: readonly { value: Fy3hFeatureMetric; label: string }[] =
-  [
-    { value: "statistics", label: "统计" },
-    { value: "gradient", label: "梯度" },
-    { value: "local_variance", label: "局部方差" }
-  ];
 const ROI_FIELDS = [
   { key: "minLon", label: "最小经度", longitude: true },
   { key: "minLat", label: "最小纬度", longitude: false },

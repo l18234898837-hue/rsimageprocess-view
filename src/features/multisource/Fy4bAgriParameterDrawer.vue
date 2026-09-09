@@ -3,25 +3,18 @@
     v-model="open"
     class="product-parameter-drawer"
     direction="rtl"
-    size="520px"
+    size="480px"
     append-to-body
+    modal-class="parameter-drawer-overlay"
     :lock-scroll="false"
-    :modal="true"
+    :modal="false"
     :show-close="false"
   >
     <template #header="{ titleId }">
       <div class="drawer-heading">
-        <div>
-          <span>FULL-DISK CONFIGURATION</span>
-          <h2 :id="titleId">FY-4B AGRI 参数</h2>
-          <p>
-            {{
-              locked
-                ? "当前显示已保存的参数快照。"
-                : "配置全圆盘产品的派生输出。"
-            }}
-          </p>
-        </div>
+        <h2 :id="titleId" class="drawer-heading__workbench-title">
+          参数配置工作台
+        </h2>
         <button type="button" aria-label="关闭参数工作台" @click="open = false">
           <el-icon><Close /></el-icon>
         </button>
@@ -29,152 +22,191 @@
     </template>
 
     <div class="drawer-body">
-      <div v-if="visibleSteps.includes('preprocess')" class="profile-signal">
-        <div>
-          <span>OUTPUT PROFILE</span><strong>{{ summary.grid }}</strong>
-        </div>
-        <code>NOMINAL_UNVERIFIED</code>
-      </div>
-      <p
-        v-if="visibleSteps.includes('preprocess')"
-        class="engineering-warning"
-        role="note"
-      >
-        <strong>NOMINAL_UNVERIFIED</strong>：名义定位尚未完成测绘级验证。
-      </p>
-      <ParameterWorkbenchOverview
-        :parameters="overviewParameters"
-        :constraints="visibleSteps.includes('preprocess') ? ['NOMINAL_UNVERIFIED'] : []"
-      />
+      <ParameterWorkbenchOverview :parameters="overviewParameters" />
 
-      <fieldset v-if="visibleSteps.includes('preprocess')" :disabled="locked">
-        <legend>空间范围</legend>
+      <fieldset
+        v-if="visibleSteps.includes('preprocess')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          空间范围
+          <ParameterHint label="空间范围" text="限定产品输出坐标和处理范围。" />
+        </legend>
         <div class="field-grid">
           <label
-            ><span>目标 CRS</span
-            ><select v-model="form.targetCrs">
+            ><span
+              >目标 CRS
+              <ParameterHint
+                label="目标 CRS"
+                text="输出坐标系。FY-4B 产品仅支持 EPSG:4326 或 EPSG:4490。" /></span
+            ><select v-model="form.targetCrs" class="crs-input">
               <option value="EPSG:4326">EPSG:4326</option>
               <option value="EPSG:4490">EPSG:4490</option>
-            </select></label
-          >
+            </select>
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['targetCrs']"
+              guidance="仅支持 EPSG:4326 或 EPSG:4490"
+            />
+          </label>
           <label class="toggle-row"
-            ><span>WGS84 ROI</span><input v-model="roiEnabled" type="checkbox"
+            ><span
+              >WGS84 ROI
+              <ParameterHint
+                label="WGS84 ROI"
+                text="限定处理范围。关闭后按产品全幅处理。" /></span
+            ><input v-model="roiEnabled" type="checkbox"
           /></label>
         </div>
         <div v-if="roiEnabled" class="field-grid compact-grid">
           <label v-for="field in ROI_FIELDS" :key="field.key"
-            ><span>{{ field.label }}</span
-            ><input
-              v-model.number="roi[field.index]"
-              type="number"
+            ><span
+              >{{ field.label }}
+              <ParameterHint
+                :label="field.label"
+                :text="
+                  field.longitude
+                    ? '经度范围为 -180 到 180。'
+                    : '纬度范围为 -90 到 90。'
+                " /></span
+            ><ParameterNumberInput
+              v-model="roi[field.index]"
               step="0.0001"
               :min="field.longitude ? -180 : -90"
               :max="field.longitude ? 180 : 90"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['roi']"
+              :guidance="
+                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+              "
+            />
+          </label>
         </div>
       </fieldset>
 
       <fieldset
         v-if="visibleSteps.includes('feature-extraction')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>特征提取</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('feature-extraction')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.features.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+        <legend>
+          特征提取
+          <ParameterHint
+            label="特征提取"
+            text="从 AGRI 通道计算选定的空间特征。"
+          />
         </legend>
-        <div class="chip-list">
-          <label v-for="metric in FY4B_AGRI_METRICS" :key="metric"
-            ><input
-              v-model="form.features.metrics"
-              type="checkbox"
-              :value="metric"
-              :disabled="!form.features.enabled || locked"
-            /><span>{{ featureMetricLabel(metric) }}</span></label
-          >
-        </div>
-        <div
-          v-if="form.features.metrics.includes('local_variance')"
-          class="field-grid compact-grid"
+        <FeatureMetricPicker
+          v-model="form.features.metrics"
+          :metrics="featureMetricOptions(FY4B_AGRI_METRICS)"
+          :disabled="!form.features.enabled || locked"
         >
-          <label
-            ><span>局部方差窗口</span
-            ><input
-              v-model.number="form.features.windowSize"
-              type="number"
-              min="3"
-              step="2"
-              :disabled="!form.features.enabled || locked"
-          /></label>
-        </div>
+          <template #local-variance>
+            <div class="feature-metric-picker__parameter">
+              <span
+                >纹理窗口
+                <ParameterHint
+                  label="纹理窗口"
+                  text="局部方差的计算邻域，必须为不小于 3 的奇数；数值越大，结果越平滑。"
+                />
+              </span>
+              <ParameterNumberInput
+                v-model="form.features.windowSize"
+                min="3"
+                step="2"
+                :disabled="!form.features.enabled || locked"
+              />
+              <ParameterFieldStatus
+                :issues="issues"
+                :fields="['features.windowSize']"
+                guidance="不小于 3，必须为奇数"
+              />
+            </div>
+          </template>
+        </FeatureMetricPicker>
+        <ParameterFieldStatus :issues="issues" :fields="['features.metrics']" />
       </fieldset>
 
-      <fieldset v-if="visibleSteps.includes('rgb-fusion')" :disabled="locked">
-        <legend class="toggle-heading">
-          <span>伪彩融合</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('rgb-fusion')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.fusion.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+      <fieldset
+        v-if="visibleSteps.includes('rgb-fusion')"
+        class="parameter-step-card"
+        :disabled="locked"
+      >
+        <legend>
+          伪彩融合
+          <ParameterHint
+            label="伪彩融合"
+            text="生成适合云图和气象现象判读的假彩色影像。"
+          />
         </legend>
         <div class="field-grid compact-grid">
           <label class="is-wide"
-            ><span>融合模式</span
+            ><span
+              >融合模式
+              <ParameterHint
+                label="融合模式"
+                text="近红外、红光、蓝光组合。为保持产品判读一致性，该方式固定不可修改。" /></span
             ><input :value="form.fusion.mode" readonly /></label
           ><label
-            ><span>低百分位</span
-            ><input
-              v-model.number="form.fusion.lowPercentile"
-              type="number"
-              min="0"
-              max="100"
-              :disabled="!form.fusion.enabled || locked" /></label
-          ><label
-            ><span>高百分位</span
-            ><input
-              v-model.number="form.fusion.highPercentile"
-              type="number"
+            ><span
+              >低百分位
+              <ParameterHint
+                label="低百分位"
+                text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.lowPercentile"
               min="0"
               max="100"
               :disabled="!form.fusion.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且小于高百分位"
+            /> </label
+          ><label
+            ><span
+              >高百分位
+              <ParameterHint
+                label="高百分位"
+                text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。" /></span
+            ><ParameterNumberInput
+              v-model="form.fusion.highPercentile"
+              min="0"
+              max="100"
+              :disabled="!form.fusion.enabled || locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['fusion.percentiles']"
+              guidance="范围 0 到 100 %，且大于低百分位"
+            />
+          </label>
         </div>
-        <small class="field-note"
-          >NIR_RED_BLUE 为假彩色融合，不表示真彩色。</small
-        >
       </fieldset>
 
       <fieldset
         v-if="visibleSteps.includes('anomaly-detection')"
+        class="parameter-step-card"
         :disabled="locked"
       >
-        <legend class="toggle-heading">
-          <span>显著性检测</span
-          ><label class="toggle"
-            ><input
-              :checked="visibleSteps.includes('anomaly-detection')"
-              disabled
-              type="checkbox"
-            /><i aria-hidden="true" /><small>{{
-              form.saliency.enabled ? "启用" : "关闭"
-            }}</small></label
-          >
+        <legend>
+          显著性检测
+          <ParameterHint
+            label="显著性检测"
+            text="在指定 AGRI 通道中识别局部异常区域。"
+          />
         </legend>
         <div class="field-grid">
           <label class="is-wide"
-            ><span>数据源</span
+            ><span
+              >数据源
+              <ParameterHint
+                label="数据源"
+                text="用于检测的 AGRI 通道。" /></span
             ><select
               v-model="form.saliency.source"
               :disabled="!form.saliency.enabled || locked"
@@ -186,33 +218,49 @@
               >
                 {{ source }}
               </option>
-            </select></label
+            </select>
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.source']"
+            /> </label
           ><label
-            ><span>阈值</span
-            ><input
-              v-model.number="form.saliency.threshold"
-              type="number"
+            ><span
+              >阈值
+              <ParameterHint
+                label="阈值"
+                text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.threshold"
               min="0"
               max="1"
               step="0.05"
-              :disabled="!form.saliency.enabled || locked" /></label
+              :disabled="!form.saliency.enabled || locked"
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.threshold']"
+              guidance="范围 0 到 1，步长 0.05"
+            /> </label
           ><label
-            ><span>窗口</span
-            ><input
-              v-model.number="form.saliency.windowSize"
-              type="number"
+            ><span
+              >窗口
+              <ParameterHint
+                label="窗口"
+                text="检测的局部邻域，必须为不小于 3 的奇数。" /></span
+            ><ParameterNumberInput
+              v-model="form.saliency.windowSize"
               min="3"
               step="2"
               :disabled="!form.saliency.enabled || locked"
-          /></label>
+            />
+            <ParameterFieldStatus
+              :issues="issues"
+              :fields="['saliency.windowSize']"
+              guidance="不小于 3，必须为奇数"
+            />
+          </label>
         </div>
       </fieldset>
-
-      <div v-if="issues.length" class="parameter-errors" role="alert">
-        <span v-for="issue in issues" :key="issue.field">{{
-          issue.message
-        }}</span>
-      </div>
     </div>
 
     <template #footer
@@ -232,7 +280,11 @@
 import { computed, reactive, ref, watch } from "vue";
 import { Close } from "@element-plus/icons-vue";
 import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
-import { featureMetricLabel } from "./featureMetricLabels";
+import ParameterHint from "./ParameterHint.vue";
+import ParameterFieldStatus from "./ParameterFieldStatus.vue";
+import ParameterNumberInput from "./ParameterNumberInput.vue";
+import FeatureMetricPicker from "./FeatureMetricPicker.vue";
+import { featureMetricOptions } from "./featureMetricLabels";
 import {
   FY4B_AGRI_DEFAULT_ROI,
   FY4B_AGRI_METRICS,
@@ -252,6 +304,18 @@ const props = defineProps<{
 const emit = defineEmits<{ "update-form": [value: Fy4bAgriForm] }>();
 const form = reactive<Fy4bAgriForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy4bAgriForm
+);
+watch(
+  () => [
+    props.form.features.enabled,
+    props.form.fusion.enabled,
+    props.form.saliency.enabled
+  ],
+  ([featuresEnabled, fusionEnabled, saliencyEnabled]) => {
+    form.features.enabled = featuresEnabled;
+    form.fusion.enabled = fusionEnabled;
+    form.saliency.enabled = saliencyEnabled;
+  }
 );
 const overviewParameters = computed(() => {
   const parameters: { label: string; value: string }[] = [];

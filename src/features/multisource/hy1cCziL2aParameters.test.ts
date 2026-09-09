@@ -103,6 +103,24 @@ test("validation rejects invalid grid, ROI, fusion bands and saliency source", (
   );
 });
 
+test("validation rejects invalid HY-1C feature, stretch and saliency settings", () => {
+  const form = defaultL2aForm();
+  form.algorithms.features.windowSize = 4;
+  form.algorithms.fusion.lowPercentile = 80;
+  form.algorithms.fusion.highPercentile = 20;
+  form.algorithms.saliency.threshold = 1.1;
+  form.algorithms.saliency.windowSize = 2;
+
+  const fields = new Set(
+    validateHy1cCziL2aForm(form).issues.map(issue => issue.field)
+  );
+
+  assert.ok(fields.has("algorithms.features.windowSize"));
+  assert.ok(fields.has("algorithms.fusion.percentiles"));
+  assert.ok(fields.has("algorithms.saliency.threshold"));
+  assert.ok(fields.has("algorithms.saliency.windowSize"));
+});
+
 test("validation requires at least one selected band", () => {
   const form = defaultL2aForm();
   form.bands = [];
