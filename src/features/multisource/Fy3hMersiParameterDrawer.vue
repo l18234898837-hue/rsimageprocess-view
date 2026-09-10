@@ -253,7 +253,11 @@
             }}</small>
           </label>
         </div>
-        <ParameterFieldStatus :issues="issues" :fields="['fusion.bands']" />
+        <ParameterFieldStatus
+          :issues="issues"
+          :fields="['fusion.bands']"
+          errors-only
+        />
         <div class="field-grid compact-grid">
           <label
             ><span

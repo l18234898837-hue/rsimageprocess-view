@@ -663,6 +663,7 @@
             <ParameterFieldStatus
               :issues="parameterIssues"
               :fields="['algorithms.fusion']"
+              errors-only
             />
             <div class="control-grid compact-grid">
               <label class="control-field">

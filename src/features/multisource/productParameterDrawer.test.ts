@@ -897,6 +897,7 @@ test("parameter workbenches show numeric guidance and matching validation beside
     assert.match(fy4bDrawer, new RegExp(`fields=\"\\['${field}'\\]`));
   }
   assert.match(workspace, /import ParameterFieldStatus/);
+  assert.match(workspace, /:fields="\['algorithms\.fusion'\]"\s+errors-only/);
   for (const field of [
     "grid.resolutionMeters",
     "algorithms.features.windowSize",
@@ -917,6 +918,9 @@ test("parameter workbenches show numeric guidance and matching validation beside
     for (const field of fields) {
       assert.match(drawer, new RegExp(`fields=\"\\['${field}'\\]`));
     }
+  }
+  for (const drawer of [gf6Drawer, fy3hDrawer]) {
+    assert.match(drawer, /:fields="\['fusion\.bands'\]"\s+errors-only/);
   }
   assert.match(
     fy3hDrawer,

@@ -1,5 +1,6 @@
 <template>
   <small
+    v-show="!props.errorsOnly || status.state === 'invalid'"
     ref="statusElement"
     class="parameter-field__guide"
     :class="`is-${status.state}`"
@@ -31,8 +32,9 @@ const props = withDefaults(
     fields: readonly string[];
     guidance?: string;
     touched?: boolean;
+    errorsOnly?: boolean;
   }>(),
-  { guidance: "", touched: false }
+  { guidance: "", touched: false, errorsOnly: false }
 );
 
 const statusElement = ref<HTMLElement>();

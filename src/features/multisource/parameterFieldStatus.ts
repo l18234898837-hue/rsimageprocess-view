@@ -27,7 +27,7 @@ export function resolveParameterFieldStatus(
   if (phase === "default") {
     const issue = issues.find(candidate => fields.includes(candidate.field));
     if (issue) return { state: "invalid", message: issue.message };
-    return { state: "neutral", message: "" };
+    return { state: "neutral", message: "使用默认值" };
   }
   if (phase === "editing") {
     return {
