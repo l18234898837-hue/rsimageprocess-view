@@ -796,9 +796,9 @@ function stageDetailHint(view: RuntimeStageView) {
 }
 
 .task-progress-dialog__stage-actions :deep(.el-button.is-disabled) {
-  color: #a8b8c0;
-  background: #f7f9fa;
-  border-color: #e0e7eb;
+  color: #527481;
+  background: #edf4f6;
+  border-color: #b4cbd3;
 }
 
 .task-progress-dialog__stage-actions
