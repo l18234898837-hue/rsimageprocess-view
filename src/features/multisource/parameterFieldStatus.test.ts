@@ -21,7 +21,7 @@ test("field status distinguishes a default value from an empty field", () => {
   assert.deepEqual(status, { state: "neutral", message: "待填写" });
   assert.deepEqual(
     resolveParameterFieldStatus([], ["resolution"], "范围大于 0", "default"),
-    { state: "neutral", message: "使用默认值" }
+    { state: "neutral", message: "" }
   );
 });
 
