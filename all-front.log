@@ -1,0 +1,1009 @@
+
+> pure-admin-thin@5.7.0 test:multisource D:\Lwy_project_space\RSImageProcess\rsimageprocess-view
+> tsx --test src/features/multisource/*.test.ts
+
+TAP version 13
+# Subtest: calculates archive chunk count and final chunk size
+ok 1 - calculates archive chunk count and final chunk size
+  ---
+  duration_ms: 0.8642
+  ...
+# Subtest: allows archives up to 20 GB and rejects larger files
+ok 2 - allows archives up to 20 GB and rejects larger files
+  ---
+  duration_ms: 0.3117
+  ...
+# Subtest: keeps archive import in server-only mode during rollout
+ok 3 - keeps archive import in server-only mode during rollout
+  ---
+  duration_ms: 0.0562
+  ...
+# Subtest: maps import statuses to user-facing labels
+ok 4 - maps import statuses to user-facing labels
+  ---
+  duration_ms: 0.1154
+  ...
+# Subtest: recognizes unavailable archive endpoints without hiding server failures
+ok 5 - recognizes unavailable archive endpoints without hiding server failures
+  ---
+  duration_ms: 0.0877
+  ...
+# Subtest: FY-3H accepts a matching 1000M and GEO1K filename pair
+ok 6 - FY-3H accepts a matching 1000M and GEO1K filename pair
+  ---
+  duration_ms: 1.1013
+  ...
+# Subtest: FY-3H rejects files placed in the wrong slots
+ok 7 - FY-3H rejects files placed in the wrong slots
+  ---
+  duration_ms: 0.1331
+  ...
+# Subtest: FY-3H rejects different identities and versions
+ok 8 - FY-3H rejects different identities and versions
+  ---
+  duration_ms: 0.2645
+  ...
+# Subtest: default FY-3H form builds the exact Worker parameter object
+ok 9 - default FY-3H form builds the exact Worker parameter object
+  ---
+  duration_ms: 1.1924
+  ...
+# Subtest: FY-3H snapshot switches projected grids to meter resolution and adds ROI
+ok 10 - FY-3H snapshot switches projected grids to meter resolution and adds ROI
+  ---
+  duration_ms: 0.1218
+  ...
+# Subtest: FY-3H normalizes EPSG aliases before selecting degree or meter resolution
+ok 11 - FY-3H normalizes EPSG aliases before selecting degree or meter resolution
+  ---
+  duration_ms: 0.2736
+  ...
+# Subtest: FY-3H enabled optional algorithms use only Worker-supported keys
+ok 12 - FY-3H enabled optional algorithms use only Worker-supported keys
+  ---
+  duration_ms: 0.348
+  ...
+# Subtest: FY-3H rejects thermal RGB and invalid odd windows
+ok 13 - FY-3H rejects thermal RGB and invalid odd windows
+  ---
+  duration_ms: 0.2355
+  ...
+# Subtest: FY-4B accepts the literal matching five-file AGRI package
+ok 14 - FY-4B accepts the literal matching five-file AGRI package
+  ---
+  duration_ms: 1.3662
+  ...
+# Subtest: FY-4B rejects a mixed observation end time and version
+ok 15 - FY-4B rejects a mixed observation end time and version
+  ---
+  duration_ms: 0.2813
+  ...
+# Subtest: FY-4B rejects an FDI file in the GEO slot and a wrong resolution
+ok 16 - FY-4B rejects an FDI file in the GEO slot and a wrong resolution
+  ---
+  duration_ms: 0.2428
+  ...
+# Subtest: FY-4B default form builds the exact Worker snapshot
+ok 17 - FY-4B default form builds the exact Worker snapshot
+  ---
+  duration_ms: 1.817
+  ...
+# Subtest: FY-4B rejects invalid ROI, percentiles, and non-odd saliency windows
+ok 18 - FY-4B rejects invalid ROI, percentiles, and non-odd saliency windows
+  ---
+  duration_ms: 0.3436
+  ...
+# Subtest: FY-4B rejects unsupported CRS, metrics, fusion mode, and saliency source
+ok 19 - FY-4B rejects unsupported CRS, metrics, fusion mode, and saliency source
+  ---
+  duration_ms: 0.1852
+  ...
+# Subtest: FY-4B derived saliency sources require their enabled feature metric
+ok 20 - FY-4B derived saliency sources require their enabled feature metric
+  ---
+  duration_ms: 0.2484
+  ...
+# Subtest: FY-4B ignores derived saliency dependencies when saliency is disabled
+ok 21 - FY-4B ignores derived saliency dependencies when saliency is disabled
+  ---
+  duration_ms: 0.1258
+  ...
+# Subtest: GF-6 accepts three normalized TIFF tiles and matching product sidecars
+ok 22 - GF-6 accepts three normalized TIFF tiles and matching product sidecars
+  ---
+  duration_ms: 1.8482
+  ...
+# Subtest: GF-6 rejects duplicate or missing tile ordinals
+ok 23 - GF-6 rejects duplicate or missing tile ordinals
+  ---
+  duration_ms: 0.3155
+  ...
+# Subtest: GF-6 binds each TIFF upload slot to its matching tile suffix
+ok 24 - GF-6 binds each TIFF upload slot to its matching tile suffix
+  ---
+  duration_ms: 0.2762
+  ...
+# Subtest: GF-6 rejects a tile RPB and mismatched XML basename
+ok 25 - GF-6 rejects a tile RPB and mismatched XML basename
+  ---
+  duration_ms: 0.4436
+  ...
+# Subtest: GF-6 default form builds the fast smoke-test Worker snapshot
+ok 26 - GF-6 default form builds the fast smoke-test Worker snapshot
+  ---
+  duration_ms: 1.5135
+  ...
+# Subtest: GF-6 rejects non-positive resolution, malformed ROI, and duplicate bands
+ok 27 - GF-6 rejects non-positive resolution, malformed ROI, and duplicate bands
+  ---
+  duration_ms: 0.3181
+  ...
+# Subtest: GF-6 validates selected RGB and saliency bands plus algorithm windows
+ok 28 - GF-6 validates selected RGB and saliency bands plus algorithm windows
+  ---
+  duration_ms: 0.1904
+  ...
+# Subtest: GF-6 serializes a non-default local-variance window
+ok 29 - GF-6 serializes a non-default local-variance window
+  ---
+  duration_ms: 0.1816
+  ...
+# Subtest: GF-6 applies the same 255-pixel neighbourhood limit before submission
+ok 30 - GF-6 applies the same 255-pixel neighbourhood limit before submission
+  ---
+  duration_ms: 0.451
+  ...
+# Subtest: GF-6 ignores disabled algorithm values and normalizes their snapshot
+ok 31 - GF-6 ignores disabled algorithm values and normalizes their snapshot
+  ---
+  duration_ms: 0.2406
+  ...
+# Subtest: GF-6 applies degree and metre resolution floors before submission
+ok 32 - GF-6 applies degree and metre resolution floors before submission
+  ---
+  duration_ms: 0.2742
+  ...
+# Subtest: GF-6 derives the ROI draft from the selected product XML footprint
+ok 33 - GF-6 derives the ROI draft from the selected product XML footprint
+  ---
+  duration_ms: 1.7757
+  ...
+# Subtest: GF-6 metadata replacement clears an old ROI before suggesting the new footprint
+ok 34 - GF-6 metadata replacement clears an old ROI before suggesting the new footprint
+  ---
+  duration_ms: 0.5901
+  ...
+# Subtest: GF-6 does not enable ROI when product XML has incomplete or invalid corners
+ok 35 - GF-6 does not enable ROI when product XML has incomplete or invalid corners
+  ---
+  duration_ms: 0.2738
+  ...
+# Subtest: GF-6 accepts abbreviated longitude and latitude corner tags
+ok 36 - GF-6 accepts abbreviated longitude and latitude corner tags
+  ---
+  duration_ms: 0.7518
+  ...
+# Subtest: default HY-1C form builds exactly the public STANDARDIZE_L2A snapshot
+ok 37 - default HY-1C form builds exactly the public STANDARDIZE_L2A snapshot
+  ---
+  duration_ms: 1.9334
+  ...
+# Subtest: snapshot omits a disabled ROI and includes the configured WGS84 ROI
+ok 38 - snapshot omits a disabled ROI and includes the configured WGS84 ROI
+  ---
+  duration_ms: 0.2897
+  ...
+# Subtest: validation rejects invalid grid, ROI, fusion bands and saliency source
+ok 39 - validation rejects invalid grid, ROI, fusion bands and saliency source
+  ---
+  duration_ms: 0.292
+  ...
+# Subtest: validation rejects invalid HY-1C feature, stretch and saliency settings
+ok 40 - validation rejects invalid HY-1C feature, stretch and saliency settings
+  ---
+  duration_ms: 0.3389
+  ...
+# Subtest: validation requires at least one selected band
+ok 41 - validation requires at least one selected band
+  ---
+  duration_ms: 0.1677
+  ...
+# Subtest: snapshot construction drops UI-only algorithm properties
+ok 42 - snapshot construction drops UI-only algorithm properties
+  ---
+  duration_ms: 0.1768
+  ...
+# Subtest: panel summary reflects the selected satellite processing configuration
+ok 43 - panel summary reflects the selected satellite processing configuration
+  ---
+  duration_ms: 0.4044
+  ...
+# Subtest: default HY-1C form keeps the full product extent
+ok 44 - default HY-1C form keeps the full product extent
+  ---
+  duration_ms: 0.1583
+  ...
+# Subtest: HY-1C derives a suggested ROI from product XML corners
+ok 45 - HY-1C derives a suggested ROI from product XML corners
+  ---
+  duration_ms: 2.058
+  ...
+# Subtest: HY-1C metadata replacement keeps full-swath processing while filling its suggested ROI
+ok 46 - HY-1C metadata replacement keeps full-swath processing while filling its suggested ROI
+  ---
+  duration_ms: 0.9543
+  ...
+# Subtest: HY-1C clears an old suggested ROI when product XML is incomplete
+ok 47 - HY-1C clears an old suggested ROI when product XML is incomplete
+  ---
+  duration_ms: 0.1731
+  ...
+# Subtest: default HY-2D form builds the exact Worker parameter object
+ok 48 - default HY-2D form builds the exact Worker parameter object
+  ---
+  duration_ms: 1.5882
+  ...
+# Subtest: HY-2D validation rejects even windows, non-positive thresholds and wide grids
+ok 49 - HY-2D validation rejects even windows, non-positive thresholds and wide grids
+  ---
+  duration_ms: 0.2991
+  ...
+# Subtest: HY-2D validation rejects grid spacing below the allocation-safe minimum
+ok 50 - HY-2D validation rejects grid spacing below the allocation-safe minimum
+  ---
+  duration_ms: 0.1441
+  ...
+# Subtest: selection synchronization preserves all product contracts
+ok 51 - selection synchronization preserves all product contracts
+  ---
+  duration_ms: 0.8318
+  ...
+# Subtest: reset restores all product forms
+ok 52 - reset restores all product forms
+  ---
+  duration_ms: 0.9295
+  ...
+# Subtest: enabling GF-6 RGB uses the recommended natural-colour band mapping
+ok 53 - enabling GF-6 RGB uses the recommended natural-colour band mapping
+  ---
+  duration_ms: 0.1989
+  ...
+# Subtest: GF-6 workbench summary keeps existing prop formatting
+ok 54 - GF-6 workbench summary keeps existing prop formatting
+  ---
+  duration_ms: 0.1611
+  ...
+# Subtest: all product workbench summaries preserve current display values
+ok 55 - all product workbench summaries preserve current display values
+  ---
+  duration_ms: 0.3684
+  ...
+# Subtest: field status distinguishes a default value from an empty field
+ok 56 - field status distinguishes a default value from an empty field
+  ---
+  duration_ms: 1.3327
+  ...
+# Subtest: field status shows guidance while the user is editing
+ok 57 - field status shows guidance while the user is editing
+  ---
+  duration_ms: 0.1431
+  ...
+# Subtest: field status shows the matching validation error after validation
+ok 58 - field status shows the matching validation error after validation
+  ---
+  duration_ms: 0.1003
+  ...
+# Subtest: field status confirms a validated value when no issue remains
+ok 59 - field status confirms a validated value when no issue remains
+  ---
+  duration_ms: 0.1225
+  ...
+# Subtest: parameter touch state only marks fields that the user changed
+ok 60 - parameter touch state only marks fields that the user changed
+  ---
+  duration_ms: 0.7917
+  ...
+# Subtest: parameter touch state treats a grouped validation result as changed when any field was edited
+ok 61 - parameter touch state treats a grouped validation result as changed when any field was edited
+  ---
+  duration_ms: 0.1032
+  ...
+# Subtest: empty selection has no visible parameter groups
+ok 62 - empty selection has no visible parameter groups
+  ---
+  duration_ms: 1.2569
+  ...
+# Subtest: GF-6 exposes only the groups required by selected functions
+ok 63 - GF-6 exposes only the groups required by selected functions
+  ---
+  duration_ms: 0.2508
+  ...
+# Subtest: automatic GF-6 prerequisites expose the preprocessing controls
+ok 64 - automatic GF-6 prerequisites expose the preprocessing controls
+  ---
+  duration_ms: 0.1424
+  ...
+# Subtest: visibility follows the selected product's supported functions
+ok 65 - visibility follows the selected product's supported functions
+  ---
+  duration_ms: 0.2081
+  ...
+# Subtest: image products expose product-specific preprocessing subfunctions
+ok 66 - image products expose product-specific preprocessing subfunctions
+  ---
+  duration_ms: 1.6765
+  ...
+# Subtest: HY-2D keeps an independent along-track pipeline
+ok 67 - HY-2D keeps an independent along-track pipeline
+  ---
+  duration_ms: 0.1783
+  ...
+# Subtest: every registered pipeline has complete acyclic dependencies
+ok 68 - every registered pipeline has complete acyclic dependencies
+  ---
+  duration_ms: 0.191
+  ...
+# Subtest: pipeline validation rejects missing and circular step dependencies
+ok 69 - pipeline validation rejects missing and circular step dependencies
+  ---
+  duration_ms: 0.3153
+  ...
+# Subtest: a selected image target resolves its complete locked prerequisite chain
+ok 70 - a selected image target resolves its complete locked prerequisite chain
+  ---
+  duration_ms: 1.493
+  ...
+# Subtest: multiple image targets share one prerequisite chain
+ok 71 - multiple image targets share one prerequisite chain
+  ---
+  duration_ms: 0.2195
+  ...
+# Subtest: removing a target removes prerequisites no longer used by any target
+ok 72 - removing a target removes prerequisites no longer used by any target
+  ---
+  duration_ms: 0.1292
+  ...
+# Subtest: HY-2D anomaly detection auto-adds locked along-track feature extraction
+ok 73 - HY-2D anomaly detection auto-adds locked along-track feature extraction
+  ---
+  duration_ms: 0.0937
+  ...
+# Subtest: changing a prerequisite parameter marks only its resolved descendants for rerun
+ok 74 - changing a prerequisite parameter marks only its resolved descendants for rerun
+  ---
+  duration_ms: 0.3288
+  ...
+# Subtest: the resolver rejects unsupported and non-target selections
+ok 75 - the resolver rejects unsupported and non-target selections
+  ---
+  duration_ms: 0.3549
+  ...
+# Subtest: a manually selected prerequisite is locked when a downstream target needs it
+ok 76 - a manually selected prerequisite is locked when a downstream target needs it
+  ---
+  duration_ms: 0.2378
+  ...
+# Subtest: an automatic GF-6 prerequisite remains visually selected
+ok 77 - an automatic GF-6 prerequisite remains visually selected
+  ---
+  duration_ms: 0.1838
+  ...
+# Subtest: processing plan panel exposes selectable targets and automatic prerequisites
+ok 78 - processing plan panel exposes selectable targets and automatic prerequisites
+  ---
+  duration_ms: 0.8693
+  ...
+# Subtest: package heading uses upload wording
+ok 79 - package heading uses upload wording
+  ---
+  duration_ms: 0.1341
+  ...
+# Subtest: processing choices can be collapsed without hiding the execution plan
+ok 80 - processing choices can be collapsed without hiding the execution plan
+  ---
+  duration_ms: 0.1248
+  ...
+# Subtest: processing choice heading matches the package heading and keeps its empty hint inline
+ok 81 - processing choice heading matches the package heading and keeps its empty hint inline
+  ---
+  duration_ms: 0.1904
+  ...
+# Subtest: selected processing targets stay compact and open the workbench below
+ok 82 - selected processing targets stay compact and open the workbench below
+  ---
+  duration_ms: 0.1629
+  ...
+# Subtest: execution plan keeps three compact rows visible and scrolls remaining steps
+ok 83 - execution plan keeps three compact rows visible and scrolls remaining steps
+  ---
+  duration_ms: 0.293
+  ...
+# Subtest: processing target descriptions open directly above their cards
+ok 84 - processing target descriptions open directly above their cards
+  ---
+  duration_ms: 0.1039
+  ...
+# Subtest: execution plan uses a compact heading without connector arrows
+ok 85 - execution plan uses a compact heading without connector arrows
+  ---
+  duration_ms: 0.2359
+  ...
+# Subtest: processing choices stay compact and distinguish automatic prerequisites
+ok 86 - processing choices stay compact and distinguish automatic prerequisites
+  ---
+  duration_ms: 0.2289
+  ...
+# Subtest: automatic prerequisites are summarized inline instead of blocking with a dialog
+ok 87 - automatic prerequisites are summarized inline instead of blocking with a dialog
+  ---
+  duration_ms: 0.3478
+  ...
+# Subtest: execution plan exposes runtime status and the detailed progress trigger
+ok 88 - execution plan exposes runtime status and the detailed progress trigger
+  ---
+  duration_ms: 0.0956
+  ...
+# Subtest: multisource workspace integrates the plan before upload and requires a target
+ok 89 - multisource workspace integrates the plan before upload and requires a target
+  ---
+  duration_ms: 0.0831
+  ...
+# Subtest: multisource workspace places file upload before processing plan selection
+ok 90 - multisource workspace places file upload before processing plan selection
+  ---
+  duration_ms: 0.2713
+  ...
+# Subtest: multisource help and upload cards use compact accessible affordances
+ok 91 - multisource help and upload cards use compact accessible affordances
+  ---
+  duration_ms: 1.7172
+  ...
+# Subtest: product slots keep format guidance in hover text and make empty cards uploadable
+ok 92 - product slots keep format guidance in hover text and make empty cards uploadable
+  ---
+  duration_ms: 1.1358
+  ...
+# Subtest: upload progress is rendered as a slim card-bottom rail
+ok 93 - upload progress is rendered as a slim card-bottom rail
+  ---
+  duration_ms: 0.1589
+  ...
+# Subtest: product package stays collapsed for missing uploads but expands for actionable errors
+ok 94 - product package stays collapsed for missing uploads but expands for actionable errors
+  ---
+  duration_ms: 0.1798
+  ...
+# Subtest: multisource workspace keeps a compact, layered section rhythm
+ok 95 - multisource workspace keeps a compact, layered section rhythm
+  ---
+  duration_ms: 0.3349
+  ...
+# Subtest: left panel tabs reserve only the tab header height above content
+ok 96 - left panel tabs reserve only the tab header height above content
+  ---
+  duration_ms: 1.0897
+  ...
+# Subtest: maps remote stage lifecycle to stable UI statuses
+ok 97 - maps remote stage lifecycle to stable UI statuses
+  ---
+  duration_ms: 0.5864
+  ...
+# Subtest: maps product-specific remote stage keys onto the shared UI steps
+ok 98 - maps product-specific remote stage keys onto the shared UI steps
+  ---
+  duration_ms: 9.4632
+  ...
+# Subtest: maps HY-1C decode stage to decode and scale-factor UI steps
+ok 99 - maps HY-1C decode stage to decode and scale-factor UI steps
+  ---
+  duration_ms: 0.1206
+  ...
+# Subtest: counts a shared HY-1C decode stage for both visible steps
+ok 100 - counts a shared HY-1C decode stage for both visible steps
+  ---
+  duration_ms: 0.1834
+  ...
+# Subtest: does not add known internal CZI crop stage as remote-only
+ok 101 - does not add known internal CZI crop stage as remote-only
+  ---
+  duration_ms: 0.0868
+  ...
+# Subtest: maps actual FY-4B and GF-6 staged keys to visible steps
+ok 102 - maps actual FY-4B and GF-6 staged keys to visible steps
+  ---
+  duration_ms: 0.1578
+  ...
+# Subtest: formats stage duration and classifies artifact presentation
+ok 103 - formats stage duration and classifies artifact presentation
+  ---
+  duration_ms: 0.2631
+  ...
+# Subtest: keeps a successful parallel stage successful when another stage fails
+ok 104 - keeps a successful parallel stage successful when another stage fails
+  ---
+  duration_ms: 0.0729
+  ...
+# Subtest: groups artifacts by their execution stage and preserves download authorization
+ok 105 - groups artifacts by their execution stage and preserves download authorization
+  ---
+  duration_ms: 0.2248
+  ...
+# Subtest: keeps the full plan visible while trusting only reported stage states
+ok 106 - keeps the full plan visible while trusting only reported stage states
+  ---
+  duration_ms: 0.2758
+  ...
+# Subtest: uses the shared Chinese status vocabulary
+ok 107 - uses the shared Chinese status vocabulary
+  ---
+  duration_ms: 0.0763
+  ...
+# Subtest: counts only successful stages in the determinate dialog progress
+ok 108 - counts only successful stages in the determinate dialog progress
+  ---
+  duration_ms: 0.0711
+  ...
+# Subtest: candidate selection prefers one exact profile key
+ok 109 - candidate selection prefers one exact profile key
+  ---
+  duration_ms: 1.178
+  ...
+# Subtest: HY-1C rejects a candidate matching only productCode
+ok 110 - HY-1C rejects a candidate matching only productCode
+  ---
+  duration_ms: 0.3068
+  ...
+# Subtest: HY-1C rejects a candidate matching only profileVersion
+ok 111 - HY-1C rejects a candidate matching only profileVersion
+  ---
+  duration_ms: 0.0857
+  ...
+# Subtest: HY-1C rejects a supported generic legacy candidate
+ok 112 - HY-1C rejects a supported generic legacy candidate
+  ---
+  duration_ms: 0.061
+  ...
+# Subtest: replaced GF-6 Browse package ids no longer use a frontend fallback
+ok 113 - replaced GF-6 Browse package ids no longer use a frontend fallback
+  ---
+  duration_ms: 0.0619
+  ...
+# Subtest: new products select only their exact supported profile
+ok 114 - new products select only their exact supported profile
+  ---
+  duration_ms: 0.1063
+  ...
+# Subtest: template switch clears every slot and rejects active work
+ok 115 - template switch clears every slot and rejects active work
+  ---
+  duration_ms: 0.5321
+  ...
+# Subtest: retry is gated to FAILED and RECOVERY_PENDING
+ok 116 - retry is gated to FAILED and RECOVERY_PENDING
+  ---
+  duration_ms: 0.0757
+  ...
+# Subtest: start success message remains started after a synchronous dispatch
+ok 117 - start success message remains started after a synchronous dispatch
+  ---
+  duration_ms: 0.1227
+  ...
+# Subtest: multisource API preserves backend long identifiers as strings
+ok 118 - multisource API preserves backend long identifiers as strings
+  ---
+  duration_ms: 0.7887
+  ...
+# Subtest: processing errors prefer the backend message over the HTTP status
+ok 119 - processing errors prefer the backend message over the HTTP status
+  ---
+  duration_ms: 0.127
+  ...
+# Subtest: processing errors explain an ROI with no quality-valid pixels
+ok 120 - processing errors explain an ROI with no quality-valid pixels
+  ---
+  duration_ms: 0.0537
+  ...
+# Subtest: processing errors explain the authoritative GF-6 output limit
+ok 121 - processing errors explain the authoritative GF-6 output limit
+  ---
+  duration_ms: 0.0311
+  ...
+# Subtest: processing errors explain a Worker timeout
+ok 122 - processing errors explain a Worker timeout
+  ---
+  duration_ms: 0.0284
+  ...
+# Subtest: resetting a processing run clears the previous candidate and progress
+ok 123 - resetting a processing run clears the previous candidate and progress
+  ---
+  duration_ms: 0.0667
+  ...
+# Subtest: completed processing view exposes the ZIP action and stage artifacts
+ok 124 - completed processing view exposes the ZIP action and stage artifacts
+  ---
+  duration_ms: 4.5558
+  ...
+# Subtest: parameter snapshots are serialized as JSON strings
+ok 125 - parameter snapshots are serialized as JSON strings
+  ---
+  duration_ms: 0.1021
+  ...
+# Subtest: artifact download authorization requires the exact current artifact
+ok 126 - artifact download authorization requires the exact current artifact
+  ---
+  duration_ms: 0.1302
+  ...
+# Subtest: download filenames preserve GF-6 ZIP compatibility and artifact extensions
+ok 127 - download filenames preserve GF-6 ZIP compatibility and artifact extensions
+  ---
+  duration_ms: 0.2361
+  ...
+# Subtest: preflight assets retain GF-6 tile ordinals without optional footprint slots
+ok 128 - preflight assets retain GF-6 tile ordinals without optional footprint slots
+  ---
+  duration_ms: 0.1795
+  ...
+# Subtest: matches GF-6 archive files to all required slots by extension and tile ordinal
+ok 129 - matches GF-6 archive files to all required slots by extension and tile ordinal
+  ---
+  duration_ms: 8.6589
+  ...
+# Subtest: ignores GF-6 footprint sidecars that are outside the upload contract
+ok 130 - ignores GF-6 footprint sidecars that are outside the upload contract
+  ---
+  duration_ms: 0.2194
+  ...
+# Subtest: reports duplicate archive candidates instead of choosing silently
+ok 131 - reports duplicate archive candidates instead of choosing silently
+  ---
+  duration_ms: 0.2249
+  ...
+# Subtest: matches FY-3H observation and GEO1K HDF files by filename markers
+ok 132 - matches FY-3H observation and GEO1K HDF files by filename markers
+  ---
+  duration_ms: 0.2052
+  ...
+# Subtest: matches HY-2D tar.gz as the single product slot
+ok 133 - matches HY-2D tar.gz as the single product slot
+  ---
+  duration_ms: 0.0735
+  ...
+# Subtest: matches HY-1C main, metadata, and browse files
+ok 134 - matches HY-1C main, metadata, and browse files
+  ---
+  duration_ms: 0.085
+  ...
+# Subtest: matches FY-4B resolution markers and GEO file
+ok 135 - matches FY-4B resolution markers and GEO file
+  ---
+  duration_ms: 0.2114
+  ...
+# Subtest: ignores unsupported extra files while reporting required files that are absent
+ok 136 - ignores unsupported extra files while reporting required files that are absent
+  ---
+  duration_ms: 0.7115
+  ...
+# Subtest: feature metrics explain their purpose and output in a shared selection list
+ok 137 - feature metrics explain their purpose and output in a shared selection list
+  ---
+  duration_ms: 4.7466
+  ...
+# Subtest: feature metric rows keep the texture control independent from selection
+ok 138 - feature metric rows keep the texture control independent from selection
+  ---
+  duration_ms: 1.0571
+  ...
+# Subtest: output bands and feature metrics provide concise user guidance
+ok 139 - output bands and feature metrics provide concise user guidance
+  ---
+  duration_ms: 0.7768
+  ...
+# Subtest: parameter drawers group ROI controls and explain the remaining sparse fields
+ok 140 - parameter drawers group ROI controls and explain the remaining sparse fields
+  ---
+  duration_ms: 3.3498
+  ...
+# Subtest: ROI controls stay disabled until every required product file is uploaded
+ok 141 - ROI controls stay disabled until every required product file is uploaded
+  ---
+  duration_ms: 1.6572
+  ...
+# Subtest: product drawers remove legacy output profile and processing summary rows
+ok 142 - product drawers remove legacy output profile and processing summary rows
+  ---
+  duration_ms: 1.2002
+  ...
+# Subtest: all output coordinate system controls fill the dedicated guidance column
+ok 143 - all output coordinate system controls fill the dedicated guidance column
+  ---
+  duration_ms: 1.2208
+  ...
+# Subtest: HY-1C grid, ROI, and algorithm values use the shared parameter controls
+ok 144 - HY-1C grid, ROI, and algorithm values use the shared parameter controls
+  ---
+  duration_ms: 0.7899
+  ...
+# Subtest: FY-3H keeps its grid and optional WGS84 ROI in one engineering grid block
+ok 145 - FY-3H keeps its grid and optional WGS84 ROI in one engineering grid block
+  ---
+  duration_ms: 0.5181
+  ...
+# Subtest: FY-3H presents fixed resampling as a standard disabled field
+ok 146 - FY-3H presents fixed resampling as a standard disabled field
+  ---
+  duration_ms: 0.5073
+  ...
+# Subtest: HY-1C presents scientific resampling as a standard disabled input
+ok 147 - HY-1C presents scientific resampling as a standard disabled input
+  ---
+  duration_ms: 0.6428
+  ...
+# Subtest: image parameter drawers synchronize algorithm enablement after target selection
+ok 148 - image parameter drawers synchronize algorithm enablement after target selection
+  ---
+  duration_ms: 0.846
+  ...
+# Subtest: teleported product drawers compile the shared theme as global CSS
+ok 149 - teleported product drawers compile the shared theme as global CSS
+  ---
+  duration_ms: 390.112
+  ...
+# Subtest: parameter drawer keeps focused controls inside its scrolling body
+ok 150 - parameter drawer keeps focused controls inside its scrolling body
+  ---
+  duration_ms: 0.6284
+  ...
+# Subtest: FY-4B and GF-6 drawers keep engineering controls editable without technical warnings
+ok 151 - FY-4B and GF-6 drawers keep engineering controls editable without technical warnings
+  ---
+  duration_ms: 0.9487
+  ...
+# Subtest: workspace selects FY-4B and GF-6 parameter drawers with integrated stages
+ok 152 - workspace selects FY-4B and GF-6 parameter drawers with integrated stages
+  ---
+  duration_ms: 1.2961
+  ...
+# Subtest: GF-6 drawer limits algorithm controls to the selected processing steps
+ok 153 - GF-6 drawer limits algorithm controls to the selected processing steps
+  ---
+  duration_ms: 1.2695
+  ...
+# Subtest: parameter workbench is driven by the resolved execution plan
+ok 154 - parameter workbench is driven by the resolved execution plan
+  ---
+  duration_ms: 1.8937
+  ...
+# Subtest: product launch remains below the left-side execution plan
+ok 155 - product launch remains below the left-side execution plan
+  ---
+  duration_ms: 1.7627
+  ...
+# Subtest: workspace delegates multisource form coordination to the shared adapter
+ok 156 - workspace delegates multisource form coordination to the shared adapter
+  ---
+  duration_ms: 0.6463
+  ...
+# Subtest: derived output status remains on the left execution plan
+ok 157 - derived output status remains on the left execution plan
+  ---
+  duration_ms: 1.8722
+  ...
+# Subtest: derived output checklist keeps three statuses legible in a vertical layout
+ok 158 - derived output checklist keeps three statuses legible in a vertical layout
+  ---
+  duration_ms: 0.7752
+  ...
+# Subtest: right-side parameter drawers render editable output bands
+ok 159 - right-side parameter drawers render editable output bands
+  ---
+  duration_ms: 0.6682
+  ...
+# Subtest: all products use the shared output band picker
+ok 160 - all products use the shared output band picker
+  ---
+  duration_ms: 1.2907
+  ...
+# Subtest: workbench keeps processing risks out of the drawer and shows launch-time notices
+ok 161 - workbench keeps processing risks out of the drawer and shows launch-time notices
+  ---
+  duration_ms: 1.9328
+  ...
+# Subtest: parameter workbenches use compact stepper controls for editable numbers
+ok 162 - parameter workbenches use compact stepper controls for editable numbers
+  ---
+  duration_ms: 1.5409
+  ...
+# Subtest: numeric steppers dispatch a single change event without rebinding it
+ok 163 - numeric steppers dispatch a single change event without rebinding it
+  ---
+  duration_ms: 0.3232
+  ...
+# Subtest: target CRS controls use the compact field treatment
+ok 164 - target CRS controls use the compact field treatment
+  ---
+  duration_ms: 1.0479
+  ...
+# Subtest: parameter workbench uses a light blue vertical header and compact summary card
+ok 165 - parameter workbench uses a light blue vertical header and compact summary card
+  ---
+  duration_ms: 0.5678
+  ...
+# Subtest: parameter drawers do not repeat selected processing states as heading switches
+ok 166 - parameter drawers do not repeat selected processing states as heading switches
+  ---
+  duration_ms: 1.4434
+  ...
+# Subtest: parameter workbenches explain editable settings on hover without repeating the execution plan
+ok 167 - parameter workbenches explain editable settings on hover without repeating the execution plan
+  ---
+  duration_ms: 1.6684
+  ...
+# Subtest: parameter workbenches show numeric guidance and matching validation beside inputs
+ok 168 - parameter workbenches show numeric guidance and matching validation beside inputs
+  ---
+  duration_ms: 1.8167
+  ...
+# Subtest: GF-6 RGB channels provide individual hover explanations
+ok 169 - GF-6 RGB channels provide individual hover explanations
+  ---
+  duration_ms: 0.3998
+  ...
+# Subtest: RGB workbench rows use the shared channel labels and guidance
+ok 170 - RGB workbench rows use the shared channel labels and guidance
+  ---
+  duration_ms: 0.8947
+  ...
+# Subtest: RGB band options stay in numeric order
+ok 171 - RGB band options stay in numeric order
+  ---
+  duration_ms: 0.5652
+  ...
+# Subtest: parameter workbenches use a single-line field layout with a dedicated status column
+ok 172 - parameter workbenches use a single-line field layout with a dedicated status column
+  ---
+  duration_ms: 0.4
+  ...
+# Subtest: GF-6 workbench summary owns the planned visual sections
+ok 173 - GF-6 workbench summary owns the planned visual sections
+  ---
+  duration_ms: 0.4406
+  ...
+# Subtest: parameter workbench opens from the execution plan after targets are selected
+ok 174 - parameter workbench opens from the execution plan after targets are selected
+  ---
+  duration_ms: 1.1211
+  ...
+# Subtest: multisource prerequisite notices stay inline with the execution plan
+ok 175 - multisource prerequisite notices stay inline with the execution plan
+  ---
+  duration_ms: 0.8014
+  ...
+# Subtest: product parameter drawers use an inset, content-sized floating workbench
+ok 176 - product parameter drawers use an inset, content-sized floating workbench
+  ---
+  duration_ms: 0.4686
+  ...
+# Subtest: product parameter drawers stay available as non-modal right-side inspectors
+ok 177 - product parameter drawers stay available as non-modal right-side inspectors
+  ---
+  duration_ms: 1.3824
+  ...
+# Subtest: product parameter drawers use compact desktop widths
+ok 178 - product parameter drawers use compact desktop widths
+  ---
+  duration_ms: 1.3091
+  ...
+# Subtest: product package exposes ZIP import inside the existing upload section
+ok 179 - product package exposes ZIP import inside the existing upload section
+  ---
+  duration_ms: 0.6549
+  ...
+# Subtest: product package locks individual uploads and contains archive parsing feedback
+ok 180 - product package locks individual uploads and contains archive parsing feedback
+  ---
+  duration_ms: 0.7515
+  ...
+# Subtest: completed product archive import locks the card until a package file changes
+ok 181 - completed product archive import locks the card until a package file changes
+  ---
+  duration_ms: 0.6329
+  ...
+# Subtest: product archive import card presents the ZIP selection hint inline
+ok 182 - product archive import card presents the ZIP selection hint inline
+  ---
+  duration_ms: 0.627
+  ...
+# Subtest: product package collapse keeps the ZIP import card visible
+ok 183 - product package collapse keeps the ZIP import card visible
+  ---
+  duration_ms: 0.6446
+  ...
+# Subtest: canceling a product archive resets the import card state
+ok 184 - canceling a product archive resets the import card state
+  ---
+  duration_ms: 0.6928
+  ...
+# Subtest: processing plan title matches the product package heading size
+ok 185 - processing plan title matches the product package heading size
+  ---
+  duration_ms: 0.41
+  ...
+# Subtest: product package slots show parsed filenames and slot mapping
+ok 186 - product package slots show parsed filenames and slot mapping
+  ---
+  duration_ms: 0.6
+  ...
+# Subtest: HY-1C L2A template declares its exact package identity and roles
+ok 187 - HY-1C L2A template declares its exact package identity and roles
+  ---
+  duration_ms: 1.0382
+  ...
+# Subtest: HY-1C accepts the real package convention with an Rc1 browse suffix
+ok 188 - HY-1C accepts the real package convention with an Rc1 browse suffix
+  ---
+  duration_ms: 0.4155
+  ...
+# Subtest: GF-6 retains its same-basename validation rule
+ok 189 - GF-6 retains its same-basename validation rule
+  ---
+  duration_ms: 0.1018
+  ...
+# Subtest: FY-3H template declares the exact paired profile and asset roles
+ok 190 - FY-3H template declares the exact paired profile and asset roles
+  ---
+  duration_ms: 0.1538
+  ...
+# Subtest: FY-3H product validation enforces a matching filename pair
+ok 191 - FY-3H product validation enforces a matching filename pair
+  ---
+  duration_ms: 0.3055
+  ...
+# Subtest: HY-2D accepts a single compound tar.gz package extension
+ok 192 - HY-2D accepts a single compound tar.gz package extension
+  ---
+  duration_ms: 0.5456
+  ...
+# Subtest: FY-4B template declares its exact profile and five Worker roles
+ok 193 - FY-4B template declares its exact profile and five Worker roles
+  ---
+  duration_ms: 0.1599
+  ...
+# Subtest: GF-6 L1A template replaces Browse in the visible product list
+ok 194 - GF-6 L1A template replaces Browse in the visible product list
+  ---
+  duration_ms: 0.1275
+  ...
+# Subtest: template validation surfaces the new product-specific package rules
+ok 195 - template validation surfaces the new product-specific package rules
+  ---
+  duration_ms: 0.5783
+  ...
+# Subtest: GF-6 keeps one existing form while exposing selected configurable steps
+ok 196 - GF-6 keeps one existing form while exposing selected configurable steps
+  ---
+  duration_ms: 1.2083
+  ...
+# Subtest: HY-2D maps its existing form to the independent along-track steps
+ok 197 - HY-2D maps its existing form to the independent along-track steps
+  ---
+  duration_ms: 0.1719
+  ...
+# Subtest: a registry does not expose unsupported configurable pipeline steps
+ok 198 - a registry does not expose unsupported configurable pipeline steps
+  ---
+  duration_ms: 0.0675
+  ...
+# Subtest: task progress dialog renders shared runtime states and actions
+ok 199 - task progress dialog renders shared runtime states and actions
+  ---
+  duration_ms: 0.6386
+  ...
+1..199
+# tests 199
+# suites 0
+# pass 199
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2318.8199
