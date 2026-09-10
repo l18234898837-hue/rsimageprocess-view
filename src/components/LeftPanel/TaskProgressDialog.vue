@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     class="task-progress-dialog"
-    width="min(720px, calc(100vw - 32px))"
+    width="min(600px, calc(100vw - 32px))"
     append-to-body
     :modal="false"
     :lock-scroll="false"
@@ -779,9 +779,20 @@ function stageDetailHint(view: RuntimeStageView) {
   width: 28px;
   height: 28px;
   margin: 0;
-  color: #2e718d;
-  background: #f1f8fb;
-  border: 1px solid #cfe3ec;
+  color: #0f5f78;
+  background: #e7f4f7;
+  border: 1px solid #91c5d5;
+}
+
+.task-progress-dialog__stage-actions
+  :deep(
+    .el-button:not(.is-disabled):not(
+        .task-progress-dialog__stage-details-toggle
+      ):hover
+  ) {
+  color: #074e65;
+  background: #d6edf3;
+  border-color: #5fa6bd;
 }
 
 .task-progress-dialog__stage-actions :deep(.el-button.is-disabled) {
@@ -814,10 +825,26 @@ function stageDetailHint(view: RuntimeStageView) {
 
 .task-progress-dialog__stage.is-succeeded
   .task-progress-dialog__stage-actions
-  :deep(.el-button:not(.is-disabled)) {
-  color: #277255;
-  background: #eff9f3;
-  border-color: #c5e2d1;
+  :deep(
+    .el-button:not(.is-disabled):not(
+        .task-progress-dialog__stage-details-toggle
+      )
+  ) {
+  color: #176446;
+  background: #e4f4eb;
+  border-color: #8fc8a7;
+}
+
+.task-progress-dialog__stage.is-succeeded
+  .task-progress-dialog__stage-actions
+  :deep(
+    .el-button:not(.is-disabled):not(
+        .task-progress-dialog__stage-details-toggle
+      ):hover
+  ) {
+  color: #0e5338;
+  background: #d4eddf;
+  border-color: #61a985;
 }
 
 .task-progress-dialog__artifact-toggle {
