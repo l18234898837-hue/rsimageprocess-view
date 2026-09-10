@@ -83,8 +83,16 @@
               <strong>{{ stageTitle(view) }}</strong>
               <span>{{ statusLabel(view.status) }}</span>
             </div>
-            <p>{{ stageDescription(view) }}</p>
+            <p class="task-progress-dialog__stage-description">
+              {{ stageDescription(view) }}
+            </p>
             <small
+              class="task-progress-dialog__stage-meta"
+              :title="
+                view.stage?.startedAt
+                  ? `${view.stage.startedAt} → ${view.stage.finishedAt || '运行中'}`
+                  : undefined
+              "
               >耗时 {{ formatStageDuration(view.stage || {}) }} · 产物
               {{ view.artifacts.length }} 个</small
             >
@@ -100,14 +108,6 @@
                 errorMessage(view.stage.errorMessage)
               }}</span>
             </div>
-            <time
-              v-if="view.stage?.startedAt"
-              class="task-progress-dialog__time"
-            >
-              {{ view.stage.startedAt }} →
-              {{ view.stage.finishedAt || "运行中" }}
-            </time>
-
             <div
               v-if="view.artifacts.length"
               class="task-progress-dialog__artifacts"
@@ -469,6 +469,11 @@ function downloadStageArtifact(view: RuntimeStageView) {
   border-radius: 50%;
 }
 
+.task-progress-dialog__stage-marker {
+  align-self: center;
+  margin-top: 0;
+}
+
 .task-progress-dialog__current-dot.is-success,
 .task-progress-dialog__stage.is-succeeded .task-progress-dialog__stage-marker {
   background: #338467;
@@ -522,7 +527,7 @@ function downloadStageArtifact(view: RuntimeStageView) {
 .task-progress-dialog__stage {
   display: grid;
   grid-template-columns: 8px minmax(0, 1fr) auto;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   min-width: 0;
   padding: 9px 10px;
@@ -552,8 +557,11 @@ function downloadStageArtifact(view: RuntimeStageView) {
 }
 
 .task-progress-dialog__stage-body {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) minmax(0, 1.25fr) auto;
+  gap: 10px;
+  align-items: center;
   min-width: 0;
-  flex: 1;
 }
 
 .task-progress-dialog__stage-heading strong {
@@ -574,11 +582,21 @@ function downloadStageArtifact(view: RuntimeStageView) {
   border-radius: 3px;
 }
 
-.task-progress-dialog__stage p {
-  margin: 4px 0 0;
+.task-progress-dialog__stage-description {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-progress-dialog__stage-meta {
+  margin: 0;
+  white-space: nowrap;
 }
 
 .task-progress-dialog__error {
+  grid-column: 1 / -1;
   display: grid;
   gap: 2px;
   margin-top: 6px;
@@ -591,12 +609,8 @@ function downloadStageArtifact(view: RuntimeStageView) {
   color: inherit;
 }
 
-.task-progress-dialog__time {
-  display: block;
-  margin-top: 5px;
-}
-
 .task-progress-dialog__artifacts {
+  grid-column: 1 / -1;
   margin-top: 7px;
 }
 
@@ -699,6 +713,14 @@ function downloadStageArtifact(view: RuntimeStageView) {
 }
 
 @media (max-width: 560px) {
+  .task-progress-dialog__stage-body {
+    grid-template-columns: minmax(112px, 1fr) minmax(0, 1fr);
+  }
+
+  .task-progress-dialog__stage-meta {
+    grid-column: 1 / -1;
+  }
+
   .task-progress-dialog__footer {
     align-items: stretch;
     flex-wrap: wrap;
