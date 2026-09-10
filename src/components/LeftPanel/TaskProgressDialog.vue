@@ -14,17 +14,6 @@
     <template #header>
       <div class="task-progress-dialog__heading">
         <strong id="task-progress-dialog-title">任务进度</strong>
-        <span
-          class="task-progress-dialog__status"
-          :class="`is-${taskStatusTone}`"
-        >
-          {{ taskStatus ? taskStatusLabel : "任务尚未启动" }}
-        </span>
-      </div>
-    </template>
-
-    <div class="task-progress-dialog__body">
-      <div class="task-progress-dialog__summary">
         <div
           class="task-progress-dialog__stage-overview"
           aria-label="阶段状态概览"
@@ -52,7 +41,9 @@
       >
         <span :style="{ width: `${progressPercent}%` }" />
       </div>
+    </template>
 
+    <div class="task-progress-dialog__body">
       <div
         v-if="runtimeCurrentStage"
         class="task-progress-dialog__current"
@@ -456,7 +447,6 @@ function stageDetailHint(view: RuntimeStageView) {
 
 <style scoped lang="less">
 .task-progress-dialog__heading,
-.task-progress-dialog__summary,
 .task-progress-dialog__stage-heading,
 .task-progress-dialog__footer {
   display: flex;
@@ -472,9 +462,9 @@ function stageDetailHint(view: RuntimeStageView) {
 }
 
 :global(.task-progress-dialog .el-dialog__header) {
-  padding: 13px 16px 11px;
+  padding: 13px 16px 0;
   margin-right: 0;
-  border-bottom: 1px solid #d8e6ec;
+  border-bottom: 0;
 }
 
 :global(.task-progress-dialog .el-dialog__body) {
@@ -486,8 +476,11 @@ function stageDetailHint(view: RuntimeStageView) {
   border-top: 1px solid #e1ebef;
 }
 
-.task-progress-dialog__heading,
-.task-progress-dialog__summary,
+.task-progress-dialog__heading {
+  justify-content: flex-start;
+  width: 100%;
+}
+
 .task-progress-dialog__footer {
   justify-content: space-between;
 }
@@ -497,33 +490,10 @@ function stageDetailHint(view: RuntimeStageView) {
   font-size: 16px;
 }
 
-.task-progress-dialog__status {
-  padding: 3px 8px;
-  color: #2e718d;
-  font-size: 12px;
-  background: #edf7fa;
-  border: 1px solid #c7e3ea;
-  border-radius: 4px;
-}
-
-.task-progress-dialog__status.is-success {
-  color: #267451;
-  background: #eff9f3;
-  border-color: #b9daca;
-}
-
-.task-progress-dialog__status.is-danger {
-  color: #a13f3f;
-  background: #fff4f4;
-  border-color: #e3b9b9;
-}
-
-.task-progress-dialog__summary {
-  color: #405665;
-}
-
 .task-progress-dialog__stage-overview {
   display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -558,17 +528,17 @@ function stageDetailHint(view: RuntimeStageView) {
 }
 
 .task-progress-dialog__percent {
-  color: #2e718d;
-  font-size: 20px;
+  flex: 0 0 auto;
+  color: #176b84;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 
 .task-progress-dialog__progress-track {
-  height: 8px;
-  margin: 10px 0 14px;
+  height: 4px;
+  margin: 10px -16px 0;
   overflow: hidden;
-  background: #e8eef1;
-  border-radius: 4px;
+  background: #d8e6ec;
 }
 
 .task-progress-dialog__progress-track span {
