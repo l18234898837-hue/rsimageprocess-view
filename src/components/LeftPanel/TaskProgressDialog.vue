@@ -4,6 +4,10 @@
     class="task-progress-dialog"
     width="min(720px, calc(100vw - 32px))"
     append-to-body
+    :modal="false"
+    :lock-scroll="false"
+    :close-on-click-modal="false"
+    draggable
     destroy-on-close
     aria-labelledby="task-progress-dialog-title"
   >
@@ -163,6 +167,57 @@
               </div>
             </div>
           </div>
+          <div
+            class="task-progress-dialog__stage-actions"
+            aria-label="阶段产物操作"
+          >
+            <el-tooltip
+              :content="
+                previewableArtifact(view)
+                  ? '查看可预览产物'
+                  : '当前阶段没有可直接查看的产物'
+              "
+              placement="top"
+              effect="light"
+            >
+              <span>
+                <el-button
+                  circle
+                  text
+                  type="primary"
+                  aria-label="查看阶段产物"
+                  :loading="previewingArtifact === previewableArtifact(view)"
+                  :disabled="!previewableArtifact(view)"
+                  @click="previewStageArtifact(view)"
+                >
+                  <el-icon><View /></el-icon>
+                </el-button>
+              </span>
+            </el-tooltip>
+            <el-tooltip
+              :content="
+                downloadableArtifact(view)
+                  ? '下载阶段产物'
+                  : '当前阶段没有可下载的产物'
+              "
+              placement="top"
+              effect="light"
+            >
+              <span>
+                <el-button
+                  circle
+                  text
+                  type="primary"
+                  aria-label="下载阶段产物"
+                  :loading="downloadingArtifact === downloadableArtifact(view)"
+                  :disabled="!downloadableArtifact(view)"
+                  @click="downloadStageArtifact(view)"
+                >
+                  <el-icon><Download /></el-icon>
+                </el-button>
+              </span>
+            </el-tooltip>
+          </div>
           <el-button
             v-if="view.stage && canRetry(view.stage.status)"
             text
@@ -200,7 +255,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { ArrowDown, Download } from "@element-plus/icons-vue";
+import { ArrowDown, Download, View } from "@element-plus/icons-vue";
 import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage,
@@ -270,6 +325,24 @@ function isExpanded(stageId?: ProcessingIdentifier) {
     stageId !== undefined && props.expandedArtifactStageIds.includes(stageId)
   );
 }
+
+function previewableArtifact(view: RuntimeStageView) {
+  return view.artifacts.find(artifact => props.isPreviewable(artifact));
+}
+
+function downloadableArtifact(view: RuntimeStageView) {
+  return view.artifacts.find(artifact => artifact.downloadable !== false);
+}
+
+function previewStageArtifact(view: RuntimeStageView) {
+  const artifact = previewableArtifact(view);
+  if (artifact) emit("preview-artifact", artifact);
+}
+
+function downloadStageArtifact(view: RuntimeStageView) {
+  const artifact = downloadableArtifact(view);
+  if (artifact) emit("download-artifact", artifact);
+}
 </script>
 
 <style scoped lang="less">
@@ -280,6 +353,28 @@ function isExpanded(stageId?: ProcessingIdentifier) {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+:global(.task-progress-dialog) {
+  overflow: hidden;
+  border: 1px solid #bfd9e5;
+  border-radius: 7px;
+  box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
+}
+
+:global(.task-progress-dialog .el-dialog__header) {
+  padding: 13px 16px 11px;
+  margin-right: 0;
+  border-bottom: 1px solid #d8e6ec;
+}
+
+:global(.task-progress-dialog .el-dialog__body) {
+  padding: 12px 16px 14px;
+}
+
+:global(.task-progress-dialog .el-dialog__footer) {
+  padding: 10px 16px 14px;
+  border-top: 1px solid #e1ebef;
 }
 
 .task-progress-dialog__heading,
@@ -417,22 +512,23 @@ function isExpanded(stageId?: ProcessingIdentifier) {
 
 .task-progress-dialog__timeline {
   display: grid;
-  max-height: min(52vh, 430px);
-  gap: 6px;
+  max-height: min(50vh, 410px);
+  gap: 5px;
   padding-right: 4px;
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
 
 .task-progress-dialog__stage {
-  display: flex;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
   align-items: flex-start;
-  gap: 9px;
+  gap: 10px;
   min-width: 0;
-  padding: 10px;
-  background: #f8fbfc;
-  border: 1px solid #d6e2e8;
-  border-radius: 5px;
+  padding: 9px 10px;
+  background: #fbfdfe;
+  border: 1px solid #dce8ed;
+  border-radius: 4px;
 }
 
 .task-progress-dialog__stage.is-processing {
@@ -471,8 +567,11 @@ function isExpanded(stageId?: ProcessingIdentifier) {
 
 .task-progress-dialog__stage-heading span {
   flex: 0 0 auto;
-  color: #647585;
+  padding: 1px 5px;
+  color: #5e7481;
   font-size: 11px;
+  background: #edf3f6;
+  border-radius: 3px;
 }
 
 .task-progress-dialog__stage p {
@@ -499,6 +598,40 @@ function isExpanded(stageId?: ProcessingIdentifier) {
 
 .task-progress-dialog__artifacts {
   margin-top: 7px;
+}
+
+.task-progress-dialog__stage-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding-top: 1px;
+}
+
+.task-progress-dialog__stage-actions > span {
+  display: inline-flex;
+}
+
+.task-progress-dialog__stage-actions :deep(.el-button) {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  color: #2e718d;
+  background: #f1f8fb;
+  border: 1px solid #cfe3ec;
+}
+
+.task-progress-dialog__stage-actions :deep(.el-button.is-disabled) {
+  color: #a8b8c0;
+  background: #f7f9fa;
+  border-color: #e0e7eb;
+}
+
+.task-progress-dialog__stage.is-succeeded
+  .task-progress-dialog__stage-actions
+  :deep(.el-button:not(.is-disabled)) {
+  color: #277255;
+  background: #eff9f3;
+  border-color: #c5e2d1;
 }
 
 .task-progress-dialog__artifact-toggle {

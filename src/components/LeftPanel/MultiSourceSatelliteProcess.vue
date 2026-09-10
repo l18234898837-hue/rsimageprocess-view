@@ -1489,6 +1489,7 @@ function artifactSize(artifact: ExecutionProgressArtifact) {
 }
 
 function isPreviewableArtifact(artifact: ExecutionProgressArtifact) {
+  if (typeof artifact.previewable === "boolean") return artifact.previewable;
   return /\.(jpe?g|png|webp|gif)(?:[?#]|$)/i.test(artifact.uri);
 }
 
