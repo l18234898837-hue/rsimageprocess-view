@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     class="task-progress-dialog"
-    width="min(600px, calc(100vw - 32px))"
+    width="min(660px, calc(100vw - 32px))"
     append-to-body
     :modal="false"
     :lock-scroll="false"
@@ -25,13 +25,18 @@
 
     <div class="task-progress-dialog__body">
       <div class="task-progress-dialog__summary">
-        <div class="task-progress-dialog__summary-copy">
-          <strong
-            >{{ completedStageCount }} /
-            {{ runtimeStageViews.length }} 个阶段已完成</strong
+        <div
+          class="task-progress-dialog__stage-overview"
+          aria-label="阶段状态概览"
+        >
+          <span
+            v-for="item in stageOverview"
+            :key="item.status"
+            class="task-progress-dialog__stage-stat"
+            :class="`is-${item.status}`"
           >
-          <span v-if="!taskStatus">启动任务后将在这里显示实时阶段状态。</span>
-          <span v-else>阶段状态会随任务执行自动更新。</span>
+            {{ item.label }} {{ item.count }}
+          </span>
         </div>
         <strong class="task-progress-dialog__percent"
           >{{ progressPercent }}%</strong
@@ -368,6 +373,26 @@ const progressPercent = computed(() =>
   Math.max(0, Math.min(100, Math.round(props.progressPercent)))
 );
 
+const stageOverview = computed(() => {
+  const counts: Record<ProcessingStepViewStatus, number> = {
+    WAITING: 0,
+    PROCESSING: 0,
+    SUCCEEDED: 0,
+    FAILED: 0,
+    NEEDS_RERUN: 0
+  };
+  props.runtimeStageViews.forEach(view => {
+    counts[view.status] += 1;
+  });
+  return [
+    { status: "succeeded", label: "已完成", count: counts.SUCCEEDED },
+    { status: "processing", label: "执行中", count: counts.PROCESSING },
+    { status: "waiting", label: "待执行", count: counts.WAITING },
+    { status: "failed", label: "失败", count: counts.FAILED },
+    { status: "needs-rerun", label: "需重试", count: counts.NEEDS_RERUN }
+  ].filter(item => item.count > 0);
+});
+
 function statusLabel(status: ProcessingStepViewStatus) {
   return processingStepStatusLabel(status);
 }
@@ -497,19 +522,39 @@ function stageDetailHint(view: RuntimeStageView) {
   color: #405665;
 }
 
-.task-progress-dialog__summary-copy {
-  display: grid;
-  gap: 4px;
+.task-progress-dialog__stage-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.task-progress-dialog__summary-copy strong {
-  color: #243746;
-  font-size: 14px;
-}
-
-.task-progress-dialog__summary-copy span {
-  color: #71838e;
+.task-progress-dialog__stage-stat {
+  padding: 2px 6px;
+  color: #6c7f8a;
   font-size: 12px;
+  line-height: 18px;
+  background: #f1f5f6;
+  border: 1px solid #d9e4e8;
+  border-radius: 3px;
+}
+
+.task-progress-dialog__stage-stat.is-succeeded {
+  color: #216b4c;
+  background: #edf8f1;
+  border-color: #c7e4d2;
+}
+
+.task-progress-dialog__stage-stat.is-processing {
+  color: #0f6380;
+  background: #e8f5f8;
+  border-color: #bedee8;
+}
+
+.task-progress-dialog__stage-stat.is-failed,
+.task-progress-dialog__stage-stat.is-needs-rerun {
+  color: #9a3d3d;
+  background: #fff3f3;
+  border-color: #e8c5c5;
 }
 
 .task-progress-dialog__percent {
