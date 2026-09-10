@@ -307,7 +307,7 @@
     <section class="mission-section mission-launch" aria-label="任务启动">
       <div>
         <strong>{{ activeTemplate.label }}</strong>
-        <small>{{ launchSummary }}</small>
+        <small>{{ launchHint }}</small>
       </div>
       <el-button
         type="primary"
@@ -429,30 +429,30 @@
               WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
             </p>
             <div class="field-grid">
-              <label class="control-field is-wide">
+              <label class="control-field">
                 <span
                   >输出坐标系
                   <ParameterHint
                     label="输出坐标系"
-                    text="输出地图使用的坐标表达方式。推荐保留 AUTO_UTM，系统会自动选择所在地图分区；只有有明确要求时才填写 EPSG:编号。"
+                    text="输出地图使用的坐标表达方式。推荐保留 AUTO_UTM，由系统自动选择所在地图分区；有明确要求时可选择指定的 UTM 分区。"
                 /></span>
-                <input
-                  v-model.trim="l2aForm.grid.targetCrs"
+                <select
+                  v-model="l2aForm.grid.targetCrs"
                   class="crs-input"
-                  list="l2a-crs-options"
-                  placeholder="自动选择地图分区，或 EPSG:编号"
-                  title="默认自动选择所在地图分区；仅在有明确要求时填写 EPSG:编号"
+                  title="默认自动选择所在地图分区；有明确要求时可选择指定分区"
                   aria-label="输出坐标系，默认自动选择地图分区"
-                />
-                <datalist id="l2a-crs-options">
-                  <option value="AUTO_UTM" label="自动选择地图分区" />
-                  <option value="EPSG:32650" />
-                  <option value="EPSG:32651" />
-                </datalist>
+                >
+                  <option value="AUTO_UTM">AUTO_UTM - 自动选择 UTM 分区</option>
+                  <option value="EPSG:32648">EPSG:32648 - UTM 48N</option>
+                  <option value="EPSG:32649">EPSG:32649 - UTM 49N</option>
+                  <option value="EPSG:32650">EPSG:32650 - UTM 50N</option>
+                  <option value="EPSG:32651">EPSG:32651 - UTM 51N</option>
+                  <option value="EPSG:32652">EPSG:32652 - UTM 52N</option>
+                </select>
                 <ParameterFieldStatus
                   :issues="parameterIssues"
                   :fields="['grid.targetCrs']"
-                  guidance="默认自动选择地图分区；也可填写 EPSG:编号"
+                  guidance="推荐自动选择，也可指定 UTM 分区"
                 />
               </label>
               <label class="control-field">
@@ -812,7 +812,11 @@
                 : "参数校验已通过"
             }}
           </span>
-          <el-button type="primary" @click="isParameterDrawerOpen = false">
+          <el-button
+            type="primary"
+            :disabled="!isConfigurationLocked && parameterIssues.length > 0"
+            @click="confirmParameterConfiguration"
+          >
             {{ isConfigurationLocked ? "关闭快照" : "完成配置" }}
           </el-button>
         </div>
@@ -828,6 +832,7 @@
       :issues="fy3hParameterIssues"
       :summary="fy3hSummary"
       @update-form="updateFy3hForm"
+      @confirm="confirmParameterConfiguration"
     />
     <Hy2dAltimeterParameterDrawer
       v-if="isHy2d"
@@ -838,6 +843,7 @@
       :issues="hy2dParameterIssues"
       :summary="hy2dSummary"
       @update-form="updateHy2dForm"
+      @confirm="confirmParameterConfiguration"
     />
     <Fy4bAgriParameterDrawer
       v-if="isFy4b"
@@ -849,6 +855,7 @@
       :issues="fy4bParameterIssues"
       :summary="fy4bSummary"
       @update-form="updateFy4bForm"
+      @confirm="confirmParameterConfiguration"
     />
     <Gf6WfvL1aParameterDrawer
       v-if="isGf6WfvL1a"
@@ -860,6 +867,7 @@
       :roi-data-ready="allSlotsUploaded"
       :issues="gf6ParameterIssues"
       @update-form="updateGf6Form"
+      @confirm="confirmParameterConfiguration"
     />
   </section>
 </template>
@@ -1100,6 +1108,7 @@ const productForms = {
 };
 const isBusy = ref(false);
 const isParameterDrawerOpen = ref(false);
+const isConfigurationConfirmed = ref(false);
 watch(
   () => props.active,
   active => {
@@ -1181,6 +1190,35 @@ const {
   getArtifactBlob,
   reset
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
+
+watch(
+  [l2aForm, fy3hForm, hy2dForm, fy4bForm, gf6Form, selectedTargets],
+  () => {
+    isConfigurationConfirmed.value = false;
+  },
+  { deep: true }
+);
+watch(
+  () => [
+    allSlotsUploaded.value,
+    validation.value.valid,
+    activeTemplate.value.id
+  ],
+  () => {
+    isConfigurationConfirmed.value = false;
+  }
+);
+watch(
+  () =>
+    activeTemplate.value.slots.map(slot => {
+      const state = slots[slot.id];
+      return [slot.id, state.status, state.file?.name, state.error];
+    }),
+  () => {
+    isConfigurationConfirmed.value = false;
+  },
+  { deep: true }
+);
 
 watch(
   () => slots.metadataXml?.file,
@@ -1334,12 +1372,19 @@ const activeParametersValid = computed(() => {
   if (isGf6WfvL1a.value) return gf6ParameterValidation.value.valid;
   return true;
 });
-const launchSummary = computed(() => {
-  if (isFy3h.value) return "MERSI 扫描带处理 · 参数快照将随任务保存";
-  if (isHy2d.value) return "HY-2D 基线质量策略 · 参数快照将随任务保存";
-  if (isFy4b.value) return "FY-4B 全圆盘名义处理 · 参数快照将随任务保存";
-  if (isGf6WfvL1a.value) return "GF-6 固定高程名义 RPC · 参数快照将随任务保存";
-  return "质量策略 default · 参数快照将随任务保存";
+const launchHint = computed(() => {
+  if (isTaskActive.value || isBusy.value) return "任务正在处理中，请稍候";
+  if (isUploading.value || isArchiveImporting.value) {
+    return "产品包正在处理中，请等待上传、解析和匹配完成";
+  }
+  if (!allSlotsUploaded.value) return "请先上传完整产品包";
+  if (!validation.value.valid) return "请先修正产品包校验问题";
+  if (!selectedTargets.value.length) return "请选择至少一个处理功能";
+  if (!activeParametersValid.value) return "请修正参数配置中的错误";
+  if (!isConfigurationConfirmed.value) {
+    return "请打开配置参数，检查并点击“完成配置”";
+  }
+  return "参数配置已完成，可以开始处理";
 });
 const isConfigurationLocked = computed(
   () => isTaskActive.value || isBusy.value
@@ -1362,7 +1407,8 @@ const canStart = computed(
     allSlotsUploaded.value &&
     validation.value.valid &&
     activeParametersValid.value &&
-    selectedTargets.value.length > 0
+    selectedTargets.value.length > 0 &&
+    isConfigurationConfirmed.value
 );
 const processingRiskNotice = computed(() => {
   if (!canStart.value || !visibleParameterGroups.value.includes("preprocess")) {
@@ -1502,6 +1548,19 @@ function updateFy4bForm(value: ReturnType<typeof defaultFy4bAgriForm>) {
 
 function updateGf6Form(value: ReturnType<typeof defaultGf6WfvL1aForm>) {
   Object.assign(gf6Form, value);
+}
+
+function confirmParameterConfiguration() {
+  if (isConfigurationLocked.value) {
+    isParameterDrawerOpen.value = false;
+    return;
+  }
+  if (!activeParametersValid.value) {
+    message("请先修正参数配置中的错误", { type: "warning" });
+    return;
+  }
+  isConfigurationConfirmed.value = true;
+  isParameterDrawerOpen.value = false;
 }
 
 function updateSelectedTargets(value: string[]) {
@@ -4225,7 +4284,7 @@ button:disabled {
   border-radius: 4px;
 }
 
-.l2a-console .control-field input.crs-input {
+.l2a-console .control-field select.crs-input {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0;

@@ -19,6 +19,7 @@ export interface ArchiveUploadStatusResponse {
     | "UPLOADING"
     | "MERGING"
     | "PARSING"
+    | "MATCHING"
     | "COMPLETED"
     | "FAILED"
     | "CANCELED";
@@ -31,6 +32,8 @@ export interface ArchiveUploadStatusResponse {
     slotId: string;
     fileName: string;
     sysFileId: string | number;
+    /** Optional inline content supplied by parsers that expose metadata. */
+    content?: string;
   }>;
   matchedSlots?: string[];
   missingSlots?: string[];

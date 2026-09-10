@@ -2,23 +2,29 @@ export type Gf6WfvL1aRoi = [number, number, number, number];
 
 const CORNERS = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"] as const;
 
-function xmlNumber(xmlText: string, tagName: string): number | null {
-  const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = new RegExp(
-    `<(?:[\\w.-]+:)?${escapedTagName}\\b[^>]*>\\s*([^<]+?)\\s*</(?:[\\w.-]+:)?${escapedTagName}>`,
-    "i"
-  ).exec(xmlText);
-  if (!match) return null;
-  const value = Number(match[1]);
-  return Number.isFinite(value) ? value : null;
+function xmlNumber(
+  xmlText: string,
+  tagNames: readonly string[]
+): number | null {
+  for (const tagName of tagNames) {
+    const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = new RegExp(
+      `<(?:[\\w.-]+:)?${escapedTagName}\\b[^>]*>\\s*([^<]+?)\\s*</(?:[\\w.-]+:)?${escapedTagName}>`,
+      "i"
+    ).exec(xmlText);
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
 }
 
 export function gf6FootprintRoiFromXml(xmlText: string): Gf6WfvL1aRoi | null {
   const longitudes = CORNERS.map(corner =>
-    xmlNumber(xmlText, `${corner}Longitude`)
+    xmlNumber(xmlText, [`${corner}Longitude`, `${corner}Lon`])
   );
   const latitudes = CORNERS.map(corner =>
-    xmlNumber(xmlText, `${corner}Latitude`)
+    xmlNumber(xmlText, [`${corner}Latitude`, `${corner}Lat`])
   );
   if (
     longitudes.some(value => value === null || value < -180 || value > 180) ||

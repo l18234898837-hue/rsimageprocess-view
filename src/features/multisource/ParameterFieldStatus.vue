@@ -57,6 +57,21 @@ function currentPhase(): ParameterFieldPhase {
   return getPhases()?.value.get(fieldKey.value) ?? "empty";
 }
 
+function hasInitialValue() {
+  const controls = fieldContainer?.querySelectorAll("input, select, textarea");
+  if (!controls?.length) return false;
+  return Array.from(controls).some(control => {
+    if (control instanceof HTMLInputElement && control.type === "checkbox") {
+      return control.checked;
+    }
+    return (
+      (
+        control as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      ).value.trim().length > 0
+    );
+  });
+}
+
 function setPhase(phase: ParameterFieldPhase) {
   const phases = getPhases();
   if (!phases || !fieldKey.value) return;
@@ -67,7 +82,9 @@ function setPhase(phase: ParameterFieldPhase) {
 
 function isControl(target: EventTarget | null) {
   return (
-    target instanceof HTMLInputElement || target instanceof HTMLSelectElement
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLTextAreaElement
   );
 }
 
@@ -122,6 +139,7 @@ onMounted(() => {
     fieldContainer?.closest(".product-parameter-drawer, .l2a-console") ??
     fieldContainer;
   fieldKey.value = getFieldKey();
+  setPhase(hasInitialValue() ? "default" : "empty");
   fieldContainer?.addEventListener("focusin", beginEditing);
   fieldContainer?.addEventListener("input", markChanged);
   fieldContainer?.addEventListener("change", markChanged);

@@ -151,9 +151,12 @@
         <span :class="{ 'is-invalid': issues.length }">{{
           issues.length ? `发现 ${issues.length} 项待处理` : "参数校验已通过"
         }}</span>
-        <el-button type="primary" @click="open = false">{{
-          locked ? "关闭快照" : "完成配置"
-        }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!locked && issues.length > 0"
+          @click="emit('confirm')"
+          >{{ locked ? "关闭快照" : "完成配置" }}</el-button
+        >
       </div>
     </template>
   </el-drawer>
@@ -178,6 +181,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   "update-form": [value: Hy2dAltimeterForm];
+  confirm: [];
 }>();
 const form = reactive<Hy2dAltimeterForm>(
   JSON.parse(JSON.stringify(props.form)) as Hy2dAltimeterForm

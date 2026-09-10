@@ -21,13 +21,16 @@
   --drawer-accent-soft: #e7f4f7;
   --drawer-success: #287964;
   --drawer-danger: #b24f4f;
-  --drawer-font-micro: 0.625rem;
-  --drawer-font-caption: 0.6875rem;
-  --drawer-font-helper: 0.75rem;
-  --drawer-font-control: 0.8125rem;
-  --drawer-font-section: 0.875rem;
-  --drawer-font-heading: 0.9375rem;
-  --drawer-font-title: 1.375rem;
+  // Keep these in px so the existing px-to-vw pipeline scales the workbench
+  // exactly like the rest of the application. rem would follow the browser's
+  // root font size instead and produce a different zoom curve.
+  --drawer-font-micro: 10px;
+  --drawer-font-caption: 11px;
+  --drawer-font-helper: 12px;
+  --drawer-font-control: 13px;
+  --drawer-font-section: 14px;
+  --drawer-font-heading: 15px;
+  --drawer-font-title: 22px;
   --drawer-control-height: 30px;
 
   position: fixed !important;
@@ -221,7 +224,7 @@
   min-height: 28px;
   padding: 0;
   margin: 0;
-  font-size: 1rem;
+  font-size: 16px;
   line-height: 1.2;
   color: #fff;
   background: transparent;
@@ -704,8 +707,8 @@
   --drawer-accent: #187f9c;
   --drawer-accent-deep: #0f6076;
   --drawer-accent-soft: #e7f4f7;
-  --drawer-font-micro: 0.625rem;
-  --drawer-font-caption: 0.6875rem;
+  --drawer-font-micro: 10px;
+  --drawer-font-caption: 11px;
 
   display: grid;
   gap: 6px;
@@ -826,9 +829,7 @@
 .product-parameter-drawer
   .feature-metric-picker__parameter
   .parameter-number-input,
-.l2a-console
-  .feature-metric-picker__parameter
-  .parameter-number-input {
+.l2a-console .feature-metric-picker__parameter .parameter-number-input {
   justify-self: start;
   width: 116px !important;
   min-width: 116px !important;
@@ -840,9 +841,7 @@
 .product-parameter-drawer
   .feature-metric-picker__parameter
   .parameter-number-input__step,
-.l2a-console
-  .feature-metric-picker__parameter
-  .parameter-number-input__step {
+.l2a-console .feature-metric-picker__parameter .parameter-number-input__step {
   width: 22px;
   min-width: 22px;
   max-width: 22px;
@@ -878,7 +877,9 @@
 .product-parameter-drawer
   .feature-metric-picker__parameter
   input:not([type="checkbox"]):focus,
-.l2a-console .feature-metric-picker__parameter input:not([type="checkbox"]):focus {
+.l2a-console
+  .feature-metric-picker__parameter
+  input:not([type="checkbox"]):focus {
   outline: none;
   border-color: var(--drawer-accent);
   box-shadow: none;
@@ -1270,9 +1271,7 @@
   appearance: textfield;
 }
 
-.product-parameter-drawer
-  .parameter-number-input
-  input[type="number"]:focus,
+.product-parameter-drawer .parameter-number-input input[type="number"]:focus,
 .product-parameter-drawer
   .parameter-number-input
   input[type="number"]:focus-visible {
@@ -1285,12 +1284,8 @@
   box-shadow: none;
 }
 
-.l2a-console
-  .parameter-number-input
-  input[type="number"]:focus,
-.l2a-console
-  .parameter-number-input
-  input[type="number"]:focus-visible {
+.l2a-console .parameter-number-input input[type="number"]:focus,
+.l2a-console .parameter-number-input input[type="number"]:focus-visible {
   outline: none;
   box-shadow: none;
 }
@@ -1379,9 +1374,7 @@
 .product-parameter-drawer
   .feature-metric-picker__parameter
   .parameter-number-input,
-.l2a-console
-  .feature-metric-picker__parameter
-  .parameter-number-input {
+.l2a-console .feature-metric-picker__parameter .parameter-number-input {
   display: grid !important;
   grid-template-columns: 22px minmax(0, 1fr) 22px !important;
   grid-auto-flow: row;
@@ -1410,9 +1403,7 @@
 .product-parameter-drawer
   .feature-metric-picker__parameter
   .parameter-number-input__step,
-.l2a-console
-  .feature-metric-picker__parameter
-  .parameter-number-input__step {
+.l2a-console .feature-metric-picker__parameter .parameter-number-input__step {
   display: grid !important;
   width: 22px !important;
   min-width: 22px !important;
@@ -1550,11 +1541,60 @@
   line-height: 1.45;
 }
 
+.product-parameter-drawer .roi-parameter-block__status {
+  margin: 6px 0 0;
+  color: #5d7b89;
+  font-size: var(--drawer-font-micro);
+  line-height: 1.45;
+}
+
+.product-parameter-drawer .roi-parameter-block__status.is-warning {
+  color: #9a6b18;
+}
+
 .product-parameter-drawer .roi-parameter-block .toggle-row {
   padding: 6px 10px;
   background: #eef8fb;
   border: 1px solid #d3e8ef;
   border-radius: 4px 4px 0 0;
+}
+
+.product-parameter-drawer .roi-control-card {
+  margin-top: 8px;
+  overflow: hidden;
+  background: #f8fcfd;
+  border: 1px solid #d3e8ef;
+  border-radius: 4px;
+}
+
+.product-parameter-drawer .roi-control-card > .toggle-row {
+  border: 0;
+  border-bottom: 1px solid #d3e8ef;
+  border-radius: 0;
+}
+
+.product-parameter-drawer .roi-control-card__note {
+  margin: 0;
+  padding: 7px 10px 0;
+  color: #5d7b89;
+  font-size: var(--drawer-font-micro);
+  line-height: 1.45;
+}
+
+.product-parameter-drawer .roi-control-card > .field-grid.compact-grid {
+  margin-top: 0;
+  padding: 8px 10px;
+}
+
+.product-parameter-drawer .roi-control-card > .roi-parameter-block__status {
+  margin: 0;
+  padding: 8px 10px 0;
+}
+
+.product-parameter-drawer .roi-control-card > .roi-map-picker {
+  margin-top: 0;
+  padding: 8px 10px 9px;
+  border-top: 1px solid #e2eef3;
 }
 
 .product-parameter-drawer .roi-parameter-block > legend.toggle-heading {

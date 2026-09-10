@@ -8,6 +8,7 @@ export type ArchiveImportStatus =
   | "UPLOADING"
   | "MERGING"
   | "PARSING"
+  | "MATCHING"
   | "COMPLETED"
   | "FAILED"
   | "CANCELED";
@@ -17,6 +18,7 @@ export interface ArchiveImportProgress {
   uploadedChunks: number;
   totalChunks: number;
   processedFiles: number;
+  matchingFilesProcessed?: number;
   totalFiles?: number;
   currentFile?: string;
   error?: string;
@@ -81,6 +83,7 @@ export function archiveStatusLabel(status: ArchiveImportStatus) {
     UPLOADING: "正在上传 ZIP",
     MERGING: "正在合并分片",
     PARSING: "正在解析产品包",
+    MATCHING: "正在匹配产品文件",
     COMPLETED: "解析完成",
     FAILED: "解析失败",
     CANCELED: "已取消"

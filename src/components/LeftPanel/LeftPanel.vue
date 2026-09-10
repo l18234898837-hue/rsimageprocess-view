@@ -155,7 +155,7 @@
         </div>
       </el-tab-pane>
       <el-tab-pane label="多源卫星数据处理" name="multi-source">
-        <MultiSourceSatelliteProcess />
+        <MultiSourceSatelliteProcess :active="activeName === 'multi-source'" />
       </el-tab-pane>
     </el-tabs>
   </div>

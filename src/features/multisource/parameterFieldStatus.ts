@@ -3,7 +3,12 @@ export interface ParameterValidationIssue {
   message: string;
 }
 
-export type ParameterFieldPhase = "empty" | "editing" | "valid" | "invalid";
+export type ParameterFieldPhase =
+  | "empty"
+  | "default"
+  | "editing"
+  | "valid"
+  | "invalid";
 
 export interface ParameterFieldStatus {
   state: "neutral" | "valid" | "invalid";
@@ -17,7 +22,12 @@ export function resolveParameterFieldStatus(
   phase: ParameterFieldPhase = "empty"
 ): ParameterFieldStatus {
   if (phase === "empty") {
-    return { state: "neutral", message: "未填写" };
+    return { state: "neutral", message: "待填写" };
+  }
+  if (phase === "default") {
+    const issue = issues.find(candidate => fields.includes(candidate.field));
+    if (issue) return { state: "invalid", message: issue.message };
+    return { state: "neutral", message: "使用默认值" };
   }
   if (phase === "editing") {
     return {

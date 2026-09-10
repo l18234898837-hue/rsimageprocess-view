@@ -48,3 +48,14 @@ test("GF-6 does not enable ROI when product XML has incomplete or invalid corner
   assert.equal(gf6FootprintRoiFromXml(incomplete), null);
   assert.equal(gf6FootprintRoiFromXml(invalid), null);
 });
+
+test("GF-6 accepts abbreviated longitude and latitude corner tags", () => {
+  const abbreviated = SAMPLE_XML.replaceAll("Longitude", "Lon").replaceAll(
+    "Latitude",
+    "Lat"
+  );
+  assert.deepEqual(
+    gf6FootprintRoiFromXml(abbreviated),
+    [103.524703, 6.670334, 111.724085, 10.753472]
+  );
+});

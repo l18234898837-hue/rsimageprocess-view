@@ -106,7 +106,7 @@ test("all product workbench summaries preserve current display values", () => {
     buildFy4bWorkbenchSummary(forms.fy4b, value => value),
     {
       grid: "EPSG:4326",
-      roi: "120, 30, 122, 32",
+      roi: "全圆盘",
       algorithms: "特征关闭 · 假彩色关闭 · 显著性关闭"
     }
   );

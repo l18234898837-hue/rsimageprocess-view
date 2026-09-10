@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveParameterFieldStatus } from "./parameterFieldStatus";
 
-test("field status reserves a neutral slot before the field is edited", () => {
+test("field status distinguishes a default value from an empty field", () => {
   const status = resolveParameterFieldStatus(
     [
       {
@@ -18,7 +18,11 @@ test("field status reserves a neutral slot before the field is edited", () => {
     "范围 0 到 100 %"
   );
 
-  assert.deepEqual(status, { state: "neutral", message: "未填写" });
+  assert.deepEqual(status, { state: "neutral", message: "待填写" });
+  assert.deepEqual(
+    resolveParameterFieldStatus([], ["resolution"], "范围大于 0", "default"),
+    { state: "neutral", message: "使用默认值" }
+  );
 });
 
 test("field status shows guidance while the user is editing", () => {

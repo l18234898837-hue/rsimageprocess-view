@@ -44,8 +44,8 @@
                 label="输出坐标系"
                 text="输出坐标系。FY-4B 产品仅支持 EPSG:4326 或 EPSG:4490。" /></span
             ><select v-model="form.targetCrs" class="crs-input">
-              <option value="EPSG:4326">EPSG:4326</option>
-              <option value="EPSG:4490">EPSG:4490</option>
+              <option value="EPSG:4326">EPSG:4326 - WGS84 经纬度</option>
+              <option value="EPSG:4490">EPSG:4490 - CGCS2000 经纬度</option>
             </select>
             <ParameterFieldStatus
               :issues="issues"
@@ -53,40 +53,67 @@
               guidance="仅支持 EPSG:4326 或 EPSG:4490"
             />
           </label>
+        </div>
+        <div class="roi-control-card">
           <label class="toggle-row"
             ><span
               >WGS84 ROI
               <ParameterHint
                 label="WGS84 ROI"
-                text="限定处理范围。关闭后按产品全幅处理。" /></span
-            ><input v-model="roiEnabled" type="checkbox"
-          /></label>
-        </div>
-        <div v-if="roiEnabled" class="field-grid compact-grid">
-          <label v-for="field in ROI_FIELDS" :key="field.key"
-            ><span
-              >{{ field.label }}
-              <ParameterHint
-                :label="field.label"
-                :text="
-                  field.longitude
-                    ? '经度范围为 -180 到 180。'
-                    : '纬度范围为 -90 到 90。'
-                " /></span
-            ><ParameterNumberInput
-              v-model="roi[field.index]"
-              step="0.0001"
-              :min="field.longitude ? -180 : -90"
-              :max="field.longitude ? 180 : 90"
-            />
-            <ParameterFieldStatus
-              :issues="issues"
-              :fields="['roi']"
-              :guidance="
-                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+                text="默认关闭并处理产品全幅。可手动输入有效经纬度范围；当前 FY-4B HDF 未提供可在前端解析的四角范围，因此地图框选需等待范围元数据。" /></span
+            ><input
+              v-model="roiEnabled"
+              type="checkbox"
+              :disabled="locked || !roiDataReady"
+              :title="
+                roiDataReady
+                  ? '可开启 WGS84 ROI'
+                  : '请先完成当前产品所需文件上传'
               "
-            />
-          </label>
+          /></label>
+          <p
+            v-if="!roiDataReady"
+            class="roi-parameter-block__status is-warning"
+          >
+            请先完成当前产品所需文件上传，再开启 ROI。
+          </p>
+          <p v-if="roiEnabled" class="roi-control-card__note">
+            可手动输入或使用地图框选，最后一次修改生效；输入范围必须是有效的
+            WGS84 范围。
+          </p>
+          <div v-if="roiEnabled" class="field-grid compact-grid">
+            <label v-for="field in ROI_FIELDS" :key="field.key"
+              ><span
+                >{{ field.label }}
+                <ParameterHint
+                  :label="field.label"
+                  :text="
+                    field.longitude
+                      ? '经度范围为 -180 到 180。'
+                      : '纬度范围为 -90 到 90。'
+                  " /></span
+              ><ParameterNumberInput
+                v-model="roi[field.index]"
+                step="0.0001"
+                :min="field.longitude ? -180 : -90"
+                :max="field.longitude ? 180 : 90"
+                :disabled="locked"
+              />
+              <ParameterFieldStatus
+                :issues="issues"
+                :fields="['roi']"
+                :guidance="
+                  field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+                "
+              />
+            </label>
+          </div>
+          <RoiMapPicker
+            v-show="roiEnabled"
+            v-model="roiModel"
+            :bounds="roiBounds"
+            :disabled="locked"
+          />
         </div>
       </fieldset>
 
@@ -271,9 +298,12 @@
         <span :class="{ 'is-invalid': issues.length }">{{
           issues.length ? `发现 ${issues.length} 项待处理` : "参数校验已通过"
         }}</span
-        ><el-button type="primary" @click="open = false">{{
-          locked ? "关闭快照" : "完成配置"
-        }}</el-button>
+        ><el-button
+          type="primary"
+          :disabled="!locked && issues.length > 0"
+          @click="emit('confirm')"
+          >{{ locked ? "关闭快照" : "完成配置" }}</el-button
+        >
       </div></template
     >
   </el-drawer>
@@ -286,6 +316,7 @@ import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import ParameterHint from "./ParameterHint.vue";
 import ParameterFieldStatus from "./ParameterFieldStatus.vue";
 import ParameterNumberInput from "./ParameterNumberInput.vue";
+import RoiMapPicker, { type RoiBounds } from "./RoiMapPicker.vue";
 import FeatureMetricPicker from "./FeatureMetricPicker.vue";
 import { featureMetricOptions } from "./featureMetricLabels";
 import {
@@ -301,10 +332,14 @@ const props = defineProps<{
   form: Fy4bAgriForm;
   visibleSteps: readonly string[];
   locked: boolean;
+  roiDataReady: boolean;
   issues: Fy4bAgriValidationIssue[];
   summary: { grid: string; roi: string };
 }>();
-const emit = defineEmits<{ "update-form": [value: Fy4bAgriForm] }>();
+const emit = defineEmits<{
+  "update-form": [value: Fy4bAgriForm];
+  confirm: [];
+}>();
 const form = reactive<Fy4bAgriForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy4bAgriForm
 );
@@ -330,18 +365,36 @@ const overviewParameters = computed(() => {
   }
   return parameters;
 });
-const roiEnabled = ref(form.roi !== null);
+const roiDataReady = computed(() => props.roiDataReady);
+const roiEnabled = ref(
+  form.roi !== null && !props.locked && roiDataReady.value
+);
 const roi = reactive<[number, number, number, number]>(
   form.roi ? [...form.roi] : [...FY4B_AGRI_DEFAULT_ROI]
 );
+const roiBounds = ref<RoiBounds | null>(null);
 const ROI_FIELDS = [
   { key: "minLon", label: "最小经度", index: 0, longitude: true },
   { key: "minLat", label: "最小纬度", index: 1, longitude: false },
   { key: "maxLon", label: "最大经度", index: 2, longitude: true },
   { key: "maxLat", label: "最大纬度", index: 3, longitude: false }
 ] as const;
+const roiModel = computed<RoiBounds | null>({
+  get: () => (roiEnabled.value ? [...roi] : null),
+  set: value => {
+    if (!value) {
+      roiEnabled.value = false;
+      return;
+    }
+    roi.splice(0, roi.length, ...value);
+    roiEnabled.value = true;
+  }
+});
 watch(roiEnabled, enabled => {
   form.roi = enabled ? [...roi] : null;
+});
+watch(roiDataReady, ready => {
+  if (!ready && roiEnabled.value) roiEnabled.value = false;
 });
 watch(
   roi,

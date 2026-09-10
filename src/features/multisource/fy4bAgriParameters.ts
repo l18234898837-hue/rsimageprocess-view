@@ -69,7 +69,7 @@ const isValidRoi = (roi: Fy4bAgriForm["roi"]) =>
 export function defaultFy4bAgriForm(): Fy4bAgriForm {
   return {
     targetCrs: "EPSG:4326",
-    roi: [...FY4B_AGRI_DEFAULT_ROI],
+    roi: null,
     features: { enabled: false, metrics: ["statistics"], windowSize: 3 },
     fusion: {
       enabled: false,

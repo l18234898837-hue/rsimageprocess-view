@@ -1,11 +1,14 @@
 <template>
-  <div class="parameter-number-input" :class="{ 'is-disabled': disabled }">
+  <div
+    class="parameter-number-input"
+    :class="{ 'is-disabled': disabled || readonly }"
+  >
     <button
       type="button"
       class="parameter-number-input__step"
       aria-label="减少数值"
       title="减少数值"
-      :disabled="disabled || atMinimum"
+      :disabled="disabled || readonly || atMinimum"
       @click="stepDown"
     >
       -
@@ -18,6 +21,7 @@
       :max="max"
       :step="step"
       :disabled="disabled"
+      :readonly="readonly"
       @input="updateFromInput"
     />
     <button
@@ -25,7 +29,7 @@
       class="parameter-number-input__step"
       aria-label="增加数值"
       title="增加数值"
-      :disabled="disabled || atMaximum"
+      :disabled="disabled || readonly || atMaximum"
       @click="stepUp"
     >
       +
@@ -43,8 +47,9 @@ const props = withDefaults(
     max?: number;
     step?: number;
     disabled?: boolean;
+    readonly?: boolean;
   }>(),
-  { disabled: false, step: 1 }
+  { disabled: false, readonly: false, step: 1 }
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: number | ""] }>();

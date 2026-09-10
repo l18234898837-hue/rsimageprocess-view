@@ -38,29 +38,26 @@
           WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
         </p>
         <div class="field-grid">
-          <label class="is-wide">
+          <label>
             <span
               >输出坐标系
               <ParameterHint
                 label="输出坐标系"
-                text="输出坐标系，可填写 EPSG:4326 或投影坐标系编号。"
+                text="选择输出数据使用的坐标系；经纬度输出使用 WGS84，需要地图投影时可选择 Web Mercator 或 UTM 分区。"
             /></span>
-            <input
-              v-model.trim="form.targetCrs"
-              class="crs-input"
-              list="fy3h-crs-options"
-              placeholder="EPSG:4326 或投影 EPSG"
-            />
-            <datalist id="fy3h-crs-options">
-              <option value="EPSG:4326" />
-              <option value="EPSG:3857" />
-              <option value="EPSG:32650" />
-              <option value="EPSG:32651" />
-            </datalist>
+            <select v-model="form.targetCrs" class="crs-input">
+              <option value="EPSG:4326">EPSG:4326 - WGS84 经纬度</option>
+              <option value="EPSG:3857">EPSG:3857 - Web Mercator</option>
+              <option value="EPSG:32648">EPSG:32648 - UTM 48N</option>
+              <option value="EPSG:32649">EPSG:32649 - UTM 49N</option>
+              <option value="EPSG:32650">EPSG:32650 - UTM 50N</option>
+              <option value="EPSG:32651">EPSG:32651 - UTM 51N</option>
+              <option value="EPSG:32652">EPSG:32652 - UTM 52N</option>
+            </select>
             <ParameterFieldStatus
               :issues="issues"
               :fields="['targetCrs']"
-              guidance="格式：EPSG:编号"
+              guidance="请选择输出坐标系"
             />
           </label>
           <label>
@@ -98,9 +95,9 @@
               <ParameterHint
                 label="连续数据重采样"
                 text="连续测量变量固定采用最近邻，避免改变原始测量值，因此不可调整。" /></span
-            ><input value="最近邻" readonly /><small
+            ><input value="nearest" disabled /><small
               class="parameter-field__guide is-neutral"
-              >固定值：最近邻</small
+              >固定值：nearest</small
             ></label
           >
           <label class="toggle-row">
@@ -111,9 +108,21 @@
                 text="限定处理范围。关闭后按产品全幅处理。"
               />
             </span>
-            <input v-model="form.roi.enabled" type="checkbox" />
+            <input
+              v-model="form.roi.enabled"
+              type="checkbox"
+              :disabled="locked || !roiDataReady"
+              :title="
+                roiDataReady
+                  ? '可开启 WGS84 ROI'
+                  : '请先完成当前产品所需文件上传'
+              "
+            />
           </label>
         </div>
+        <p v-if="!roiDataReady" class="roi-parameter-block__status is-warning">
+          请先完成当前产品所需文件上传，再开启 ROI。
+        </p>
         <div v-if="form.roi.enabled" class="field-grid compact-grid">
           <label v-for="field in ROI_FIELDS" :key="field.key">
             <span
@@ -226,9 +235,9 @@
         <div class="rgb-grid">
           <label v-for="channel in RGB_CHANNELS" :key="channel.key">
             <span
-              ><strong>{{ channel.label }}</strong>
+              ><strong>{{ channel.label }}</strong> {{ channel.name }}
               <ParameterHint
-                :label="`${channel.label} 通道`"
+                :label="channel.name"
                 text="RGB 组合通道，只能选择已选的反射通道。"
             /></span>
             <select
@@ -368,9 +377,12 @@
         <span :class="{ 'is-invalid': issues.length }">{{
           issues.length ? `发现 ${issues.length} 项待处理` : "参数校验已通过"
         }}</span>
-        <el-button type="primary" @click="open = false">{{
-          locked ? "关闭快照" : "完成配置"
-        }}</el-button>
+        <el-button
+          type="primary"
+          :disabled="!locked && issues.length > 0"
+          @click="emit('confirm')"
+          >{{ locked ? "关闭快照" : "完成配置" }}</el-button
+        >
       </div>
     </template>
   </el-drawer>
@@ -410,15 +422,18 @@ const props = defineProps<{
   form: Fy3hMersiForm;
   visibleSteps: readonly string[];
   locked: boolean;
+  roiDataReady: boolean;
   issues: Fy3hMersiValidationIssue[];
   summary: Fy3hMersiPanelSummary;
 }>();
 const emit = defineEmits<{
   "update-form": [value: Fy3hMersiForm];
+  confirm: [];
 }>();
 const form = reactive<Fy3hMersiForm>(
   JSON.parse(JSON.stringify(props.form)) as Fy3hMersiForm
 );
+const roiDataReady = computed(() => props.roiDataReady);
 watch(
   () => [
     props.form.features.enabled,
@@ -447,6 +462,9 @@ watch(
     emit("update-form", JSON.parse(JSON.stringify(value)) as Fy3hMersiForm),
   { deep: true }
 );
+watch(roiDataReady, ready => {
+  if (!ready) form.roi.enabled = false;
+});
 const ROI_FIELDS = [
   { key: "minLon", label: "最小经度", longitude: true },
   { key: "minLat", label: "最小纬度", longitude: false },
@@ -454,12 +472,14 @@ const ROI_FIELDS = [
   { key: "maxLat", label: "最大纬度", longitude: false }
 ] as const;
 const RGB_CHANNELS = [
-  { key: "red", label: "R", guide: "红色：暖色与高反射目标" },
-  { key: "green", label: "G", guide: "绿色：植被与中间色调" },
-  { key: "blue", label: "B", guide: "蓝色：水体、薄雾与冷色调" }
+  { key: "red", label: "R", name: "红色通道", guide: "暖色与高反射目标" },
+  { key: "green", label: "G", name: "绿色通道", guide: "植被与中间色调" },
+  { key: "blue", label: "B", name: "蓝色通道", guide: "水体、薄雾与冷色调" }
 ] as const;
 const isWgs84 = computed(() => isFy3hWgs84Crs(form.targetCrs));
-const reflectiveBands = computed(() => form.bands.filter(band => band <= 19));
+const reflectiveBands = computed(() =>
+  form.bands.filter(band => band <= 19).sort((left, right) => left - right)
+);
 const saliencySources = computed(() =>
   form.bands.flatMap(band => {
     const variable = fy3hVariableName(band);

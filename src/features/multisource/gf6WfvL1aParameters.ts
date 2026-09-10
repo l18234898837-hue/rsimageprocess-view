@@ -85,7 +85,10 @@ export function defaultGf6WfvL1aForm(): Gf6WfvL1aForm {
   };
 }
 
-export function validateGf6WfvL1aForm(form: Gf6WfvL1aForm) {
+export function validateGf6WfvL1aForm(
+  form: Gf6WfvL1aForm,
+  roiBounds?: [number, number, number, number] | null
+) {
   const issues: Array<{ field: string; message: string }> = [];
   const validCrsSyntax = /^EPSG:\d+$/i.test(form.targetCrs.trim());
   if (!validCrsSyntax) {
@@ -117,6 +120,23 @@ export function validateGf6WfvL1aForm(form: Gf6WfvL1aForm) {
     issues.push({
       field: "roi",
       message: "ROI 必须按 minLon、minLat、maxLon、maxLat 排列"
+    });
+  } else if (form.roi !== null && roiBounds !== undefined && !roiBounds) {
+    issues.push({
+      field: "roi",
+      message: "未获取上传数据覆盖范围，无法启用 ROI"
+    });
+  } else if (
+    form.roi !== null &&
+    roiBounds &&
+    (form.roi[0] < roiBounds[0] ||
+      form.roi[1] < roiBounds[1] ||
+      form.roi[2] > roiBounds[2] ||
+      form.roi[3] > roiBounds[3])
+  ) {
+    issues.push({
+      field: "roi",
+      message: "ROI 必须完全位于上传数据覆盖范围内"
     });
   }
   const selectedBands = new Set(form.bands);
@@ -227,6 +247,11 @@ export function buildGf6WfvL1aSnapshot(form: Gf6WfvL1aForm): Gf6WfvL1aSnapshot {
     },
     saliency: form.saliency.enabled
       ? { ...form.saliency }
-      : { enabled: false, source: `B${fallbackBand}`, threshold: 0.95, windowSize: 9 }
+      : {
+          enabled: false,
+          source: `B${fallbackBand}`,
+          threshold: 0.95,
+          windowSize: 9
+        }
   };
 }

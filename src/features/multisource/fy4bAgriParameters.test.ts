@@ -12,7 +12,7 @@ test("FY-4B default form builds the exact Worker snapshot", () => {
   assert.deepEqual(snapshot, {
     schemaVersion: "1",
     targetCrs: "EPSG:4326",
-    roi: [120, 30, 122, 32],
+    roi: null,
     features: { enabled: false, metrics: ["statistics"] },
     fusion: { enabled: false, mode: "NIR_RED_BLUE", percentiles: [2, 98] },
     saliency: {

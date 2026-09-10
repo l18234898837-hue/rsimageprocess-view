@@ -141,6 +141,31 @@ test("parameter drawers group ROI controls and explain the remaining sparse fiel
   assert.match(gf6Drawer, /蓝色通道/);
 });
 
+test("ROI controls stay disabled until every required product file is uploaded", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  assert.match(
+    workspace,
+    /v-model="l2aForm\.roi\.enabled"[\s\S]*?!allSlotsUploaded/
+  );
+  assert.equal(
+    (workspace.match(/:roi-data-ready="allSlotsUploaded"/g) ?? []).length,
+    3
+  );
+
+  for (const filename of [
+    "Fy3hMersiParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue"
+  ]) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.match(drawer, /roiDataReady: boolean/);
+    assert.match(drawer, /请先完成当前产品所需文件上传，再开启 ROI/);
+  }
+});
+
 test("product drawers remove legacy output profile and processing summary rows", () => {
   const fy3hDrawer = readFileSync(
     "src/features/multisource/Fy3hMersiParameterDrawer.vue",
@@ -176,7 +201,7 @@ test("all output coordinate system controls fill the dedicated guidance column",
     assert.match(source, /输出坐标系/);
     assert.match(
       source,
-      /guidance="(?:格式：EPSG:编号|仅支持 EPSG:4326 或 EPSG:4490|默认自动选择地图分区；也可填写 EPSG:编号)"/
+      /guidance="(?:请选择输出坐标系|仅支持 EPSG:4326 或 EPSG:4490|推荐自动选择，也可指定 UTM 分区)"/
     );
   }
 });
@@ -236,7 +261,7 @@ test("FY-3H keeps its grid and optional WGS84 ROI in one engineering grid block"
   assert.doesNotMatch(drawer, /<legend class="toggle-heading">/);
 });
 
-test("FY-3H presents fixed resampling as a standard read-only field", () => {
+test("FY-3H presents fixed resampling as a standard disabled field", () => {
   const drawer = readFileSync(
     "src/features/multisource/Fy3hMersiParameterDrawer.vue",
     "utf8"
@@ -244,9 +269,24 @@ test("FY-3H presents fixed resampling as a standard read-only field", () => {
 
   assert.match(
     drawer,
-    /连续数据重采样[\s\S]*?<input value="最近邻" readonly \/>[\s\S]*?固定值：最近邻/
+    /连续数据重采样[\s\S]*?<input value="nearest" disabled \/>[\s\S]*?固定值：nearest/
   );
   assert.doesNotMatch(drawer, /<div class="fixed-setting-row">/);
+});
+
+test("HY-1C presents scientific resampling as a standard disabled input", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  assert.match(
+    workspace,
+    /科学重采样[\s\S]*?<input[\s\S]*?value="nearest"[\s\S]*?disabled[\s\S]*?固定值：nearest/
+  );
+  assert.doesNotMatch(
+    workspace,
+    /<div class="fixed-setting-row">[\s\S]*?科学重采样/
+  );
 });
 
 test("image parameter drawers synchronize algorithm enablement after target selection", () => {
@@ -315,7 +355,7 @@ test("teleported product drawers compile the shared theme as global CSS", async 
     compiled.code,
     /\.product-parameter-drawer\.mission-parameter-drawer\s*\{[\s\S]*?background:\s*var\(--drawer-canvas\)/
   );
-  assert.match(compiled.code, /--drawer-font-control:\s*0\.8125rem/);
+  assert.match(compiled.code, /--drawer-font-control:\s*13px/);
   assert.match(compiled.code, /--drawer-control-height:\s*30px/);
   assert.match(compiled.code, /min-height:\s*var\(--drawer-control-height\)/);
 });
@@ -648,6 +688,35 @@ test("workbench keeps processing risks out of the drawer and shows launch-time n
   assert.doesNotMatch(workspace, /<dd>{{ gf6Summary\.bands }}<\/dd>/);
 });
 
+test("task launch requires confirmed parameters and explains each blocking stage", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+  assert.match(workspace, /const isConfigurationConfirmed = ref\(false\)/);
+  assert.match(workspace, /const launchHint = computed/);
+  assert.match(workspace, /请先上传完整产品包/);
+  assert.match(workspace, /请选择至少一个处理功能/);
+  assert.match(workspace, /请打开配置参数，检查并点击“完成配置”/);
+  assert.match(workspace, /参数配置已完成，可以开始处理/);
+  assert.match(
+    workspace,
+    /selectedTargets\.value\.length > 0 &&\s+isConfigurationConfirmed\.value/
+  );
+  assert.match(workspace, /function confirmParameterConfiguration/);
+  for (const filename of [
+    "Fy3hMersiParameterDrawer.vue",
+    "Hy2dAltimeterParameterDrawer.vue",
+    "Fy4bAgriParameterDrawer.vue",
+    "Gf6WfvL1aParameterDrawer.vue"
+  ]) {
+    const drawer = readFileSync(`src/features/multisource/${filename}`, "utf8");
+    assert.match(drawer, /confirm: \[\]/);
+    assert.match(drawer, /@click="emit\('confirm'\)"/);
+    assert.match(drawer, /:disabled="!locked && issues\.length > 0"/);
+  }
+});
+
 test("parameter workbenches use compact stepper controls for editable numbers", () => {
   const stepper = readFileSync(
     "src/features/multisource/ParameterNumberInput.vue",
@@ -877,6 +946,52 @@ test("GF-6 RGB channels provide individual hover explanations", () => {
     gf6Drawer,
     /<strong>B<\/strong>\s*蓝色通道[\s\S]*label="蓝色通道"/
   );
+});
+
+test("RGB workbench rows use the shared channel labels and guidance", () => {
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  for (const source of [fy3hDrawer, workspace]) {
+    assert.match(source, /name: "红色通道", guide: "暖色与高反射目标"/);
+    assert.match(source, /name: "绿色通道", guide: "植被与中间色调"/);
+    assert.match(source, /name: "蓝色通道", guide: "水体、薄雾与冷色调"/);
+    assert.doesNotMatch(source, /红色：暖色与高反射目标/);
+    assert.match(
+      source,
+      /<strong>\{\{ channel\.label \}\}<\/strong> \{\{ channel\.name \}\}/
+    );
+  }
+
+  assert.match(
+    workspace,
+    /\.l2a-console \.rgb-grid label\s*\{[\s\S]*?grid-template-columns: 96px minmax\(0, 1fr\) 136px;/
+  );
+  assert.match(workspace, /\.l2a-console \.rgb-grid \.parameter-field__guide/);
+});
+
+test("RGB band options stay in numeric order", () => {
+  const fy3hDrawer = readFileSync(
+    "src/features/multisource/Fy3hMersiParameterDrawer.vue",
+    "utf8"
+  );
+  const gf6Drawer = readFileSync(
+    "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
+    "utf8"
+  );
+
+  assert.match(
+    fy3hDrawer,
+    /form\.bands\.filter\(band => band <= 19\)\.sort\(\(left, right\) => left - right\)/
+  );
+  assert.match(gf6Drawer, /const rgbBands = computed\(\(\) =>[\s\S]*?sort\(/);
+  assert.match(gf6Drawer, /v-for="band in rgbBands"/);
 });
 
 test("parameter workbenches use a single-line field layout with a dedicated status column", () => {

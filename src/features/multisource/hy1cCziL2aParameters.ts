@@ -143,7 +143,8 @@ export function buildHy1cCziL2aPanelSummary(
 }
 
 export function validateHy1cCziL2aForm(
-  form: Hy1cCziL2aForm
+  form: Hy1cCziL2aForm,
+  roiBounds?: [number, number, number, number] | null
 ): Hy1cCziL2aValidationResult {
   const issues: Hy1cCziL2aValidationIssue[] = [];
   const selectedBands = new Set(form.bands);
@@ -189,6 +190,22 @@ export function validateHy1cCziL2aForm(
       issues.push({
         field: "roiWgs84",
         message: "ROI 必须是有效的 WGS84 范围，且最小值小于最大值"
+      });
+    } else if (roiBounds !== undefined && !roiBounds) {
+      issues.push({
+        field: "roiWgs84",
+        message: "未获取上传数据覆盖范围，无法启用 ROI"
+      });
+    } else if (
+      roiBounds &&
+      ((minLon as number) < roiBounds[0] ||
+        (minLat as number) < roiBounds[1] ||
+        (maxLon as number) > roiBounds[2] ||
+        (maxLat as number) > roiBounds[3])
+    ) {
+      issues.push({
+        field: "roiWgs84",
+        message: "ROI 必须完全位于上传数据覆盖范围内"
       });
     }
   }

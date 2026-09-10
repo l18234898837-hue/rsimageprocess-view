@@ -35,7 +35,8 @@
           />
         </legend>
         <p class="roi-parameter-block__note">
-          WGS84 ROI 开启后按经纬度范围处理；关闭后处理产品全幅。
+          默认处理产品全幅；开启 WGS84 ROI
+          后按经纬度范围处理，可在上传数据覆盖范围内选择处理区域。
         </p>
         <div class="field-grid">
           <label
@@ -43,16 +44,21 @@
               >输出坐标系
               <ParameterHint
                 label="输出坐标系"
-                text="输出坐标系，按 EPSG:编号填写，例如 EPSG:4326。" /></span
-            ><input
-              v-model.trim="form.targetCrs"
-              class="crs-input"
-              placeholder="EPSG:4326"
-            />
+                text="选择输出数据使用的坐标系；经纬度输出可使用 WGS84 或 CGCS2000，需要地图投影时可选择 Web Mercator 或 UTM 分区。" /></span
+            ><select v-model="form.targetCrs" class="crs-input">
+              <option value="EPSG:4326">EPSG:4326 - WGS84 经纬度</option>
+              <option value="EPSG:4490">EPSG:4490 - CGCS2000 经纬度</option>
+              <option value="EPSG:3857">EPSG:3857 - Web Mercator</option>
+              <option value="EPSG:32648">EPSG:32648 - UTM 48N</option>
+              <option value="EPSG:32649">EPSG:32649 - UTM 49N</option>
+              <option value="EPSG:32650">EPSG:32650 - UTM 50N</option>
+              <option value="EPSG:32651">EPSG:32651 - UTM 51N</option>
+              <option value="EPSG:32652">EPSG:32652 - UTM 52N</option>
+            </select>
             <ParameterFieldStatus
               :issues="issues"
               :fields="['targetCrs']"
-              guidance="格式：EPSG:编号"
+              guidance="请选择输出坐标系"
             /> </label
           ><label
             ><span
@@ -90,40 +96,62 @@
               class="parameter-field__guide is-neutral"
               >固定值：0 米</small
             ></label
-          ><label class="toggle-row"
+          >
+        </div>
+        <div class="roi-control-card">
+          <label class="toggle-row"
             ><span
-              >WGS84 ROI（默认开启）
+              >WGS84 ROI
               <ParameterHint
                 label="WGS84 ROI"
-                text="限定处理范围。关闭后按产品全幅处理；元数据解析完成后才可调整。" /></span
-            ><input v-model="roiEnabled" type="checkbox" :disabled="!roiReady"
+                text="默认关闭并处理产品全幅。定位元数据解析完成后，可开启并在数据覆盖范围内框选处理区域。" /></span
+            ><input
+              v-model="roiEnabled"
+              type="checkbox"
+              :disabled="locked || !roiReady || !roiDataReady"
+              :title="roiDisabledReason || '可开启 WGS84 ROI'"
           /></label>
-        </div>
-        <div v-if="roiEnabled" class="field-grid compact-grid">
-          <label v-for="field in ROI_FIELDS" :key="field.key"
-            ><span
-              >{{ field.label }}
-              <ParameterHint
-                :label="field.label"
-                :text="
-                  field.longitude
-                    ? '经度范围为 -180 到 180。'
-                    : '纬度范围为 -90 到 90。'
-                " /></span
-            ><ParameterNumberInput
-              v-model="roi[field.index]"
-              step="0.0001"
-              :min="field.longitude ? -180 : -90"
-              :max="field.longitude ? 180 : 90"
-            />
-            <ParameterFieldStatus
-              :issues="issues"
-              :fields="['roi']"
-              :guidance="
-                field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
-              "
-            />
-          </label>
+          <p v-if="roiEnabled" class="roi-control-card__note">
+            可手动输入或使用地图框选，最后一次修改生效；输入范围必须位于上传数据覆盖范围内。
+          </p>
+          <p
+            v-if="!roiDataReady || !roiReady"
+            class="roi-parameter-block__status is-warning"
+          >
+            {{ roiDisabledReason }}
+          </p>
+          <div v-if="roiEnabled" class="field-grid compact-grid">
+            <label v-for="field in ROI_FIELDS" :key="field.key"
+              ><span
+                >{{ field.label }}
+                <ParameterHint
+                  :label="field.label"
+                  :text="
+                    field.longitude
+                      ? '经度范围为 -180 到 180。'
+                      : '纬度范围为 -90 到 90。'
+                  " /></span
+              ><ParameterNumberInput
+                v-model="roi[field.index]"
+                step="0.0001"
+                :min="field.longitude ? -180 : -90"
+                :max="field.longitude ? 180 : 90"
+              />
+              <ParameterFieldStatus
+                :issues="issues"
+                :fields="['roi']"
+                :guidance="
+                  field.longitude ? '范围 -180 到 180 度' : '范围 -90 到 90 度'
+                "
+              />
+            </label>
+          </div>
+          <RoiMapPicker
+            v-show="roiEnabled"
+            v-model="roiModel"
+            :bounds="roiBounds"
+            :disabled="locked"
+          />
         </div>
       </fieldset>
       <fieldset
@@ -217,7 +245,7 @@
               v-model.number="form.fusion.red"
               :disabled="!form.fusion.enabled || locked"
             >
-              <option v-for="band in form.bands" :key="band" :value="band">
+              <option v-for="band in rgbBands" :key="band" :value="band">
                 B{{ band }}
               </option></select
             ><small class="parameter-field__guide is-neutral"
@@ -233,7 +261,7 @@
               v-model.number="form.fusion.green"
               :disabled="!form.fusion.enabled || locked"
             >
-              <option v-for="band in form.bands" :key="band" :value="band">
+              <option v-for="band in rgbBands" :key="band" :value="band">
                 B{{ band }}
               </option></select
             ><small class="parameter-field__guide is-neutral"
@@ -249,7 +277,7 @@
               v-model.number="form.fusion.blue"
               :disabled="!form.fusion.enabled || locked"
             >
-              <option v-for="band in form.bands" :key="band" :value="band">
+              <option v-for="band in rgbBands" :key="band" :value="band">
                 B{{ band }}
               </option></select
             ><small class="parameter-field__guide is-neutral"
@@ -377,9 +405,12 @@
         <span :class="{ 'is-invalid': issues.length }">{{
           issues.length ? `发现 ${issues.length} 项待处理` : "参数校验已通过"
         }}</span
-        ><el-button type="primary" @click="open = false">{{
-          locked ? "关闭快照" : "完成配置"
-        }}</el-button>
+        ><el-button
+          type="primary"
+          :disabled="!locked && issues.length > 0"
+          @click="emit('confirm')"
+          >{{ locked ? "关闭快照" : "完成配置" }}</el-button
+        >
       </div></template
     >
   </el-drawer>
@@ -392,6 +423,7 @@ import ParameterWorkbenchOverview from "./ParameterWorkbenchOverview.vue";
 import ParameterHint from "./ParameterHint.vue";
 import ParameterFieldStatus from "./ParameterFieldStatus.vue";
 import ParameterNumberInput from "./ParameterNumberInput.vue";
+import RoiMapPicker, { type RoiBounds } from "./RoiMapPicker.vue";
 import FeatureMetricPicker from "./FeatureMetricPicker.vue";
 import OutputBandPicker, {
   type OutputBandOption
@@ -422,13 +454,20 @@ const props = defineProps<{
   metadataFile?: File;
   visibleSteps: readonly string[];
   locked: boolean;
+  roiDataReady: boolean;
   issues: { field: string; message: string }[];
 }>();
-const emit = defineEmits<{ "update-form": [value: Gf6WfvL1aForm] }>();
+const emit = defineEmits<{
+  "update-form": [value: Gf6WfvL1aForm];
+  confirm: [];
+}>();
 const rpcHeightMode = "CONSTANT" as const;
 const rpcHeight = 0 as const;
 const form = reactive<Gf6WfvL1aForm>(
   JSON.parse(JSON.stringify(props.form)) as Gf6WfvL1aForm
+);
+const rgbBands = computed(() =>
+  form.bands.slice().sort((left, right) => left - right)
 );
 watch(
   () => [
@@ -479,8 +518,16 @@ const overviewParameters = computed(() => {
 const resolutionConstraint = computed(() =>
   gf6ResolutionConstraint(form.targetCrs)
 );
-const roiEnabled = ref(form.roi !== null);
-const roiReady = ref(form.roi !== null);
+const roiEnabled = ref(false);
+const roiDataReady = computed(() => props.roiDataReady);
+const roiReady = ref(false);
+const roiStatusMessage = ref("正在等待定位元数据；解析成功后可开启 ROI。");
+const roiDisabledReason = computed(() => {
+  if (!roiDataReady.value) return "请先完成当前产品所需文件上传，再开启 ROI。";
+  if (!roiReady.value) return roiStatusMessage.value;
+  return "";
+});
+const roiBounds = ref<RoiBounds | null>(form.roi ? [...form.roi] : null);
 const roi = reactive<[number, number, number, number]>(
   form.roi ? [...form.roi] : [0, 0, 0, 0]
 );
@@ -490,6 +537,19 @@ const ROI_FIELDS = [
   { key: "maxLon", label: "最大经度", index: 2, longitude: true },
   { key: "maxLat", label: "最大纬度", index: 3, longitude: false }
 ] as const;
+const roiModel = computed<RoiBounds | null>({
+  get: () =>
+    roiEnabled.value && roiReady.value && roiDataReady.value ? [...roi] : null,
+  set: value => {
+    if (!value) {
+      roiEnabled.value = false;
+      return;
+    }
+    roi.splice(0, roi.length, ...value);
+    roiEnabled.value = true;
+  }
+});
+form.roi = null;
 let metadataReadVersion = 0;
 watch(
   () => props.metadataFile,
@@ -501,20 +561,36 @@ watch(
     if (metadataChanged) {
       roiEnabled.value = false;
       roiReady.value = false;
+      roiBounds.value = null;
       form.roi = null;
     }
     if (!metadataFile) {
+      roiBounds.value = null;
+      roiStatusMessage.value = "正在等待定位元数据；解析成功后可开启 ROI。";
       if (form.roi === null) roiReady.value = false;
       return;
     }
     try {
       const state = gf6RoiStateAfterMetadataChange(await metadataFile.text());
-      if (readVersion !== metadataReadVersion || !state.draft) return;
+      if (readVersion !== metadataReadVersion) return;
+      if (!state.draft) {
+        roiBounds.value = null;
+        roiReady.value = false;
+        roiStatusMessage.value =
+          "定位元数据中未找到有效的四角坐标，ROI 暂不可用；请检查 XML 是否包含 TopLeft/TopRight/BottomRight/BottomLeft 的经纬度字段。当前仍按产品全幅处理。";
+        return;
+      }
+      roiBounds.value = [...state.draft];
       if (metadataChanged || form.roi === null) {
         roi.splice(0, roi.length, ...state.draft);
         roiReady.value = true;
+        roiStatusMessage.value = "";
       }
     } catch {
+      roiBounds.value = null;
+      roiReady.value = false;
+      roiStatusMessage.value =
+        "定位元数据读取失败，ROI 暂不可用；当前仍按产品全幅处理。";
       if (readVersion === metadataReadVersion && form.roi === null) {
         roiReady.value = false;
       }
@@ -523,7 +599,10 @@ watch(
   { immediate: true }
 );
 watch(roiEnabled, enabled => {
-  form.roi = enabled && roiReady.value ? [...roi] : null;
+  form.roi = enabled && roiReady.value && roiDataReady.value ? [...roi] : null;
+});
+watch(roiDataReady, ready => {
+  if (!ready) roiEnabled.value = false;
 });
 watch(
   roi,

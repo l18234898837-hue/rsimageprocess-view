@@ -611,21 +611,31 @@ function toggleTarget(stepKey: string) {
 }
 
 .execution-plan .processing-plan__subheading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
   margin-bottom: 9px;
 }
 
+.execution-plan .processing-plan__resolved-heading {
+  justify-content: space-between;
+}
+
 .processing-plan__actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  width: 100%;
 }
 
 .processing-plan__progress,
 .processing-plan__configure {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
+  width: 100%;
   min-height: 30px;
   padding: 0 10px;
   font: inherit;

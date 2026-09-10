@@ -157,6 +157,21 @@ test("execution plan exposes runtime status and the detailed progress trigger", 
   assert.match(workspace, /@show-progress="isTaskProgressOpen = true"/);
 });
 
+test("execution plan separates its heading from two equal-width actions", () => {
+  assert.match(
+    panel,
+    /\.execution-plan \.processing-plan__subheading\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/
+  );
+  assert.match(
+    panel,
+    /\.processing-plan__actions\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[^}]*width:\s*100%;/
+  );
+  assert.match(
+    panel,
+    /\.processing-plan__progress,\s*\.processing-plan__configure\s*\{[^}]*justify-content:\s*center;[^}]*width:\s*100%;/
+  );
+});
+
 test("multisource workspace integrates the plan before upload and requires a target", () => {
   assert.match(workspace, /<ProcessingPlanPanel/);
   assert.match(workspace, /:target-steps="targetSteps"/);
