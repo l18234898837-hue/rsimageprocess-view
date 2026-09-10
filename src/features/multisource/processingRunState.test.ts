@@ -10,6 +10,7 @@ import {
   mapStageStatus,
   processingStepStatusLabel,
   runtimeProgressPercent,
+  runtimeSucceededCount,
   uiStepKeysForRemoteStage,
   formatStageDuration,
   artifactPresentation,
@@ -248,4 +249,13 @@ test("counts only successful stages in the determinate dialog progress", () => {
     25
   );
   assert.equal(runtimeProgressPercent([]), 0);
+});
+
+test("does not count failed stages as completed stages", () => {
+  const views = [
+    { status: "FAILED" },
+    { status: "WAITING" }
+  ] as RuntimeStageView[];
+
+  assert.equal(runtimeSucceededCount(views), 0);
 });

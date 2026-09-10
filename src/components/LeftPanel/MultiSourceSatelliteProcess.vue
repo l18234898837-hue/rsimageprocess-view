@@ -961,6 +961,7 @@ import {
 import {
   buildRuntimeStageViews,
   runtimeProgressPercent,
+  runtimeSucceededCount,
   type RuntimeStageView
 } from "@/features/multisource/processingRunState";
 import {
@@ -1252,11 +1253,8 @@ watch(newlyCompletedStageIds, ids => {
     ];
   }
 });
-const runtimeConfirmedCount = computed(
-  () =>
-    runtimeStageViews.value.filter(
-      view => view.status === "SUCCEEDED" || view.status === "FAILED"
-    ).length
+const runtimeConfirmedCount = computed(() =>
+  runtimeSucceededCount(runtimeStageViews.value)
 );
 const runtimeCurrentStage = computed(
   () =>

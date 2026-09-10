@@ -1,6 +1,7 @@
 import type {
   ExecutionProgressArtifact,
-  ExecutionProgressStage
+  ExecutionProgressStage,
+  ProcessingIdentifier
 } from "@/api/multiSourceSatellite";
 import type { StepDefinition } from "./pipelineDefinitions";
 
@@ -26,11 +27,15 @@ export function processingStepStatusLabel(status: ProcessingStepViewStatus) {
 
 export function runtimeProgressPercent(views: readonly RuntimeStageView[]) {
   if (!views.length) return 0;
-  const succeeded = views.filter(view => view.status === "SUCCEEDED").length;
+  const succeeded = runtimeSucceededCount(views);
   return Math.max(
     0,
     Math.min(100, Math.round((succeeded / views.length) * 100))
   );
+}
+
+export function runtimeSucceededCount(views: readonly RuntimeStageView[]) {
+  return views.filter(view => view.status === "SUCCEEDED").length;
 }
 
 export function formatStageDuration(
