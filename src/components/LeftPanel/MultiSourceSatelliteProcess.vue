@@ -130,15 +130,6 @@
           <div class="archive-import-panel__progress">
             <span :style="{ width: `${archiveProgressPercent}%` }" />
           </div>
-          <ol class="archive-import-panel__stages" aria-label="产品包导入流程">
-            <li
-              v-for="stage in archiveProgressStages"
-              :key="stage.status"
-              :class="archiveProgressStageState(stage.status)"
-            >
-              {{ stage.label }}
-            </li>
-          </ol>
           <small
             v-if="archiveImportProgress.currentFile"
             class="archive-import-panel__current-file"
@@ -1175,12 +1166,6 @@ const archiveProgressPercent = computed(() => {
   }
   return 0;
 });
-const archiveProgressStages = [
-  { status: "UPLOADING", label: "上传 ZIP" },
-  { status: "MERGING", label: "合并分片" },
-  { status: "PARSING", label: "解析内容" },
-  { status: "MATCHING", label: "匹配文件" }
-] as const;
 const archiveStatusLabel = getArchiveStatusLabel;
 const selectedTargets = ref<string[]>([]);
 const {
@@ -1738,22 +1723,6 @@ function waitForArchiveProgressRender() {
   return new Promise<void>(resolve => {
     requestAnimationFrame(() => resolve());
   });
-}
-
-function archiveProgressStageState(
-  status: (typeof archiveProgressStages)[number]["status"]
-) {
-  const current = archiveImportProgress.status;
-  const currentIndex = archiveProgressStages.findIndex(
-    stage => stage.status === current
-  );
-  const index = archiveProgressStages.findIndex(
-    stage => stage.status === status
-  );
-  if (current === "COMPLETED") return "is-complete";
-  if (currentIndex < 0) return "";
-  if (index < currentIndex) return "is-complete";
-  return index === currentIndex ? "is-current" : "";
 }
 
 async function pollArchiveImport(
@@ -3303,53 +3272,6 @@ button:disabled {
   background: linear-gradient(90deg, #2e7da3, #62b9c9);
   border-radius: inherit;
   transition: width 220ms ease;
-}
-
-.satellite-workspace .archive-import-panel__stages {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.satellite-workspace .archive-import-panel__stages li {
-  min-width: 0;
-  color: #8a9ba4;
-  font-size: 10px;
-  line-height: 1.3;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.satellite-workspace .archive-import-panel__stages li::before {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin: 0 3px 1px 0;
-  content: "";
-  vertical-align: middle;
-  background: #c6d4da;
-  border-radius: 50%;
-}
-
-.satellite-workspace .archive-import-panel__stages li.is-complete {
-  color: #33715a;
-}
-
-.satellite-workspace .archive-import-panel__stages li.is-complete::before {
-  background: #4caa7b;
-}
-
-.satellite-workspace .archive-import-panel__stages li.is-current {
-  color: #176b84;
-  font-weight: 600;
-}
-
-.satellite-workspace .archive-import-panel__stages li.is-current::before {
-  background: #2e9bbb;
-  box-shadow: 0 0 0 2px rgb(46 155 187 / 18%);
 }
 
 .satellite-workspace .archive-import-panel__cancel {
@@ -5672,6 +5594,10 @@ button:disabled {
   outline-color: var(--plain-primary);
 }
 
+.satellite-workspace .mission-launch :deep(.el-button--primary) {
+  width: 96px;
+  margin-top: 8px;
+}
 @media (max-width: 760px) {
   .satellite-workspace {
     padding-inline: 10px;
