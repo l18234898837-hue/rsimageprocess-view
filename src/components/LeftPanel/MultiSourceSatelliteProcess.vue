@@ -302,6 +302,78 @@
     />
 
     <section
+      v-if="artifactMapLayers.length"
+      class="artifact-map-layers"
+      aria-label="地图叠加图层"
+    >
+      <div class="artifact-map-layers__heading">
+        <div>
+          <strong>地图叠加图层</strong>
+          <small
+            >{{ artifactMapLayers.length }} /
+            {{ MAX_ARTIFACT_MAP_LAYERS }}</small
+          >
+        </div>
+        <el-tooltip content="清理全部图层" placement="top" effect="light">
+          <el-button
+            text
+            circle
+            aria-label="清理全部图层"
+            @click="clearArtifactMapPreview"
+          >
+            <el-icon><Delete /></el-icon>
+          </el-button>
+        </el-tooltip>
+      </div>
+      <div class="artifact-map-layers__list">
+        <article
+          v-for="layer in artifactMapLayers"
+          :key="layer.id"
+          class="artifact-map-layer"
+        >
+          <div class="artifact-map-layer__meta">
+            <strong :title="layer.name">{{ layer.name }}</strong>
+            <small>{{
+              layer.kind === "tiles" ? "COG/TIFF 瓦片" : "图片地图叠加"
+            }}</small>
+          </div>
+          <div class="artifact-map-layer__controls">
+            <label :for="`artifact-layer-opacity-${layer.id}`">透明度</label>
+            <input
+              :id="`artifact-layer-opacity-${layer.id}`"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              :value="layer.opacity"
+              @input="updateArtifactMapLayerOpacity(layer.id, $event)"
+            />
+            <el-tooltip content="查看原图" placement="top" effect="light">
+              <el-button
+                text
+                circle
+                aria-label="查看原图"
+                @click="previewArtifact(layer.artifact)"
+              >
+                <el-icon><View /></el-icon>
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="移除图层" placement="top" effect="light">
+              <el-button
+                text
+                circle
+                aria-label="移除图层"
+                @click="removeArtifactMapLayer(layer.id)"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </el-tooltip>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section
       v-if="processingRiskNotice"
       class="mission-section processing-risk-notice"
       role="note"
@@ -340,19 +412,20 @@
     <el-dialog
       v-model="isArtifactPreviewOpen"
       class="artifact-preview-dialog"
-      width="min(860px, calc(100vw - 40px))"
+      width="min(520px, calc(100vw - 24px))"
       append-to-body
       destroy-on-close
+      draggable
+      :modal="false"
+      :lock-scroll="false"
       @closed="clearArtifactPreview"
     >
       <template #header>
         <div class="artifact-preview-dialog__heading">
-          <strong class="artifact-preview-dialog__title">{{
-            artifactPreviewName
-          }}</strong>
-          <small v-if="previewedArtifact">{{
-            `${previewedArtifact.type} · ${artifactSize(previewedArtifact)}`
-          }}</small>
+          <strong class="artifact-preview-dialog__title">
+            {{ artifactPreviewName }}
+          </strong>
+          <small>{{ artifactPreviewDescription }}</small>
         </div>
       </template>
       <div class="artifact-preview-dialog__body">
@@ -362,173 +435,29 @@
           :alt="artifactPreviewName"
         />
         <el-tabs
-          v-else-if="artifactPreviewKind === 'json' && artifactPreviewSummary"
+          v-else-if="artifactPreviewKind === 'json'"
           v-model="artifactPreviewTab"
           class="artifact-json-preview"
         >
-          <el-tab-pane name="summary" label="结果摘要">
-            <div
-              v-if="artifactPreviewSummary.valid && artifactPreviewSummary.root"
-              class="artifact-json-summary"
+          <el-tab-pane name="fields" label="详细字段">
+            <el-tree
+              v-if="artifactPreviewFieldTree.length"
+              :data="artifactPreviewFieldTree"
+              node-key="key"
+              default-expand-all
+              class="artifact-json-field-tree"
             >
-              <dl
-                v-if="artifactPreviewSummary.root.scalars.length"
-                class="artifact-json-summary__rows"
-              >
-                <template
-                  v-for="row in artifactPreviewSummary.root.scalars"
-                  :key="row.key"
-                >
-                  <dt>{{ row.key }}</dt>
-                  <dd>{{ row.value }}</dd>
-                </template>
-              </dl>
-
-              <section
-                v-for="array in artifactPreviewSummary.root.arrays"
-                :key="array.key"
-                class="artifact-json-array"
-              >
-                <div class="artifact-json-array__heading">
-                  <strong>{{ array.key }}</strong>
-                  <small>{{ array.totalCount }} 项</small>
-                </div>
-                <el-table
-                  :data="array.rows"
-                  size="small"
-                  border
-                  max-height="360"
-                >
-                  <el-table-column
-                    v-for="column in array.columns"
-                    :key="column"
-                    :prop="column"
-                    :label="column"
-                    min-width="120"
-                    show-overflow-tooltip
-                  />
-                </el-table>
-                <p v-if="array.truncated" class="artifact-json-array__notice">
-                  仅显示前 50 项，请下载查看完整内容
-                </p>
-              </section>
-
-              <el-collapse
-                v-if="artifactPreviewSummary.root.objects.length"
-                class="artifact-json-summary__objects"
-              >
-                <el-collapse-item
-                  v-for="(object, objectIndex) in artifactPreviewSummary.root
-                    .objects"
-                  :key="object.key"
-                  :name="`root-object-${objectIndex}`"
-                  :title="object.key"
-                >
-                  <dl
-                    v-if="object.content.scalars.length"
-                    class="artifact-json-summary__rows"
+              <template #default="{ data }">
+                <span class="artifact-json-field-tree__node">
+                  <strong>{{ data.key }}</strong>
+                  <span v-if="data.kind === 'scalar'">：{{ data.value }}</span>
+                  <small v-else-if="data.kind === 'array'"
+                    >（{{ data.value }}）</small
                   >
-                    <template
-                      v-for="row in object.content.scalars"
-                      :key="row.key"
-                    >
-                      <dt>{{ row.key }}</dt>
-                      <dd>{{ row.value }}</dd>
-                    </template>
-                  </dl>
-
-                  <section
-                    v-for="array in object.content.arrays"
-                    :key="array.key"
-                    class="artifact-json-array"
-                  >
-                    <div class="artifact-json-array__heading">
-                      <strong>{{ array.key }}</strong>
-                      <small>{{ array.totalCount }} 项</small>
-                    </div>
-                    <el-table
-                      :data="array.rows"
-                      size="small"
-                      border
-                      max-height="300"
-                    >
-                      <el-table-column
-                        v-for="column in array.columns"
-                        :key="column"
-                        :prop="column"
-                        :label="column"
-                        min-width="120"
-                        show-overflow-tooltip
-                      />
-                    </el-table>
-                    <p
-                      v-if="array.truncated"
-                      class="artifact-json-array__notice"
-                    >
-                      仅显示前 50 项，请下载查看完整内容
-                    </p>
-                  </section>
-
-                  <el-collapse v-if="object.content.objects.length">
-                    <el-collapse-item
-                      v-for="(nestedObject, nestedIndex) in object.content
-                        .objects"
-                      :key="nestedObject.key"
-                      :name="`nested-object-${objectIndex}-${nestedIndex}`"
-                      :title="nestedObject.key"
-                    >
-                      <dl
-                        v-if="nestedObject.content.scalars.length"
-                        class="artifact-json-summary__rows"
-                      >
-                        <template
-                          v-for="row in nestedObject.content.scalars"
-                          :key="row.key"
-                        >
-                          <dt>{{ row.key }}</dt>
-                          <dd>{{ row.value }}</dd>
-                        </template>
-                      </dl>
-
-                      <section
-                        v-for="array in nestedObject.content.arrays"
-                        :key="array.key"
-                        class="artifact-json-array"
-                      >
-                        <div class="artifact-json-array__heading">
-                          <strong>{{ array.key }}</strong>
-                          <small>{{ array.totalCount }} 项</small>
-                        </div>
-                        <el-table
-                          :data="array.rows"
-                          size="small"
-                          border
-                          max-height="260"
-                        >
-                          <el-table-column
-                            v-for="column in array.columns"
-                            :key="column"
-                            :prop="column"
-                            :label="column"
-                            min-width="120"
-                            show-overflow-tooltip
-                          />
-                        </el-table>
-                        <p
-                          v-if="array.truncated"
-                          class="artifact-json-array__notice"
-                        >
-                          仅显示前 50 项，请下载查看完整内容
-                        </p>
-                      </section>
-                    </el-collapse-item>
-                  </el-collapse>
-                </el-collapse-item>
-              </el-collapse>
-            </div>
-            <p v-else class="artifact-json-preview__invalid">
-              无法生成结果摘要，请在原始 JSON 中查看内容
-            </p>
+                </span>
+              </template>
+            </el-tree>
+            <p v-else class="artifact-json-preview__invalid">暂无可展开字段</p>
           </el-tab-pane>
           <el-tab-pane name="raw" label="原始 JSON">
             <pre>{{ artifactPreviewText }}</pre>
@@ -1074,7 +1003,8 @@ import {
   Setting,
   QuestionFilled,
   FolderOpened,
-  WarningFilled
+  WarningFilled,
+  View
 } from "@element-plus/icons-vue";
 
 import { message } from "@/utils/message";
@@ -1095,15 +1025,19 @@ import RoiMapPicker, {
 import {
   artifactPreviewKind as resolveArtifactPreviewKind,
   assertArtifactPreviewable,
-  buildJsonArtifactSummary,
+  buildJsonArtifactFieldTree,
   formatArtifactPreviewText,
   type ArtifactPreviewKind,
-  type JsonArtifactSummary
+  type JsonArtifactFieldNode
 } from "@/features/multisource/artifactPreview";
+import { resolveArtifactView } from "@/features/multisource/artifactCapabilities";
 import {
   isMapPreviewCandidate,
+  isRasterArtifact,
+  parseImageArtifactVisualization,
   parseMapArtifactPreview,
-  parseTileArtifactVisualization
+  parseTileArtifactVisualization,
+  parseTilePreviewDescriptor
 } from "@/features/multisource/artifactMapPreview";
 import map from "@/libs/tdtmap";
 import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
@@ -1193,6 +1127,7 @@ import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage
 } from "@/api/multiSourceSatellite";
+import { getArtifactTilePreview } from "@/api/multiSourceSatellite";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import {
   cancelArchiveUpload,
@@ -1386,7 +1321,6 @@ const {
   candidate,
   taskStatus,
   progress,
-  newlyCompletedStageIds,
   setTemplate,
   uploadSlot,
   setUploadedSlot,
@@ -1440,24 +1374,42 @@ watch(
   { immediate: true }
 );
 
+watch(taskStatus, status => {
+  if (status === "FAILED" || status === "CANCELED") {
+    clearArtifactPreview();
+    clearArtifactMapPreview();
+  }
+});
+
 const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
 const isTaskProgressOpen = ref(false);
 const isArtifactPreviewOpen = ref(false);
 const artifactPreviewUrl = ref("");
 const artifactPreviewName = ref("");
+const artifactPreviewDescription = ref("");
 const previewingArtifact = ref<ExecutionProgressArtifact | null>(null);
 const downloadingArtifact = ref<ExecutionProgressArtifact | null>(null);
 
 const artifactPreviewKind = ref<ArtifactPreviewKind>();
 const artifactPreviewText = ref("");
-const artifactPreviewSummary = ref<JsonArtifactSummary>();
-const artifactPreviewTab = ref("summary");
+const artifactPreviewFieldTree = ref<JsonArtifactFieldNode[]>([]);
+const artifactPreviewTab = ref("fields");
 const previewedArtifact = ref<ExecutionProgressArtifact | null>(null);
 const isHy1c = computed(
   () => activeTemplate.value.id === HY1C_CZI_L2A_TEMPLATE.id
 );
+const MAX_ARTIFACT_MAP_LAYERS = 4;
+type ArtifactMapLayer = {
+  id: string;
+  name: string;
+  kind: "tiles" | "image";
+  artifact: ExecutionProgressArtifact;
+  layer: Cesium.ImageryLayer;
+  opacity: number;
+  disposeErrorListener: () => void;
+};
+const artifactMapLayers = ref<ArtifactMapLayer[]>([]);
 let artifactMapDataSource: Cesium.DataSource | undefined;
-let artifactMapImageryLayer: Cesium.ImageryLayer | undefined;
 const isFy3h = computed(
   () => activeTemplate.value.id === FY3H_MERSI_TEMPLATE.id
 );
@@ -1501,16 +1453,6 @@ const runtimePlanStageViews = computed(() =>
 const runtimeStageViews = computed(() =>
   collapseRuntimeStageViews(runtimePlanStageViews.value)
 );
-watch(newlyCompletedStageIds, ids => {
-  const latest = ids[ids.length - 1];
-  if (latest === undefined) return;
-  if (!expandedArtifactStageIds.value.includes(latest)) {
-    expandedArtifactStageIds.value = [
-      ...expandedArtifactStageIds.value,
-      latest
-    ];
-  }
-});
 const runtimeConfirmedCount = computed(() =>
   runtimeSucceededCount(runtimeStageViews.value)
 );
@@ -1718,7 +1660,43 @@ function artifactSize(artifact: ExecutionProgressArtifact) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function artifactPreviewDescriptionFor(artifact: ExecutionProgressArtifact) {
+  if (artifact.description?.trim()) return artifact.description.trim();
+  const label =
+    `${artifact.displayName || ""} ${artifact.type} ${artifact.uri}`.toLowerCase();
+  const format = String(artifact.format || "").toUpperCase();
+  if (format === "JSON" || /json/.test(label)) {
+    return "记录本阶段的参数和执行结果，便于复核处理过程。";
+  }
+  if (
+    ["TIFF", "TIF", "COG", "GEOTIFF"].includes(format) ||
+    /\.(tif|tiff)|cog/.test(label)
+  ) {
+    return "地理参考栅格影像，可叠加到地图查看。";
+  }
+  if (
+    ["PNG", "JPG", "JPEG", "WEBP", "GIF"].includes(format) ||
+    /image|\.(png|jpe?g|webp|gif)/.test(label)
+  ) {
+    return "处理生成的影像预览文件。";
+  }
+  if (format === "CSV" || /csv/.test(label)) {
+    return "包含轨迹或表格属性的数据文件。";
+  }
+  if (format === "GEOJSON" || /geojson/.test(label)) {
+    return "包含地理要素和属性的空间数据文件。";
+  }
+  return "本阶段生成的处理产物，可查看或下载。";
+}
+
 function isPreviewableArtifact(artifact: ExecutionProgressArtifact) {
+  const capability = resolveArtifactView(artifact);
+  if (
+    !capability.enabled ||
+    !["image", "json", "text"].includes(capability.mode)
+  ) {
+    return false;
+  }
   try {
     assertArtifactPreviewable(artifact);
     return true;
@@ -1728,8 +1706,12 @@ function isPreviewableArtifact(artifact: ExecutionProgressArtifact) {
 }
 
 function isMapPreviewableArtifact(artifact: ExecutionProgressArtifact) {
+  const capability = resolveArtifactView(artifact);
+  if (!capability.enabled || capability.mode !== "map") return false;
   return (
+    isRasterArtifact(artifact) ||
     Boolean(parseTileArtifactVisualization(artifact)) ||
+    Boolean(parseImageArtifactVisualization(artifact)) ||
     (isMapPreviewCandidate(artifact) &&
       (artifact.sizeBytes || 0) <= 20 * 1024 * 1024)
   );
@@ -1741,29 +1723,57 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       throw new Error("该产物暂不支持在地图中查看");
     }
     const viewer = await map.readyPromise;
-    clearArtifactMapPreview();
-    const tileVisualization = parseTileArtifactVisualization(artifact);
+    const descriptor = isRasterArtifact(artifact)
+      ? await getArtifactTilePreview(
+          progress.value?.taskId ?? "",
+          artifact.type
+        )
+      : undefined;
+    const tileVisualization = descriptor
+      ? parseTilePreviewDescriptor(descriptor.data)
+      : parseTileArtifactVisualization(artifact);
+    const imageVisualization = parseImageArtifactVisualization(artifact);
     if (tileVisualization) {
       const rectangle = Cesium.Rectangle.fromDegrees(
         ...tileVisualization.bounds
       );
-      artifactMapImageryLayer = viewer.imageryLayers.addImageryProvider(
-        new Cesium.UrlTemplateImageryProvider({
-          url: tileVisualization.tileUrl,
-          rectangle,
-          minimumLevel: tileVisualization.minZoom,
-          maximumLevel: tileVisualization.maxZoom,
-          tilingScheme:
-            tileVisualization.crs?.toUpperCase() === "EPSG:4326"
-              ? new Cesium.GeographicTilingScheme()
-              : undefined
-        })
+      addArtifactMapLayer(
+        artifact,
+        "tiles",
+        viewer.imageryLayers.addImageryProvider(
+          new Cesium.UrlTemplateImageryProvider({
+            url: tileVisualization.tileUrl,
+            rectangle,
+            minimumLevel: tileVisualization.minZoom,
+            maximumLevel: tileVisualization.maxZoom,
+            tilingScheme:
+              tileVisualization.crs?.toUpperCase() === "EPSG:4326"
+                ? new Cesium.GeographicTilingScheme()
+                : undefined
+          })
+        )
       );
       viewer.camera.flyTo({
         destination: rectangle,
         duration: 0.8
       });
+    } else if (imageVisualization) {
+      const rectangle = Cesium.Rectangle.fromDegrees(
+        ...imageVisualization.bounds
+      );
+      addArtifactMapLayer(
+        artifact,
+        "image",
+        viewer.imageryLayers.addImageryProvider(
+          new Cesium.SingleTileImageryProvider({
+            url: imageVisualization.imageUrl,
+            rectangle
+          })
+        )
+      );
+      viewer.camera.flyTo({ destination: rectangle, duration: 0.8 });
     } else {
+      clearArtifactMapDataSource();
       const preview = parseMapArtifactPreview(
         artifact,
         await (await getArtifactBlob(artifact)).text()
@@ -1797,7 +1807,73 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
   }
 }
 
-function clearArtifactMapPreview() {
+function artifactMapLayerId(artifact: ExecutionProgressArtifact) {
+  return `${artifact.stageId}-${artifact.type}-${artifact.uri}`;
+}
+
+function addArtifactMapLayer(
+  artifact: ExecutionProgressArtifact,
+  kind: ArtifactMapLayer["kind"],
+  layer: Cesium.ImageryLayer
+) {
+  const id = artifactMapLayerId(artifact);
+  removeArtifactMapLayer(id);
+  if (artifactMapLayers.value.length >= MAX_ARTIFACT_MAP_LAYERS) {
+    const viewer = map.getViewer();
+    if (viewer && viewer.imageryLayers.contains(layer)) {
+      viewer.imageryLayers.remove(layer, true);
+    }
+    throw new Error(
+      `地图最多同时叠加 ${MAX_ARTIFACT_MAP_LAYERS} 个产物，请先移除不需要的图层`
+    );
+  }
+  const name = artifactFileName(artifact);
+  const disposeErrorListener =
+    layer.imageryProvider.errorEvent.addEventListener(error => {
+      const statusCode = Number((error as { statusCode?: number }).statusCode);
+      if (statusCode === 401 || statusCode === 403) {
+        removeArtifactMapLayer(id);
+        message(`${name} 的地图访问凭证已失效，请刷新任务进度后重试`, {
+          type: "warning"
+        });
+      }
+    });
+  artifactMapLayers.value = [
+    ...artifactMapLayers.value,
+    {
+      id,
+      name,
+      kind,
+      artifact,
+      layer,
+      opacity: 1,
+      disposeErrorListener
+    }
+  ];
+}
+
+function updateArtifactMapLayerOpacity(id: string, event: Event) {
+  const opacity = Number((event.target as HTMLInputElement).value);
+  const layer = artifactMapLayers.value.find(item => item.id === id);
+  if (!layer || !Number.isFinite(opacity)) return;
+  layer.opacity = Math.max(0, Math.min(1, opacity));
+  layer.layer.alpha = layer.opacity;
+}
+
+function removeArtifactMapLayer(id: string) {
+  const target = artifactMapLayers.value.find(item => item.id === id);
+  if (!target) return;
+  target.disposeErrorListener();
+  const viewer = map.getViewer();
+  if (viewer && viewer.imageryLayers.contains(target.layer)) {
+    viewer.imageryLayers.remove(target.layer, true);
+  }
+  artifactMapLayers.value = artifactMapLayers.value.filter(
+    item => item.id !== id
+  );
+}
+
+function clearArtifactMapDataSource() {
   const viewer = map.getViewer();
   if (
     viewer &&
@@ -1806,15 +1882,12 @@ function clearArtifactMapPreview() {
   ) {
     viewer.dataSources.remove(artifactMapDataSource, true);
   }
-  if (
-    viewer &&
-    artifactMapImageryLayer &&
-    viewer.imageryLayers.contains(artifactMapImageryLayer)
-  ) {
-    viewer.imageryLayers.remove(artifactMapImageryLayer, true);
-  }
   artifactMapDataSource = undefined;
-  artifactMapImageryLayer = undefined;
+}
+
+function clearArtifactMapPreview() {
+  artifactMapLayers.value.map(item => item.id).forEach(removeArtifactMapLayer);
+  clearArtifactMapDataSource();
 }
 
 async function previewArtifact(artifact: ExecutionProgressArtifact) {
@@ -1829,8 +1902,16 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
     else {
       const previewText = await blob.text();
       if (kind === "json") {
-        artifactPreviewSummary.value = buildJsonArtifactSummary(previewText);
-        artifactPreviewText.value = artifactPreviewSummary.value.rawText;
+        try {
+          const parsed = JSON.parse(previewText) as unknown;
+          artifactPreviewFieldTree.value = buildJsonArtifactFieldTree(parsed);
+        } catch {
+          artifactPreviewFieldTree.value = [];
+        }
+        artifactPreviewText.value = formatArtifactPreviewText(
+          previewText,
+          kind
+        );
       } else {
         artifactPreviewText.value = formatArtifactPreviewText(
           previewText,
@@ -1839,6 +1920,7 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
       }
     }
     artifactPreviewName.value = artifactFileName(artifact);
+    artifactPreviewDescription.value = artifactPreviewDescriptionFor(artifact);
     artifactPreviewKind.value = kind;
     previewedArtifact.value = artifact;
     isArtifactPreviewOpen.value = true;
@@ -1868,10 +1950,11 @@ function clearArtifactPreview() {
   if (artifactPreviewUrl.value) URL.revokeObjectURL(artifactPreviewUrl.value);
   artifactPreviewUrl.value = "";
   artifactPreviewName.value = "";
+  artifactPreviewDescription.value = "";
   artifactPreviewKind.value = undefined;
   artifactPreviewText.value = "";
-  artifactPreviewSummary.value = undefined;
-  artifactPreviewTab.value = "summary";
+  artifactPreviewFieldTree.value = [];
+  artifactPreviewTab.value = "fields";
   previewedArtifact.value = null;
   isArtifactPreviewOpen.value = false;
 }
@@ -2303,6 +2386,8 @@ function handleTemplateChange(event: Event) {
     isPackageExpanded.value = false;
     isParameterDrawerOpen.value = false;
     isTaskProgressOpen.value = false;
+    clearArtifactPreview();
+    clearArtifactMapPreview();
   } catch (error) {
     select.value = activeTemplate.value.id;
     message(error instanceof Error ? error.message : "无法切换产品模板", {
@@ -2398,6 +2483,8 @@ async function startTask() {
 async function cancelTask() {
   try {
     await cancel();
+    clearArtifactPreview();
+    clearArtifactMapPreview();
     message("已发送取消请求", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "取消任务失败", {
@@ -2410,6 +2497,8 @@ async function retryTask(stageId: string | number) {
   isBusy.value = true;
   try {
     await retry(stageId);
+    clearArtifactPreview();
+    clearArtifactMapPreview();
     message("任务已重新启动", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "任务重试失败", {
@@ -2435,6 +2524,8 @@ function resetTask() {
   try {
     reset();
     isTaskProgressOpen.value = false;
+    clearArtifactPreview();
+    clearArtifactMapPreview();
   } catch (error) {
     message(error instanceof Error ? error.message : "无法重置任务", {
       type: "warning"
@@ -3152,19 +3243,106 @@ function resetTask() {
   white-space: nowrap;
 }
 
+.artifact-map-layers {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--cloud);
+  border: 1px solid #cbdfe8;
+}
+
+.artifact-map-layers__heading,
+.artifact-map-layer,
+.artifact-map-layer__controls {
+  display: flex;
+  align-items: center;
+}
+
+.artifact-map-layers__heading {
+  justify-content: space-between;
+}
+
+.artifact-map-layers__heading > div {
+  display: grid;
+  gap: 2px;
+}
+
+.artifact-map-layers__heading strong {
+  color: var(--survey);
+  font-size: 12px;
+}
+
+.artifact-map-layers__heading small,
+.artifact-map-layer small,
+.artifact-map-layer__controls label {
+  color: #71838e;
+  font-size: 10px;
+}
+
+.artifact-map-layers__list {
+  display: grid;
+  gap: 7px;
+}
+
+.artifact-map-layer {
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+  padding-top: 7px;
+  border-top: 1px solid #d7e6ed;
+}
+
+.artifact-map-layer__meta {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.artifact-map-layer__meta strong {
+  overflow: hidden;
+  color: #314957;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-map-layer__controls {
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.artifact-map-layer__controls input[type="range"] {
+  width: 72px;
+  accent-color: #176b84;
+}
+
+.artifact-preview-dialog__heading {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.artifact-preview-dialog__title {
+  overflow: hidden;
+  color: #173b4d;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artifact-preview-dialog__heading small {
+  overflow: hidden;
+  color: #71838e;
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .artifact-preview-dialog__body {
   display: flex;
-  .artifact-preview-dialog__heading {
-    display: grid;
-    gap: 2px;
-  }
-
-  .artifact-preview-dialog__heading small {
-    color: #71838e;
-    font-size: 11px;
-  }
-
-  max-height: 70vh;
+  max-height: 76vh;
+  min-height: 320px;
   justify-content: center;
   overflow: auto;
   background: #f3f8fa;
@@ -3177,114 +3355,88 @@ function resetTask() {
   object-fit: contain;
 }
 
-.artifact-shelf__title strong {
-  font-size: 11px;
-  .artifact-preview-dialog__body pre {
-    width: 100%;
-    padding: 14px;
-    margin: 0;
-    overflow: auto;
-    color: #314957;
-    font:
-      12px/1.55 Consolas,
-      "Liberation Mono",
-      monospace;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
+.artifact-preview-dialog__body pre {
+  width: 100%;
+  padding: 14px;
+  margin: 0;
+  overflow: auto;
+  color: #314957;
+  font:
+    12px/1.55 Consolas,
+    "Liberation Mono",
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
-  .artifact-json-preview {
-    width: 100%;
-    padding: 0 14px 14px;
-    background: #fff;
-  }
+.artifact-json-preview {
+  width: 100%;
+  padding: 0 14px 14px;
+  background: #fff;
+}
 
-  .artifact-json-preview :deep(.el-tabs__header) {
-    margin: 0;
-  }
+.artifact-json-preview :deep(.el-tabs__header) {
+  margin: 0;
+}
 
-  .artifact-json-preview :deep(.el-tabs__content) {
-    padding-top: 12px;
-  }
+.artifact-json-preview :deep(.el-tabs__content) {
+  padding-top: 12px;
+}
 
-  .artifact-json-summary {
-    display: grid;
-    gap: 14px;
-  }
+.artifact-json-field-tree {
+  max-height: 58vh;
+  padding: 8px;
+  overflow: auto;
+  background: #fbfdfe;
+  border: 1px solid #dce8ed;
+  border-radius: 4px;
+}
 
-  .artifact-json-summary__rows {
-    display: grid;
-    grid-template-columns: minmax(120px, 0.34fr) minmax(0, 1fr);
-    margin: 0;
-    border-top: 1px solid #dce6ea;
-  }
+.artifact-json-field-tree__node {
+  color: #405665;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 
-  .artifact-json-summary__rows dt,
-  .artifact-json-summary__rows dd {
-    min-width: 0;
-    padding: 8px 10px;
-    margin: 0;
-    overflow-wrap: anywhere;
-    border-bottom: 1px solid #dce6ea;
-  }
+.artifact-json-field-tree__node small {
+  color: #71838e;
+}
 
-  .artifact-json-summary__rows dt {
-    color: #48616e;
-    font-size: 12px;
-    font-weight: 600;
-    background: #f4f8f9;
-  }
+.artifact-json-preview__invalid {
+  margin: 0;
+  color: #71838e;
+  font-size: 12px;
+  line-height: 1.5;
+}
 
-  .artifact-json-summary__rows dd {
-    color: #263f4b;
-    font-size: 13px;
-    background: #fff;
-  }
+:global(.artifact-preview-dialog) {
+  overflow: hidden;
+  border: 1px solid #bfd9e5;
+  border-radius: 7px;
+  box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
+}
 
-  .artifact-json-array {
-    display: grid;
-    gap: 7px;
-  }
+:global(.artifact-preview-dialog .el-dialog__header) {
+  padding: 13px 16px 10px;
+  margin-right: 0;
+  border-bottom: 1px solid #e1ebef;
+}
 
-  .artifact-json-array__heading {
-    display: flex;
-    gap: 8px;
-    align-items: baseline;
-    justify-content: space-between;
-  }
+:global(.artifact-preview-dialog .el-dialog__body) {
+  padding: 0;
+}
 
-  .artifact-json-array__heading strong {
-    color: #314c59;
-    font-size: 13px;
-  }
+:global(.artifact-preview-dialog .el-dialog__footer) {
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px 12px;
+  border-top: 1px solid #e1ebef;
+}
 
-  .artifact-json-array__heading small,
-  .artifact-json-array__notice,
-  .artifact-json-preview__invalid {
-    color: #71838e;
-    font-size: 12px;
-  }
-
-  .artifact-json-array__notice,
-  .artifact-json-preview__invalid {
-    margin: 0;
-    line-height: 1.5;
-  }
-
-  .artifact-json-summary__objects {
-    border-top: 1px solid #dce6ea;
-  }
-
-  .artifact-json-summary__objects :deep(.el-collapse-item__content) {
-    display: grid;
-    gap: 14px;
-    padding: 4px 0 14px;
-  }
-
-  @media (max-width: 560px) {
-    .artifact-json-summary__rows {
-      grid-template-columns: minmax(94px, 0.38fr) minmax(0, 1fr);
-    }
+@media (max-width: 560px) {
+  .artifact-preview-dialog__body {
+    max-height: 72vh;
+    min-height: 260px;
   }
 }
 

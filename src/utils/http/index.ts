@@ -160,6 +160,9 @@ class PureHttp {
         // 关闭进度条动画
         NProgress.done();
 
+        // 产物本身可能就是 JSON，不能将其当作接口错误响应解析。
+        if ($config.rawBlobResponse) return response;
+
         // 兼容blob、字节，主要用于报错显示json信息
         if (
           response.request.responseType === "blob" ||
@@ -249,7 +252,7 @@ class PureHttp {
   public request<T>(
     method: RequestMethods,
     url: string,
-    param?: AxiosRequestConfig,
+    param?: PureHttpRequestConfig,
     axiosConfig?: PureHttpRequestConfig
   ): Promise<T> {
     const config = {

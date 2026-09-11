@@ -3,6 +3,7 @@ import type { ExecutionProgressArtifact } from "@/api/multiSourceSatellite";
 export type ArtifactPreviewKind = "image" | "json" | "text";
 
 export const MAX_ARTIFACT_PREVIEW_BYTES = 20 * 1024 * 1024;
+export const MAX_JSON_ARTIFACT_PREVIEW_BYTES = 2 * 1024 * 1024;
 export const JSON_PREVIEW_MAX_ARRAY_ROWS = 50;
 
 type JsonValue =
@@ -57,6 +58,47 @@ const TEXT_MEDIA_TYPES = new Set([
   "text/xml"
 ]);
 
+const FORMAT_MEDIA_TYPES: Record<string, string> = {
+  JSON: "application/json",
+  GEOJSON: "application/geo+json",
+  PNG: "image/png",
+  JPG: "image/jpeg",
+  JPEG: "image/jpeg",
+  WEBP: "image/webp",
+  GIF: "image/gif",
+  CSV: "text/csv",
+  TXT: "text/plain",
+  LOG: "text/plain",
+  XML: "application/xml"
+};
+
+const JSON_METRIC_KEYS = new Set([
+  "min",
+  "max",
+  "mean",
+  "avg",
+  "average",
+  "median",
+  "std",
+  "count",
+  "sum",
+  "coverage",
+  "accuracy",
+  "confidence"
+]);
+
+const JSON_FIELD_TREE_MAX_DEPTH = 6;
+
+export interface JsonArtifactMetric {
+  key: string;
+  value: string;
+}
+
+export type JsonArtifactFieldNode =
+  | { key: string; kind: "scalar"; value: string }
+  | { key: string; kind: "object"; children: JsonArtifactFieldNode[] }
+  | { key: string; kind: "array"; value: string };
+
 function inferredMediaType(uri: string) {
   const path = uri.split(/[?#]/)[0].toLowerCase();
   if (/\.png$/.test(path)) return "image/png";
@@ -74,10 +116,20 @@ export function artifactPreviewKind(
   artifact: ExecutionProgressArtifact
 ): ArtifactPreviewKind | undefined {
   if (artifact.previewable === false) return undefined;
-  const mediaType = (artifact.mediaType || inferredMediaType(artifact.uri))
+  const declaredMediaType = (artifact.mediaType || "")
     .split(";", 1)[0]
     .trim()
     .toLowerCase();
+  const formatMediaType =
+    FORMAT_MEDIA_TYPES[
+      String(artifact.format || "")
+        .trim()
+        .toUpperCase()
+    ] || "";
+  const mediaType =
+    declaredMediaType && declaredMediaType !== "application/octet-stream"
+      ? declaredMediaType
+      : formatMediaType || declaredMediaType || inferredMediaType(artifact.uri);
   if (IMAGE_MEDIA_TYPES.has(mediaType)) return "image";
   if (mediaType === "application/json") return "json";
   if (TEXT_MEDIA_TYPES.has(mediaType)) return "text";
@@ -85,8 +137,15 @@ export function artifactPreviewKind(
 }
 
 export function assertArtifactPreviewable(artifact: ExecutionProgressArtifact) {
-  if (!artifactPreviewKind(artifact)) {
+  const kind = artifactPreviewKind(artifact);
+  if (!kind) {
     throw new Error("该产物格式暂不支持在线查看，请下载后查看");
+  }
+  if (
+    kind === "json" &&
+    (artifact.sizeBytes || 0) > MAX_JSON_ARTIFACT_PREVIEW_BYTES
+  ) {
+    throw new Error("JSON 文件较大，请下载后查看");
   }
   if ((artifact.sizeBytes || 0) > MAX_ARTIFACT_PREVIEW_BYTES) {
     throw new Error("文件较大，请下载后查看");
@@ -116,6 +175,43 @@ export function buildJsonArtifactSummary(value: string): JsonArtifactSummary {
   } catch {
     return { valid: false, rawText: value };
   }
+}
+
+export function extractJsonArtifactMetrics(
+  value: unknown
+): JsonArtifactMetric[] {
+  const metrics: JsonArtifactMetric[] = [];
+  const visit = (entry: unknown, depth: number) => {
+    if (depth > JSON_FIELD_TREE_MAX_DEPTH || !isJsonObjectLike(entry)) return;
+    for (const [key, child] of Object.entries(entry)) {
+      if (JSON_METRIC_KEYS.has(key.toLowerCase()) && isJsonScalar(child)) {
+        metrics.push({ key, value: formatJsonValue(child) });
+      }
+      if (isJsonObject(child)) visit(child, depth + 1);
+    }
+  };
+  visit(value, 0);
+  return metrics;
+}
+
+export function buildJsonArtifactFieldTree(
+  value: unknown,
+  depth = 0
+): JsonArtifactFieldNode[] {
+  if (!isJsonObject(value) || depth > JSON_FIELD_TREE_MAX_DEPTH) return [];
+  return Object.entries(value).map(([key, child]) => {
+    if (Array.isArray(child)) {
+      return { key, kind: "array", value: `${child.length} 项` };
+    }
+    if (isJsonObject(child)) {
+      return {
+        key,
+        kind: "object",
+        children: buildJsonArtifactFieldTree(child, depth + 1)
+      };
+    }
+    return { key, kind: "scalar", value: formatJsonValue(child) };
+  });
 }
 
 function createJsonSummaryContent(
@@ -179,8 +275,23 @@ function createJsonSummaryArray(
   };
 }
 
-function isJsonObject(value: JsonValue): value is { [key: string]: JsonValue } {
+function isJsonObject(value: unknown): value is { [key: string]: JsonValue } {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonObjectLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isJsonScalar(
+  value: unknown
+): value is string | number | boolean | null {
+  return (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
 }
 
 function formatJsonValue(value: JsonValue): string {

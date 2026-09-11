@@ -5,7 +5,10 @@ import {
   artifactPreviewKind,
   assertArtifactPreviewable,
   buildJsonArtifactSummary,
+  buildJsonArtifactFieldTree,
+  extractJsonArtifactMetrics,
   formatArtifactPreviewText,
+  MAX_JSON_ARTIFACT_PREVIEW_BYTES,
   MAX_ARTIFACT_PREVIEW_BYTES
 } from "./artifactPreview";
 
@@ -59,6 +62,16 @@ test("blocks unavailable and oversized artifacts before requesting their preview
   );
 });
 
+test("blocks large JSON files before parsing them on the main thread", () => {
+  assert.throws(
+    () =>
+      assertArtifactPreviewable(
+        artifact({ sizeBytes: MAX_JSON_ARTIFACT_PREVIEW_BYTES + 1 })
+      ),
+    /JSON 文件较大/
+  );
+});
+
 test("formats valid JSON while preserving invalid text verbatim", () => {
   assert.equal(
     formatArtifactPreviewText('{"valid":true}', "json"),
@@ -108,4 +121,62 @@ test("limits JSON array summaries to fifty rows and leaves invalid JSON to the r
   assert.equal(invalidSummary.valid, false);
   assert.equal(invalidSummary.root, undefined);
   assert.equal(invalidSummary.rawText, "not-json");
+});
+
+test("infers preview kinds from the declared artifact format when media type is generic", () => {
+  assert.equal(
+    artifactPreviewKind(
+      artifact({
+        format: "JSON",
+        mediaType: "application/octet-stream",
+        uri: "rs://output/task/result.bin"
+      })
+    ),
+    "json"
+  );
+  assert.equal(
+    artifactPreviewKind(
+      artifact({
+        format: "PNG",
+        mediaType: "application/octet-stream",
+        uri: "rs://output/task/result.bin"
+      })
+    ),
+    "image"
+  );
+});
+
+test("extracts metric scalars and a bounded field tree for the JSON viewer", () => {
+  const source = {
+    status: "completed",
+    statistics: { mean: 12.4, max: 20, count: 3 },
+    records: [{ id: "A", value: 1 }]
+  };
+
+  assert.deepEqual(extractJsonArtifactMetrics(source), [
+    { key: "mean", value: "12.4" },
+    { key: "max", value: "20" },
+    { key: "count", value: "3" }
+  ]);
+  assert.deepEqual(buildJsonArtifactFieldTree(source), [
+    {
+      key: "status",
+      kind: "scalar",
+      value: "completed"
+    },
+    {
+      key: "statistics",
+      kind: "object",
+      children: [
+        { key: "mean", kind: "scalar", value: "12.4" },
+        { key: "max", kind: "scalar", value: "20" },
+        { key: "count", kind: "scalar", value: "3" }
+      ]
+    },
+    {
+      key: "records",
+      kind: "array",
+      value: "1 项"
+    }
+  ]);
 });

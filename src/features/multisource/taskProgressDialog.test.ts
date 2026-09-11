@@ -56,7 +56,7 @@ test("stage artifact actions are grouped behind an expandable stage control", ()
   );
   assert.match(
     dialog,
-    /:aria-expanded="view\.stage \? isStageArtifactsExpanded\(view\)/
+    /:aria-expanded=\s*"\s*view\.stage \? isStageArtifactsExpanded\(view\)/
   );
   assert.match(dialog, /v-if="isStageArtifactsExpanded\(view\)"/);
   assert.match(dialog, /v-for="artifact in view\.artifacts"/);
@@ -69,11 +69,20 @@ test("stage artifact actions are grouped behind an expandable stage control", ()
   assert.doesNotMatch(dialog, /stageDetailHint/);
 });
 
-test("JSON artifact previews provide a business summary and a raw JSON fallback", () => {
-  assert.match(processPanel, /name="summary" label="结果摘要"/);
+test("completed stages stay collapsed until the user expands their artifacts", () => {
+  assert.doesNotMatch(processPanel, /watch\(newlyCompletedStageIds/);
+});
+
+test("topic stages have a distinct waiting appearance", () => {
+  assert.match(dialog, /is-topic\.is-waiting/);
+});
+
+test("JSON artifact previews provide detailed fields and a raw JSON fallback", () => {
+  assert.match(processPanel, /name="fields" label="详细字段"/);
   assert.match(processPanel, /name="raw" label="原始 JSON"/);
-  assert.match(processPanel, /artifactPreviewSummary/);
-  assert.match(processPanel, /buildJsonArtifactSummary/);
+  assert.match(processPanel, /artifactPreviewFieldTree/);
+  assert.match(processPanel, /buildJsonArtifactFieldTree/);
+  assert.doesNotMatch(processPanel, /name="summary" label="结果摘要"/);
   assert.doesNotMatch(processPanel, /v-html/);
 });
 
@@ -86,7 +95,7 @@ test("task progress dialog exposes map viewing only for map-ready artifacts", ()
 });
 
 test("task progress dialog keeps execution details and artifacts within each stage", () => {
-  assert.match(dialog, /<el-collapse v-model="expandedSections"/);
+  assert.match(dialog, /<el-collapse\s+v-model="expandedSections"/);
   assert.match(dialog, /name="execution"/);
   assert.match(dialog, /执行详情/);
   assert.match(dialog, /task-progress-dialog__stage-expanded/);
@@ -105,4 +114,14 @@ test("artifact rows use the capability contract for view state and retain direct
   assert.match(dialog, /@click="openArtifact\(artifact\)"/);
   assert.match(dialog, /@click="downloadArtifact\(artifact\)"/);
   assert.match(dialog, /下载全部产物 ZIP/);
+});
+
+test("map overlays expose layer cleanup, opacity control, and an original-image mode", () => {
+  assert.match(processPanel, /artifact-map-layers/);
+  assert.match(processPanel, /MAX_ARTIFACT_MAP_LAYERS/);
+  assert.match(processPanel, /updateArtifactMapLayerOpacity/);
+  assert.match(processPanel, /removeArtifactMapLayer/);
+  assert.match(processPanel, /clearArtifactMapPreview/);
+  assert.match(processPanel, /查看原图/);
+  assert.match(processPanel, /SingleTileImageryProvider/);
 });

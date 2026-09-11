@@ -53,23 +53,25 @@ test("keeps legacy artifacts viewable by their actual file format", () => {
     {
       format: "CSV",
       enabled: true,
-      mode: "table"
+      mode: "map"
     }
   );
   assert.deepEqual(
     resolveArtifactView(artifact({ uri: "rs://out/track.nc" })),
     {
       format: "NETCDF",
-      enabled: true,
-      mode: "dataset"
+      enabled: false,
+      mode: "disabled",
+      reason: "NetCDF 在线查看器尚未接入，请下载后查看"
     }
   );
   assert.deepEqual(
     resolveArtifactView(artifact({ uri: "rs://out/track.parquet" })),
     {
       format: "PARQUET",
-      enabled: true,
-      mode: "dataset"
+      enabled: false,
+      mode: "disabled",
+      reason: "Parquet 在线查看器尚未接入，请下载后查看"
     }
   );
   assert.deepEqual(
@@ -79,6 +81,49 @@ test("keeps legacy artifacts viewable by their actual file format", () => {
       enabled: true,
       mode: "image"
     }
+  );
+});
+
+test("promotes PNG artifacts with safe overlay metadata to map viewing", () => {
+  assert.deepEqual(
+    resolveArtifactView(
+      artifact({
+        uri: "rs://out/rgb.png",
+        format: "PNG",
+        visualization: {
+          kind: "bounds",
+          imageUrl: "/api/multisource/processing-tasks/8/artifacts/RGB/image",
+          bounds: [110, 20, 120, 30],
+          crs: "EPSG:4326"
+        }
+      })
+    ),
+    { format: "PNG", enabled: true, mode: "map" }
+  );
+});
+
+test("does not advertise TIFF map viewing without a safe tile service", () => {
+  assert.deepEqual(
+    resolveArtifactView(artifact({ uri: "rs://out/scene.tif" })),
+    {
+      format: "COG",
+      enabled: false,
+      mode: "disabled",
+      reason: "TIFF/COG 需要安全瓦片服务才能在线查看，请下载后查看"
+    }
+  );
+});
+
+test("enables TIFF map viewing when the backend advertises the protected tile capability", () => {
+  assert.deepEqual(
+    resolveArtifactView(
+      artifact({
+        uri: "rs://out/scene.tif",
+        format: "COG",
+        view: { enabled: true, mode: "map" }
+      })
+    ),
+    { format: "COG", enabled: true, mode: "map" }
   );
 });
 

@@ -129,8 +129,18 @@ export interface ArtifactViewCapability {
 export interface ArtifactVisualization {
   kind: "tiles" | "geojson" | "bounds";
   tileUrl?: string;
+  imageUrl?: string;
   bounds?: [number, number, number, number];
   crs?: string;
+  minZoom?: number;
+  maxZoom?: number;
+  legend?: unknown;
+}
+
+export interface ArtifactTilePreviewResponse {
+  tileUrl: string;
+  bounds: [number, number, number, number];
+  crs: string;
   minZoom?: number;
   maxZoom?: number;
   legend?: unknown;
@@ -237,8 +247,18 @@ export const downloadProcessingArtifact = (
     "get",
     `/api/multisource/processing-tasks/${taskId}/artifacts/${encodeURIComponent(type)}/download`,
     {
-      responseType: "blob"
+      responseType: "blob",
+      rawBlobResponse: true
     }
+  );
+
+export const getArtifactTilePreview = (
+  taskId: ProcessingIdentifier,
+  type: string
+) =>
+  http.request<Result<ArtifactTilePreviewResponse>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/artifacts/${encodeURIComponent(type)}/tile-preview`
   );
 
 export type ProcessingSlotFiles = Partial<Record<SlotId, File>>;

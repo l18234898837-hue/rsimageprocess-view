@@ -32,6 +32,20 @@ const parseTileArtifactVisualization = (
 ).parseTileArtifactVisualization as (
   artifact: ExecutionProgressArtifact
 ) => unknown;
+const parseImageArtifactVisualization = (
+  artifactMapPreview as Record<string, unknown>
+).parseImageArtifactVisualization as (
+  artifact: ExecutionProgressArtifact
+) => unknown;
+const parseTilePreviewDescriptor = (
+  artifactMapPreview as Record<string, unknown>
+).parseTilePreviewDescriptor as (descriptor: {
+  tileUrl: string;
+  bounds: [number, number, number, number];
+  crs: string;
+  minZoom?: number;
+  maxZoom?: number;
+}) => unknown;
 
 test("converts GeoJSON artifacts into a map-ready feature collection", () => {
   assert.ok(parseMapArtifactPreview, "map artifact parser should be available");
@@ -150,6 +164,41 @@ test("recognizes backend-provided tile visualization without inspecting the sour
   );
 });
 
+test("accepts a protected TIFF tile descriptor only when its URL and bounds are safe", () => {
+  assert.deepEqual(
+    parseTilePreviewDescriptor({
+      tileUrl:
+        "/api/multisource/processing-tasks/8/artifacts/COG/tiles/{z}/{x}/{y}.png?ticket=opaque",
+      bounds: [110, 20, 120, 30],
+      crs: "EPSG:4326",
+      minZoom: 1,
+      maxZoom: 16
+    }),
+    {
+      kind: "tiles",
+      tileUrl:
+        "/api/multisource/processing-tasks/8/artifacts/COG/tiles/{z}/{x}/{y}.png?ticket=opaque",
+      bounds: [110, 20, 120, 30],
+      crs: "EPSG:4326",
+      minZoom: 1,
+      maxZoom: 16
+    }
+  );
+});
+
+test("accepts a projected EPSG tile descriptor after server-side reprojection", () => {
+  assert.ok(
+    parseTilePreviewDescriptor({
+      tileUrl:
+        "/api/multisource/processing-tasks/8/artifacts/COG/tiles/{z}/{x}/{y}.png?ticket=opaque",
+      bounds: [111, 12, 122, 18],
+      crs: "EPSG:32650",
+      minZoom: 1,
+      maxZoom: 16
+    })
+  );
+});
+
 test("rejects unsafe tile URLs and invalid WGS84 bounds", () => {
   const invalidUrl = artifact({
     type: "COG",
@@ -176,4 +225,65 @@ test("rejects unsafe tile URLs and invalid WGS84 bounds", () => {
   assert.equal(parseTileArtifactVisualization(invalidBounds), undefined);
   assert.equal(isMapPreviewCandidate(invalidUrl), false);
   assert.equal(isMapPreviewCandidate(invalidBounds), false);
+});
+
+test("accepts a safe PNG overlay only with WGS84 bounds", () => {
+  const imageArtifact = artifact({
+    type: "RGB_PREVIEW",
+    uri: "rs://output/task/rgb.png",
+    mediaType: "image/png",
+    visualization: {
+      kind: "bounds",
+      imageUrl:
+        "/api/multisource/processing-tasks/8/artifacts/RGB_PREVIEW/image",
+      bounds: [110, 20, 120, 30],
+      crs: "EPSG:4326"
+    }
+  });
+
+  assert.deepEqual(parseImageArtifactVisualization(imageArtifact), {
+    ...imageArtifact.visualization,
+    kind: "bounds",
+    imageUrl: imageArtifact.visualization?.imageUrl,
+    bounds: [110, 20, 120, 30]
+  });
+  assert.equal(isMapPreviewCandidate(imageArtifact), true);
+});
+
+test("rejects overlay images with unsafe URLs, invalid bounds, or complex projections", () => {
+  const invalidUrl = artifact({
+    mediaType: "image/png",
+    visualization: {
+      kind: "bounds",
+      imageUrl: "javascript:alert(1)",
+      bounds: [110, 20, 120, 30],
+      crs: "EPSG:4326"
+    }
+  });
+  const invalidBounds = artifact({
+    mediaType: "image/png",
+    visualization: {
+      kind: "bounds",
+      imageUrl: "/safe/image.png",
+      bounds: [110, 95, 120, 30],
+      crs: "EPSG:4326"
+    }
+  });
+  const unsupportedProjection = artifact({
+    mediaType: "image/png",
+    visualization: {
+      kind: "bounds",
+      imageUrl: "/safe/image.png",
+      bounds: [110, 20, 120, 30],
+      crs: "EPSG:4490"
+    }
+  });
+
+  assert.equal(parseImageArtifactVisualization(invalidUrl), undefined);
+  assert.equal(parseImageArtifactVisualization(invalidBounds), undefined);
+  assert.equal(
+    parseImageArtifactVisualization(unsupportedProjection),
+    undefined
+  );
+  assert.equal(isMapPreviewCandidate(unsupportedProjection), false);
 });

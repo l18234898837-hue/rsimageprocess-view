@@ -385,16 +385,27 @@ function handleStageClick(event: MouseEvent, view: RuntimeStageView) {
 }
 
 function isMapArtifact(artifact: ExecutionProgressArtifact) {
-  return props.isMapPreviewable(artifact);
+  const view = artifactView(artifact);
+  return (
+    view.enabled && view.mode === "map" && props.isMapPreviewable(artifact)
+  );
 }
 
 function canPreviewArtifact(artifact: ExecutionProgressArtifact) {
-  return isMapArtifact(artifact) || props.isPreviewable(artifact);
+  const view = artifactView(artifact);
+  return (
+    isMapArtifact(artifact) ||
+    (view.enabled &&
+      ["image", "json", "text"].includes(view.mode) &&
+      props.isPreviewable(artifact))
+  );
 }
 
 function artifactPreviewHint(artifact: ExecutionProgressArtifact) {
   if (isMapArtifact(artifact)) return "在地图中查看";
-  if (props.isPreviewable(artifact)) return "在线查看产物";
+  if (artifactView(artifact).enabled && props.isPreviewable(artifact)) {
+    return "在线查看产物";
+  }
   return (
     artifactView(artifact).reason || "该产物暂不支持在线查看，请下载后查看"
   );
@@ -697,6 +708,12 @@ function emptyArtifactHint(view: RuntimeStageView) {
   background: #f2fbfd;
   border-color: #b8dce6;
   box-shadow: inset 3px 0 0 #3093ad;
+}
+
+.task-progress-dialog__stage.is-topic.is-waiting {
+  background: #f8f7f2;
+  border-color: #ddd2ae;
+  box-shadow: inset 3px 0 0 #a88b49;
 }
 
 .task-progress-dialog__stage.is-topic.is-processing {

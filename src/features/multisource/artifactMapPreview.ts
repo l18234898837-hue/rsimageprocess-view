@@ -1,4 +1,5 @@
 import type {
+  ArtifactTilePreviewResponse,
   ArtifactVisualization,
   ExecutionProgressArtifact
 } from "@/api/multiSourceSatellite";
@@ -15,9 +16,23 @@ export interface TileArtifactVisualization extends ArtifactVisualization {
   bounds: [number, number, number, number];
 }
 
+export function parseTilePreviewDescriptor(
+  descriptor: ArtifactTilePreviewResponse
+): TileArtifactVisualization | undefined {
+  return parseTileVisualization({ ...descriptor, kind: "tiles" });
+}
+
+export interface ImageArtifactVisualization extends ArtifactVisualization {
+  kind: "bounds";
+  imageUrl: string;
+  bounds: [number, number, number, number];
+}
+
 export function isMapPreviewCandidate(artifact: ExecutionProgressArtifact) {
   if (parseTileArtifactVisualization(artifact)) return true;
+  if (parseImageArtifactVisualization(artifact)) return true;
   const mediaType = normalizedMediaType(artifact);
+  if (isImageArtifact(artifact)) return false;
   const name = `${artifact.type} ${artifact.uri}`.toLowerCase();
   return (
     mediaType === "application/geo+json" ||
@@ -31,7 +46,12 @@ export function isMapPreviewCandidate(artifact: ExecutionProgressArtifact) {
 export function parseTileArtifactVisualization(
   artifact: ExecutionProgressArtifact
 ): TileArtifactVisualization | undefined {
-  const visualization = artifact.visualization;
+  return parseTileVisualization(artifact.visualization);
+}
+
+function parseTileVisualization(
+  visualization: Partial<ArtifactVisualization> | undefined
+): TileArtifactVisualization | undefined {
   if (
     visualization?.kind !== "tiles" ||
     !isSafeTileUrl(visualization.tileUrl)
@@ -45,16 +65,39 @@ export function parseTileArtifactVisualization(
   ) {
     return undefined;
   }
-  if (
-    visualization.crs &&
-    !["EPSG:4326", "EPSG:3857"].includes(visualization.crs.toUpperCase())
-  ) {
+  if (visualization.crs && !/^EPSG:\d+$/i.test(visualization.crs.trim())) {
     return undefined;
   }
   return {
     ...visualization,
     kind: "tiles",
     tileUrl: visualization.tileUrl,
+    bounds
+  };
+}
+
+export function parseImageArtifactVisualization(
+  artifact: ExecutionProgressArtifact
+): ImageArtifactVisualization | undefined {
+  const visualization = artifact.visualization;
+  if (
+    visualization?.kind !== "bounds" ||
+    !isImageArtifact(artifact) ||
+    !isSafeResourceUrl(visualization.imageUrl)
+  ) {
+    return undefined;
+  }
+  const bounds = validBounds(visualization.bounds);
+  if (
+    !bounds ||
+    (visualization.crs && visualization.crs.toUpperCase() !== "EPSG:4326")
+  ) {
+    return undefined;
+  }
+  return {
+    ...visualization,
+    kind: "bounds",
+    imageUrl: visualization.imageUrl,
     bounds
   };
 }
@@ -138,6 +181,11 @@ function isSafeTileUrl(value: unknown): value is string {
   ) {
     return false;
   }
+  return isSafeResourceUrl(value);
+}
+
+function isSafeResourceUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
   if (value.startsWith("/") && !value.startsWith("//")) return true;
   try {
     const url = new URL(value);
@@ -145,6 +193,23 @@ function isSafeTileUrl(value: unknown): value is string {
   } catch {
     return false;
   }
+}
+
+function isImageArtifact(artifact: ExecutionProgressArtifact) {
+  const mediaType = normalizedMediaType(artifact);
+  return (
+    ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+      mediaType
+    ) || /\.(png|jpe?g|webp|gif)$/i.test(artifact.uri.split(/[?#]/)[0])
+  );
+}
+
+export function isRasterArtifact(artifact: ExecutionProgressArtifact) {
+  const format = (artifact.format || "").toUpperCase();
+  return (
+    ["COG", "GEOTIFF", "TIFF", "TIF"].includes(format) ||
+    /\.tiff?$/i.test(artifact.uri.split(/[?#]/)[0])
+  );
 }
 
 function validZoomRange(minZoom?: number, maxZoom?: number) {
