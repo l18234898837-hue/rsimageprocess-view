@@ -133,6 +133,24 @@ export interface ArtifactStageGroup {
   readonly artifacts: readonly ExecutionProgressArtifact[];
 }
 
+/**
+ * A remote stage can satisfy more than one planned UI step. Keep the full
+ * step mapping for the plan panel, but render each actual execution stage
+ * only once in the progress dialog.
+ */
+export function collapseRuntimeStageViews(
+  views: readonly RuntimeStageView[]
+): RuntimeStageView[] {
+  const seenStageIds = new Set<string>();
+  return views.filter(view => {
+    if (!view.stage) return true;
+    const stageId = String(view.stage.stageId);
+    if (seenStageIds.has(stageId)) return false;
+    seenStageIds.add(stageId);
+    return true;
+  });
+}
+
 const REMOTE_STAGE_ALIASES: Record<string, string> = {
   VALIDATE_SOURCE: "upload-validation",
   VALIDATE_FY3H_PAIR: "upload-validation",

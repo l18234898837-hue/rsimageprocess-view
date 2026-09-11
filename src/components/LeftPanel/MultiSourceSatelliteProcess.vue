@@ -259,7 +259,7 @@
       :selected-targets="selectedTargets"
       :checked-targets="checkedTargetKeys"
       :locked-targets="lockedTargetKeys"
-      :runtime-stage-views="runtimeStageViews"
+      :runtime-stage-views="runtimePlanStageViews"
       :disabled="isTaskActive || isBusy || isUploading"
       @update:selected-targets="updateSelectedTargets"
       @configure="isParameterDrawerOpen = true"
@@ -1174,6 +1174,7 @@ import {
 } from "@/features/multisource/processingPlan";
 import {
   buildRuntimeStageViews,
+  collapseRuntimeStageViews,
   runtimeProgressPercent,
   runtimeSucceededCount,
   type RuntimeStageView
@@ -1487,7 +1488,7 @@ const resolvedPlanSteps = computed(() =>
     .map(key => pipelineDefinition.value.steps.find(step => step.key === key))
     .filter((step): step is NonNullable<typeof step> => Boolean(step))
 );
-const runtimeStageViews = computed(() =>
+const runtimePlanStageViews = computed(() =>
   buildRuntimeStageViews(
     resolvedPlanSteps.value,
     progress.value?.stages || [],
@@ -1496,6 +1497,9 @@ const runtimeStageViews = computed(() =>
     ...view,
     runtimeId: view.stage?.stageId ?? `planned-${view.step.key}-${index}`
   }))
+);
+const runtimeStageViews = computed(() =>
+  collapseRuntimeStageViews(runtimePlanStageViews.value)
 );
 watch(newlyCompletedStageIds, ids => {
   const latest = ids[ids.length - 1];
