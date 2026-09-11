@@ -248,8 +248,16 @@ test("completed processing view exposes the ZIP action and stage downloads", () 
     "utf8"
   );
 
-  assert.equal(progressDialog.includes('aria-label="查看阶段产物"'), true);
-  assert.equal(progressDialog.includes(':disabled="true"'), true);
+  assert.equal(
+    progressDialog.includes(
+      'class="task-progress-dialog__artifact-description"'
+    ),
+    true
+  );
+  assert.equal(
+    progressDialog.includes('@click="handleStageClick($event, view)"'),
+    true
+  );
   assert.equal(
     progressDialog.includes('emit("download-artifact", artifact)'),
     true

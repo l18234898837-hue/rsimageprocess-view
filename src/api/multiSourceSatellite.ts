@@ -104,6 +104,7 @@ export interface ExecutionProgressArtifact {
   mediaType?: string;
   previewable?: boolean;
   displayName?: string;
+  description?: string;
   visualization?: ArtifactVisualization;
   format?: string;
   view?: ArtifactViewCapability;

@@ -48,7 +48,7 @@
           <template #title>
             <span class="task-progress-dialog__section-title">
               <strong>执行详情</strong>
-              <small>阶段状态、处理说明与生成进度</small>
+              <small>阶段状态与产物</small>
             </span>
           </template>
           <div
@@ -71,8 +71,16 @@
               class="task-progress-dialog__stage"
               :class="[
                 `is-${view.status.toLowerCase()}`,
-                isTopicStage(view) ? 'is-topic' : 'is-preprocess'
+                isTopicStage(view) ? 'is-topic' : 'is-preprocess',
+                { 'is-expandable': Boolean(view.stage) }
               ]"
+              :tabindex="view.stage ? 0 : -1"
+              :aria-expanded="
+                view.stage ? isStageArtifactsExpanded(view) : undefined
+              "
+              @click="handleStageClick($event, view)"
+              @keydown.enter.prevent="toggleStageArtifacts(view)"
+              @keydown.space.prevent="toggleStageArtifacts(view)"
             >
               <span
                 class="task-progress-dialog__stage-marker"
@@ -113,46 +121,12 @@
                 </div>
               </div>
               <div
-                class="task-progress-dialog__stage-actions"
-                aria-label="阶段详情"
-              >
-                <el-tooltip
-                  :content="
-                    view.stage
-                      ? isStageArtifactsExpanded(view)
-                        ? '收起阶段详情与产物'
-                        : '展开阶段详情与产物'
-                      : '阶段执行后可查看产物'
-                  "
-                  placement="top"
-                  effect="light"
-                >
-                  <el-button
-                    text
-                    class="task-progress-dialog__stage-artifacts-toggle"
-                    :disabled="!view.stage"
-                    :aria-expanded="isStageArtifactsExpanded(view)"
-                    :aria-controls="stageArtifactId(view)"
-                    @click="toggleStageArtifacts(view)"
-                  >
-                    <span>产物 {{ view.artifacts.length }} 个</span>
-                    <el-icon
-                      :class="{ 'is-expanded': isStageArtifactsExpanded(view) }"
-                    >
-                      <ArrowDown />
-                    </el-icon>
-                  </el-button>
-                </el-tooltip>
-              </div>
-              <div
                 v-if="isStageArtifactsExpanded(view)"
                 :id="stageArtifactId(view)"
                 class="task-progress-dialog__stage-expanded"
+                @click.stop
+                @keydown.stop
               >
-                <div class="task-progress-dialog__stage-details">
-                  <strong>处理说明</strong>
-                  <p>{{ stageDetailHint(view) }}</p>
-                </div>
                 <div
                   v-if="view.artifacts.length"
                   class="task-progress-dialog__artifact-list"
@@ -176,6 +150,9 @@
                         </small>
                       </span>
                     </div>
+                    <small class="task-progress-dialog__artifact-description">
+                      {{ artifactDescription(artifact) }}
+                    </small>
                     <div class="task-progress-dialog__artifact-actions">
                       <el-tooltip
                         :content="artifactPreviewHint(artifact)"
@@ -236,7 +213,7 @@
                 text
                 type="warning"
                 :disabled="isBusy"
-                @click="emit('retry-stage', view.stage.stageId)"
+                @click.stop="emit('retry-stage', view.stage.stageId)"
                 >重试</el-button
               >
             </article>
@@ -271,13 +248,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import {
-  ArrowDown,
-  Document,
-  Download,
-  Location,
-  View
-} from "@element-plus/icons-vue";
+import { Document, Download, Location, View } from "@element-plus/icons-vue";
 import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage,
@@ -336,20 +307,6 @@ const visible = computed({
   set: value => emit("update:modelValue", value)
 });
 const expandedSections = ref(["execution"]);
-
-const STAGE_DETAIL_HINTS: Record<string, string> = {
-  "upload-validation":
-    "检查产品包完整性、文件类型与命名匹配关系，完成后才会进入后续处理。",
-  "feature-extraction":
-    "在标准产品基础上计算统计、梯度和局部纹理等特征，详细指标由参数工作台配置。",
-  "rgb-fusion": "按选定红、绿、蓝通道生成彩色合成结果，并应用设定的显示拉伸。",
-  "anomaly-detection":
-    "基于已选波段或派生特征识别局部显著变化，阈值和邻域窗口可在参数工作台调整。",
-  "along-track-feature-extraction":
-    "沿轨计算高度计观测的统计与变化特征，为后续专题处理提供输入。",
-  "track-gridding": "将沿轨观测转换为规则空间网格，便于地图浏览和区域比较。",
-  "map-preview": "生成适合在地图中快速浏览的专题结果图层。"
-};
 
 const progressPercent = computed(() =>
   Math.max(0, Math.min(100, Math.round(props.progressPercent)))
@@ -415,6 +372,18 @@ function toggleStageArtifacts(view: RuntimeStageView) {
   if (view.stage) emit("toggle-artifacts", view.stage.stageId);
 }
 
+function handleStageClick(event: MouseEvent, view: RuntimeStageView) {
+  if (!view.stage) return;
+  const target = event.target;
+  if (
+    target instanceof HTMLElement &&
+    target.closest("button, a, [role='button']")
+  ) {
+    return;
+  }
+  toggleStageArtifacts(view);
+}
+
 function isMapArtifact(artifact: ExecutionProgressArtifact) {
   return props.isMapPreviewable(artifact);
 }
@@ -444,19 +413,45 @@ function artifactRetentionLabel(artifact: ExecutionProgressArtifact) {
   return artifact.retention === "FINAL" ? "最终产物" : "中间产物";
 }
 
+function artifactDescription(artifact: ExecutionProgressArtifact) {
+  if (artifact.description?.trim()) return artifact.description.trim();
+  const label =
+    `${artifact.displayName || ""} ${artifact.type} ${artifact.uri}`.toLowerCase();
+  if (/source|manifest|metadata|元数据|清单/.test(label)) {
+    return "产品包解析出的元数据与文件匹配结果。";
+  }
+  if (/quality|qc|质量|校验/.test(label)) {
+    return "用于检查产品质量、完整性和有效性的校验结果。";
+  }
+  if (/rgb|fusion|合成/.test(label)) {
+    return "按所选波段生成的 RGB 彩色合成影像。";
+  }
+  if (/anomaly|显著|异常/.test(label)) {
+    return "用于定位局部异常或显著变化区域的分析结果。";
+  }
+  if (/feature|特征|metric|统计/.test(label)) {
+    return "从输入影像计算得到的专题特征和统计结果。";
+  }
+  if (/grid|网格|track|沿轨/.test(label)) {
+    return "将观测数据整理为空间网格或沿轨分析结果。";
+  }
+  if (/\.json|json/.test(label)) {
+    return "结构化处理摘要，记录本阶段的参数和执行结果。";
+  }
+  if (/\.csv|csv/.test(label)) return "可下载到本地的表格数据文件。";
+  if (/\.tif|\.tiff|cog/.test(label)) {
+    return "可在地图中查看的地理参考栅格影像。";
+  }
+  if (/\.png|\.jpg|\.jpeg|image|影像/.test(label)) {
+    return "处理生成的预览影像文件。";
+  }
+  return "本阶段生成的处理产物，可根据格式查看或下载。";
+}
+
 function emptyArtifactHint(view: RuntimeStageView) {
   return view.status === "SUCCEEDED"
     ? "该阶段未生成可下载产物"
     : "该阶段尚未生成可下载产物";
-}
-
-function stageDetailHint(view: RuntimeStageView) {
-  return (
-    STAGE_DETAIL_HINTS[view.step.key] ||
-    (isTopicStage(view)
-      ? "该专题处理将在前置标准产品完成后执行，详细过程提示将在此处展示。"
-      : "该预处理阶段完成后将自动衔接下一步骤，详细过程提示将在此处展示。")
-  );
 }
 </script>
 
@@ -679,6 +674,20 @@ function stageDetailHint(view: RuntimeStageView) {
   border-radius: 4px;
 }
 
+.task-progress-dialog__stage.is-expandable {
+  cursor: pointer;
+}
+
+.task-progress-dialog__stage.is-expandable:hover {
+  border-color: #8abed9;
+  box-shadow: 0 2px 8px rgb(42 104 127 / 10%);
+}
+
+.task-progress-dialog__stage.is-expandable:focus-visible {
+  outline: 2px solid #2e7da3;
+  outline-offset: 2px;
+}
+
 .task-progress-dialog__stage.is-processing {
   background: #f0f8fc;
   border-color: #8abed9;
@@ -794,82 +803,6 @@ function stageDetailHint(view: RuntimeStageView) {
   border-top: 1px solid #dce8ed;
 }
 
-.task-progress-dialog__stage-details {
-  display: grid;
-  grid-template-columns: 60px minmax(0, 1fr);
-  gap: 8px;
-  padding: 0;
-  color: #5f7783;
-}
-
-.task-progress-dialog__stage-details strong {
-  color: #45616e;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.task-progress-dialog__stage-details p {
-  min-width: 0;
-  margin: 0;
-  color: inherit;
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.task-progress-dialog__stage.is-topic .task-progress-dialog__stage-details {
-  color: #387182;
-}
-
-.task-progress-dialog__stage-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-self: center;
-}
-
-.task-progress-dialog__stage-artifacts-toggle {
-  min-width: 90px;
-  height: 28px;
-  padding: 0 7px;
-  color: #0f5f78;
-  background: #e7f4f7;
-  border: 1px solid #91c5d5;
-}
-
-.task-progress-dialog__stage-artifacts-toggle:not(.is-disabled):hover {
-  color: #074e65;
-  background: #d6edf3;
-  border-color: #5fa6bd;
-}
-
-.task-progress-dialog__stage-artifacts-toggle.is-disabled {
-  color: #527481;
-  background: #edf4f6;
-  border-color: #b4cbd3;
-}
-
-.task-progress-dialog__stage-artifacts-toggle .el-icon {
-  transition: transform 150ms ease;
-}
-
-.task-progress-dialog__stage-artifacts-toggle .el-icon.is-expanded {
-  transform: rotate(180deg);
-}
-
-.task-progress-dialog__stage.is-succeeded
-  .task-progress-dialog__stage-artifacts-toggle:not(.is-disabled) {
-  color: #176446;
-  background: #e4f4eb;
-  border-color: #8fc8a7;
-}
-
-.task-progress-dialog__stage.is-succeeded
-  .task-progress-dialog__stage-artifacts-toggle:not(.is-disabled):hover {
-  color: #0e5338;
-  background: #d4eddf;
-  border-color: #61a985;
-}
-
-.task-progress-dialog__stage-artifacts-toggle:focus-visible,
 .task-progress-dialog__footer :deep(.el-button):focus-visible {
   outline: 2px solid #2e7da3;
   outline-offset: 2px;
@@ -882,7 +815,7 @@ function stageDetailHint(view: RuntimeStageView) {
 
 .task-progress-dialog__artifact {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(150px, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -915,6 +848,16 @@ function stageDetailHint(view: RuntimeStageView) {
 .task-progress-dialog__artifact-main strong,
 .task-progress-dialog__artifact-main small {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-progress-dialog__artifact-description {
+  min-width: 0;
+  overflow: hidden;
+  color: #607883;
+  font-size: 10px;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -970,11 +913,6 @@ function stageDetailHint(view: RuntimeStageView) {
     grid-column: 1 / -1;
   }
 
-  .task-progress-dialog__stage-details {
-    grid-template-columns: 1fr;
-    gap: 3px;
-  }
-
   .task-progress-dialog__stage-expanded {
     grid-column: 1 / -1;
     margin-left: 18px;
@@ -982,6 +920,10 @@ function stageDetailHint(view: RuntimeStageView) {
 
   .task-progress-dialog__artifact {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .task-progress-dialog__artifact-description {
+    white-space: normal;
   }
 
   .task-progress-dialog__artifact-actions {
@@ -1003,8 +945,7 @@ function stageDetailHint(view: RuntimeStageView) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .task-progress-dialog__progress-track span,
-  .task-progress-dialog__stage-artifacts-toggle .el-icon {
+  .task-progress-dialog__progress-track span {
     transition: none;
   }
 }

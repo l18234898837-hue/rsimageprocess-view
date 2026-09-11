@@ -49,10 +49,14 @@ test("task progress dialog renders shared runtime states and actions", () => {
 
 test("stage artifact actions are grouped behind an expandable stage control", () => {
   assert.match(dialog, /expandedArtifactStageIds/);
-  assert.match(dialog, /@click="toggleStageArtifacts\(view\)"/);
+  assert.match(dialog, /@click="handleStageClick\(\$event, view\)"/);
   assert.match(
     dialog,
-    /<span>产物 \{\{ view\.artifacts\.length \}\} 个<\/span>/
+    /@keydown\.enter\.prevent="toggleStageArtifacts\(view\)"/
+  );
+  assert.match(
+    dialog,
+    /:aria-expanded="view\.stage \? isStageArtifactsExpanded\(view\)/
   );
   assert.match(dialog, /v-if="isStageArtifactsExpanded\(view\)"/);
   assert.match(dialog, /v-for="artifact in view\.artifacts"/);
@@ -61,6 +65,8 @@ test("stage artifact actions are grouped behind an expandable stage control", ()
   assert.match(dialog, /artifact\.downloadable === false/);
   assert.match(dialog, /@click="downloadArtifact\(artifact\)"/);
   assert.match(dialog, /emit\("download-artifact", artifact\)/);
+  assert.match(dialog, /artifactDescription\(artifact\)/);
+  assert.doesNotMatch(dialog, /stageDetailHint/);
 });
 
 test("JSON artifact previews provide a business summary and a raw JSON fallback", () => {
@@ -85,6 +91,8 @@ test("task progress dialog keeps execution details and artifacts within each sta
   assert.match(dialog, /执行详情/);
   assert.match(dialog, /task-progress-dialog__stage-expanded/);
   assert.match(dialog, /task-progress-dialog__artifact-list/);
+  assert.doesNotMatch(dialog, /task-progress-dialog__stage-artifacts-toggle/);
+  assert.doesNotMatch(dialog, /处理说明/);
   assert.doesNotMatch(dialog, /artifactRetentionFilter/);
   assert.doesNotMatch(dialog, /name="artifacts"/);
 });

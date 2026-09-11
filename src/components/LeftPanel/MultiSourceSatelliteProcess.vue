@@ -337,21 +337,6 @@
       </el-button>
     </section>
 
-    <section v-if="candidate" class="mission-section candidate-strip">
-      <div class="mission-section__heading">
-        <div>
-          <span class="mission-section__signal is-valid" aria-hidden="true" />
-          <strong>已识别配置</strong>
-        </div>
-        <span>{{ candidate.supportStatus }}</span>
-      </div>
-      <code>{{ candidate.packageId }}</code>
-      <small v-if="candidate.profileKey">
-        {{ candidate.profileKey.productCode }} /
-        {{ candidate.profileKey.profileVersion }}
-      </small>
-    </section>
-
     <el-dialog
       v-model="isArtifactPreviewOpen"
       class="artifact-preview-dialog"
@@ -2708,7 +2693,6 @@ function resetTask() {
 
 .file-slot__meta strong,
 .file-slot__meta small,
-.candidate-strip small,
 .artifact-row small {
   display: block;
 }
@@ -3021,17 +3005,6 @@ function resetTask() {
   color: #698294;
   font-size: 9px;
   line-height: 1.4;
-}
-
-.candidate-strip code,
-.candidate-strip > small {
-  margin-top: 7px;
-  color: var(--survey);
-  font:
-    10px/1.4 ui-monospace,
-    "Cascadia Code",
-    monospace;
-  overflow-wrap: anywhere;
 }
 
 .stage-timeline {
@@ -4302,17 +4275,6 @@ button:disabled {
   color: #648092;
   background: #b6cbd5;
   box-shadow: none;
-}
-
-.satellite-workspace .candidate-strip {
-  background: linear-gradient(135deg, #effbf6, #f7fffb);
-  border-color: #bde8d6;
-}
-
-.satellite-workspace .candidate-strip code,
-.satellite-workspace .candidate-strip > small {
-  color: #23755c;
-  font-weight: 700;
 }
 
 .satellite-workspace .progress-console {
@@ -5588,18 +5550,9 @@ button:disabled {
   border-color: #e1e7ea;
 }
 
-.satellite-workspace .candidate-strip,
 .satellite-workspace .progress-console {
   background: var(--plain-panel);
   border-color: var(--plain-line);
-}
-
-.satellite-workspace .candidate-strip code,
-.satellite-workspace .candidate-strip > small {
-  color: #3e6d59;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
 }
 
 .satellite-workspace .stage-timeline {
