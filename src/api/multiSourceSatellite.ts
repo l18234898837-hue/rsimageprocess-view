@@ -104,6 +104,35 @@ export interface ExecutionProgressArtifact {
   mediaType?: string;
   previewable?: boolean;
   displayName?: string;
+  visualization?: ArtifactVisualization;
+  format?: string;
+  view?: ArtifactViewCapability;
+}
+
+export type ArtifactViewMode =
+  | "map"
+  | "image"
+  | "json"
+  | "table"
+  | "dataset"
+  | "text"
+  | "disabled";
+
+export interface ArtifactViewCapability {
+  enabled: boolean;
+  mode: ArtifactViewMode;
+  reason?: string | null;
+  inspectionUrl?: string;
+}
+
+export interface ArtifactVisualization {
+  kind: "tiles" | "geojson" | "bounds";
+  tileUrl?: string;
+  bounds?: [number, number, number, number];
+  crs?: string;
+  minZoom?: number;
+  maxZoom?: number;
+  legend?: unknown;
 }
 
 export interface ExecutionProgressResponse {

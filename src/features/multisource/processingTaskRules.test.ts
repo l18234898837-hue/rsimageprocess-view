@@ -234,7 +234,7 @@ test("resetting a processing run clears the previous candidate and progress", ()
   });
 });
 
-test("completed processing view exposes the ZIP action and stage artifacts", () => {
+test("completed processing view exposes the ZIP action and stage downloads", () => {
   const component = readFileSync(
     "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
     "utf8"
@@ -248,19 +248,12 @@ test("completed processing view exposes the ZIP action and stage artifacts", () 
     "utf8"
   );
 
+  assert.equal(progressDialog.includes('aria-label="查看阶段产物"'), true);
+  assert.equal(progressDialog.includes(':disabled="true"'), true);
   assert.equal(
-    progressDialog.includes('class="task-progress-dialog__artifacts"'),
+    progressDialog.includes('emit("download-artifact", artifact)'),
     true
   );
-  assert.equal(
-    progressDialog.includes("emit('preview-artifact', artifact)"),
-    true
-  );
-  assert.equal(
-    progressDialog.includes("emit('download-artifact', artifact)"),
-    true
-  );
-  assert.equal(component.includes('@preview-artifact="previewArtifact"'), true);
   assert.equal(
     component.includes('@download-artifact="downloadStageArtifact"'),
     true
