@@ -279,6 +279,9 @@
       :can-cancel="canCancel"
       :is-busy="isBusy"
       :is-downloading-result="isDownloadingResult"
+      :is-loading-quality-report="isLoadingQualityReport"
+      :is-downloading-quality-report="isDownloadingQualityReport"
+      :quality-report-summary="progress?.qualityReportSummary"
       :expanded-artifact-stage-ids="expandedArtifactStageIds"
       :previewing-artifact="previewingArtifact"
       :downloading-artifact="downloadingArtifact"
@@ -298,6 +301,8 @@
       @cancel="cancelTask"
       @show-artifact-on-map="showArtifactOnMap"
       @download-result="downloadTask"
+      @view-quality-report="viewQualityReport"
+      @download-quality-report="downloadQualityReportFile"
       @reset="resetTask"
     />
 
@@ -338,6 +343,21 @@
             }}</small>
           </div>
           <div class="artifact-map-layer__controls">
+            <el-tooltip
+              :content="layer.visible ? '隐藏图层' : '显示图层'"
+              placement="top"
+              effect="light"
+            >
+              <el-button
+                text
+                circle
+                :aria-label="layer.visible ? '隐藏图层' : '显示图层'"
+                :aria-pressed="layer.visible"
+                @click="toggleArtifactMapLayerVisibility(layer.id)"
+              >
+                <el-icon><View v-if="layer.visible" /><Hide v-else /></el-icon>
+              </el-button>
+            </el-tooltip>
             <label :for="`artifact-layer-opacity-${layer.id}`">透明度</label>
             <input
               :id="`artifact-layer-opacity-${layer.id}`"
@@ -348,11 +368,22 @@
               :value="layer.opacity"
               @input="updateArtifactMapLayerOpacity(layer.id, $event)"
             />
-            <el-tooltip content="查看原图" placement="top" effect="light">
+            <el-tooltip
+              :content="
+                isOriginalPreviewableArtifact(layer.artifact)
+                  ? '查看原图'
+                  : isRasterArtifact(layer.artifact)
+                    ? 'TIFF 原图暂不支持在线预览，请下载查看'
+                    : '该产物暂不支持在线预览，请下载查看'
+              "
+              placement="top"
+              effect="light"
+            >
               <el-button
                 text
                 circle
                 aria-label="查看原图"
+                :disabled="!isOriginalPreviewableArtifact(layer.artifact)"
                 @click="previewArtifact(layer.artifact)"
               >
                 <el-icon><View /></el-icon>
@@ -993,7 +1024,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  markRaw,
+  reactive,
+  ref,
+  toRaw,
+  watch
+} from "vue";
 import * as Cesium from "cesium";
 import {
   ArrowRight,
@@ -1004,7 +1044,8 @@ import {
   QuestionFilled,
   FolderOpened,
   WarningFilled,
-  View
+  View,
+  Hide
 } from "@element-plus/icons-vue";
 
 import { message } from "@/utils/message";
@@ -1037,7 +1078,8 @@ import {
   parseImageArtifactVisualization,
   parseMapArtifactPreview,
   parseTileArtifactVisualization,
-  parseTilePreviewDescriptor
+  parseTilePreviewDescriptor,
+  createBoundedImageOverlayUrl
 } from "@/features/multisource/artifactMapPreview";
 import map from "@/libs/tdtmap";
 import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
@@ -1124,6 +1166,7 @@ import {
 } from "@/features/multisource/productTemplates";
 import { useProcessingTask } from "@/features/multisource/useProcessingTask";
 import type {
+  ArtifactTilePreviewResponse,
   ExecutionProgressArtifact,
   ExecutionProgressStage
 } from "@/api/multiSourceSatellite";
@@ -1141,6 +1184,7 @@ import {
   ARCHIVE_MAX_SIZE,
   ARCHIVE_SERVER_ONLY,
   archiveStatusLabel as getArchiveStatusLabel,
+  archiveProductMismatch,
   assertArchiveSize,
   getArchiveChunkCount,
   getArchiveChunkRange,
@@ -1330,10 +1374,14 @@ const {
   cancel,
   retry,
   downloadResult,
+  getQualityReport,
+  downloadQualityReport,
+  isDownloadingQualityReport,
   downloadArtifact,
   getArtifactBlob,
   reset
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
+const isLoadingQualityReport = ref(false);
 
 watch(
   [l2aForm, fy3hForm, hy2dForm, fy4bForm, gf6Form, selectedTargets],
@@ -1405,8 +1453,10 @@ type ArtifactMapLayer = {
   kind: "tiles" | "image";
   artifact: ExecutionProgressArtifact;
   layer: Cesium.ImageryLayer;
+  visible: boolean;
   opacity: number;
   disposeErrorListener: () => void;
+  objectUrl?: string;
 };
 const artifactMapLayers = ref<ArtifactMapLayer[]>([]);
 let artifactMapDataSource: Cesium.DataSource | undefined;
@@ -1705,6 +1755,16 @@ function isPreviewableArtifact(artifact: ExecutionProgressArtifact) {
   }
 }
 
+function isOriginalPreviewableArtifact(artifact: ExecutionProgressArtifact) {
+  if (isRasterArtifact(artifact)) return false;
+  try {
+    assertArtifactPreviewable(artifact);
+    return Boolean(resolveArtifactPreviewKind(artifact));
+  } catch {
+    return false;
+  }
+}
+
 function isMapPreviewableArtifact(artifact: ExecutionProgressArtifact) {
   const capability = resolveArtifactView(artifact);
   if (!capability.enabled || capability.mode !== "map") return false;
@@ -1723,15 +1783,23 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       throw new Error("该产物暂不支持在地图中查看");
     }
     const viewer = await map.readyPromise;
-    const descriptor = isRasterArtifact(artifact)
+    const descriptorResponse = isRasterArtifact(artifact)
       ? await getArtifactTilePreview(
           progress.value?.taskId ?? "",
           artifact.type
         )
       : undefined;
-    const tileVisualization = descriptor
-      ? parseTilePreviewDescriptor(descriptor.data)
+    const tileDescriptor = descriptorResponse
+      ? (descriptorResponse as { data?: unknown }).data ?? descriptorResponse
+      : undefined;
+    const tileVisualization = tileDescriptor
+      ? parseTilePreviewDescriptor(
+          tileDescriptor as ArtifactTilePreviewResponse
+        )
       : parseTileArtifactVisualization(artifact);
+    if (isRasterArtifact(artifact) && !tileVisualization) {
+      throw new Error("TIFF 瓦片描述无效，无法在地图中显示");
+    }
     const imageVisualization = parseImageArtifactVisualization(artifact);
     if (tileVisualization) {
       const rectangle = Cesium.Rectangle.fromDegrees(
@@ -1740,18 +1808,23 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       addArtifactMapLayer(
         artifact,
         "tiles",
-        viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: tileVisualization.tileUrl,
-            rectangle,
-            minimumLevel: tileVisualization.minZoom,
-            maximumLevel: tileVisualization.maxZoom,
-            tilingScheme:
-              tileVisualization.crs?.toUpperCase() === "EPSG:4326"
-                ? new Cesium.GeographicTilingScheme()
-                : undefined
-          })
-        )
+        (() => {
+          const layer = viewer.imageryLayers.addImageryProvider(
+            new Cesium.UrlTemplateImageryProvider({
+              url: tileVisualization.tileUrl,
+              rectangle,
+              minimumLevel: tileVisualization.minZoom,
+              maximumLevel: tileVisualization.maxZoom,
+              // The preview service always renders XYZ tiles in EPSG:3857.
+              // The source TIFF CRS is metadata only and must not change the
+              // client tile grid, otherwise EPSG:4326 sources request a
+              // different tile numbering scheme and render as an empty layer.
+              tilingScheme: new Cesium.WebMercatorTilingScheme()
+            })
+          );
+          viewer.imageryLayers.raiseToTop(layer);
+          return layer;
+        })()
       );
       viewer.camera.flyTo({
         destination: rectangle,
@@ -1761,16 +1834,22 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       const rectangle = Cesium.Rectangle.fromDegrees(
         ...imageVisualization.bounds
       );
-      addArtifactMapLayer(
-        artifact,
-        "image",
-        viewer.imageryLayers.addImageryProvider(
+      const boundedImageUrl = await createBoundedImageOverlayUrl(
+        imageVisualization.imageUrl
+      );
+      let imageLayer: Cesium.ImageryLayer;
+      try {
+        imageLayer = viewer.imageryLayers.addImageryProvider(
           new Cesium.SingleTileImageryProvider({
-            url: imageVisualization.imageUrl,
+            url: boundedImageUrl,
             rectangle
           })
-        )
-      );
+        );
+      } catch (error) {
+        URL.revokeObjectURL(boundedImageUrl);
+        throw error;
+      }
+      addArtifactMapLayer(artifact, "image", imageLayer, boundedImageUrl);
       viewer.camera.flyTo({ destination: rectangle, duration: 0.8 });
     } else {
       clearArtifactMapDataSource();
@@ -1797,7 +1876,7 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
         await viewer.flyTo(artifactMapDataSource, { duration: 0.8 });
       }
     }
-    message(`已在地图中加载 ${artifactFileName(artifact)}`, {
+    message(`已添加到地图图层：${artifactFileName(artifact)}`, {
       type: "success"
     });
   } catch (error) {
@@ -1814,7 +1893,8 @@ function artifactMapLayerId(artifact: ExecutionProgressArtifact) {
 function addArtifactMapLayer(
   artifact: ExecutionProgressArtifact,
   kind: ArtifactMapLayer["kind"],
-  layer: Cesium.ImageryLayer
+  layer: Cesium.ImageryLayer,
+  objectUrl?: string
 ) {
   const id = artifactMapLayerId(artifact);
   removeArtifactMapLayer(id);
@@ -1823,6 +1903,7 @@ function addArtifactMapLayer(
     if (viewer && viewer.imageryLayers.contains(layer)) {
       viewer.imageryLayers.remove(layer, true);
     }
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
     throw new Error(
       `地图最多同时叠加 ${MAX_ARTIFACT_MAP_LAYERS} 个产物，请先移除不需要的图层`
     );
@@ -1845,28 +1926,76 @@ function addArtifactMapLayer(
       name,
       kind,
       artifact,
-      layer,
+      // Cesium instances must keep their identity. Storing them as raw
+      // prevents Vue from wrapping ImageryLayer in a Proxy, which would make
+      // ImageryLayerCollection.contains/remove miss the registered layer.
+      layer: markRaw(layer),
+      visible: true,
       opacity: 1,
-      disposeErrorListener
+      disposeErrorListener,
+      objectUrl
     }
   ];
 }
 
+function toggleArtifactMapLayerVisibility(id: string) {
+  const index = artifactMapLayers.value.findIndex(item => item.id === id);
+  if (index < 0) return;
+  const layer = artifactMapLayers.value[index];
+  // Vue deep-reactivity proxies Cesium objects stored in the layer list.
+  // Cesium's ImageryLayerCollection compares object identity, so collection
+  // operations must always receive the original layer instance.
+  const rawLayer = toRaw(layer.layer);
+  const nextVisible = !layer.visible;
+  const viewer = map.getViewer();
+  if (viewer) {
+    rawLayer.show = nextVisible;
+    if (nextVisible) {
+      if (!viewer.imageryLayers.contains(rawLayer)) {
+        viewer.imageryLayers.add(rawLayer);
+      }
+      viewer.imageryLayers.raiseToTop(rawLayer);
+    } else if (viewer.imageryLayers.contains(rawLayer)) {
+      // Removing the layer as well as setting show=false prevents Cesium's
+      // already-rendered tile commands from remaining visible until a later
+      // camera change or imagery refresh.
+      viewer.imageryLayers.remove(rawLayer, false);
+    }
+    viewer.scene.requestRender();
+  } else {
+    rawLayer.show = nextVisible;
+  }
+  artifactMapLayers.value[index] = { ...layer, visible: nextVisible };
+}
+
 function updateArtifactMapLayerOpacity(id: string, event: Event) {
   const opacity = Number((event.target as HTMLInputElement).value);
-  const layer = artifactMapLayers.value.find(item => item.id === id);
-  if (!layer || !Number.isFinite(opacity)) return;
-  layer.opacity = Math.max(0, Math.min(1, opacity));
-  layer.layer.alpha = layer.opacity;
+  if (!Number.isFinite(opacity)) return;
+  const nextOpacity = Math.max(0, Math.min(1, opacity));
+  const index = artifactMapLayers.value.findIndex(item => item.id === id);
+  if (index < 0) return;
+  const layer = artifactMapLayers.value[index];
+  layer.layer.alpha = nextOpacity;
+  artifactMapLayers.value[index] = { ...layer, opacity: nextOpacity };
+  map.getViewer()?.scene.requestRender();
 }
 
 function removeArtifactMapLayer(id: string) {
   const target = artifactMapLayers.value.find(item => item.id === id);
   if (!target) return;
+  const rawLayer = toRaw(target.layer);
   target.disposeErrorListener();
+  if (target.objectUrl) URL.revokeObjectURL(target.objectUrl);
   const viewer = map.getViewer();
-  if (viewer && viewer.imageryLayers.contains(target.layer)) {
-    viewer.imageryLayers.remove(target.layer, true);
+  if (viewer) {
+    rawLayer.show = false;
+    if (viewer.imageryLayers.contains(rawLayer)) {
+      viewer.imageryLayers.remove(rawLayer, true);
+    }
+    // Cesium may be running in request-render mode. Removing an imagery
+    // layer does not guarantee that the current frame is invalidated, so
+    // explicitly redraw after the row's "remove" action.
+    viewer.scene.requestRender();
   }
   artifactMapLayers.value = artifactMapLayers.value.filter(
     item => item.id !== id
@@ -2171,6 +2300,9 @@ async function pollArchiveImport(
   if (!status) throw new Error("服务端未返回 ZIP 解析状态");
   Object.assign(archiveImportProgress, status);
   if (status.status === "COMPLETED") {
+    if ((status.missingSlots?.length ?? 0) > 0) {
+      throw new Error(`ZIP 缺少必需文件：${status.missingSlots.join("、")}`);
+    }
     const matchedFiles = status.matchedFiles ?? [];
     Object.assign(archiveImportProgress, {
       status: "MATCHING",
@@ -2250,6 +2382,11 @@ async function handleArchiveChange(event: Event) {
   let reader: ZipReader<BlobReader> | undefined;
   try {
     assertArchiveSize(archive.size, ARCHIVE_MAX_SIZE);
+    const mismatch = archiveProductMismatch(
+      archive.name,
+      activeTemplate.value.id
+    );
+    if (mismatch) throw new Error(mismatch);
     try {
       await importArchiveFromServer(archive);
       return;
@@ -2515,6 +2652,57 @@ async function downloadTask() {
     if (started) message("结果 ZIP 已加入浏览器下载列表", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "结果下载失败", {
+      type: "error"
+    });
+  }
+}
+
+function escapeReportHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderQualityReportHtml(
+  report: import("@/api/multiSourceSatellite").QualityReportResponse
+) {
+  const rows = report.checks
+    .map(
+      check =>
+        `<tr><td>${escapeReportHtml(check.name)}</td><td class="${escapeReportHtml(check.status)}">${escapeReportHtml(check.status)}</td><td>${escapeReportHtml(check.userMessage)}</td><td>${escapeReportHtml(check.actualValue)}</td></tr>`
+    )
+    .join("");
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>质量检测报告</title><style>body{font-family:system-ui,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#243746}.status{padding:8px 12px;border-radius:6px;background:#eef5f7;display:inline-block}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:9px;border-bottom:1px solid #dce8ed;text-align:left;vertical-align:top}th{background:#f6fafb}.PASS{color:#216b4c}.WARN{color:#9a6b20}.FAIL{color:#a13f3f}</style></head><body><h1>质量检测报告</h1><p>任务 ${escapeReportHtml(report.taskId)} · 生成时间 ${escapeReportHtml(report.generatedAt)}</p><div class="status ${escapeReportHtml(report.overallStatus)}">总体结论：${escapeReportHtml(report.overallStatus)} · 检查 ${report.summary.totalChecks} 项，通过 ${report.summary.passedChecks}，警告 ${report.summary.warningChecks}，失败 ${report.summary.failedChecks}</div><table><thead><tr><th>检查项</th><th>状态</th><th>说明</th><th>实际值</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+}
+
+async function viewQualityReport() {
+  if (!isTerminal.value || isLoadingQualityReport.value) return;
+  isLoadingQualityReport.value = true;
+  try {
+    const report = await getQualityReport();
+    const popup = window.open("", "_blank", "width=980,height=760");
+    if (!popup) throw new Error("浏览器阻止了报告窗口，请允许弹出窗口后重试");
+    popup.document.write(renderQualityReportHtml(report));
+    popup.document.close();
+  } catch (error) {
+    message(error instanceof Error ? error.message : "质量检测报告查看失败", {
+      type: "error"
+    });
+  } finally {
+    isLoadingQualityReport.value = false;
+  }
+}
+
+async function downloadQualityReportFile() {
+  try {
+    const started = await downloadQualityReport();
+    if (started)
+      message("质量检测报告已加入浏览器下载列表", { type: "success" });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "质量检测报告下载失败", {
       type: "error"
     });
   }

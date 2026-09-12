@@ -77,6 +77,20 @@ export function assertArchiveSize(
   }
 }
 
+export function archiveProductMismatch(fileName: string, templateId: string) {
+  const normalized = fileName.toLowerCase();
+  if (templateId.includes("hy1c-czi") && /(gf[-_ ]?6|wfv)/i.test(normalized)) {
+    return "当前选择的是 HY-1C，但压缩包文件名疑似为 GF-6 产品，请切换数据类型或重新选择产品包";
+  }
+  if (
+    templateId.includes("gf6-wfv") &&
+    /(hy[-_ ]?1c|h1c|czi)/i.test(normalized)
+  ) {
+    return "当前选择的是 GF-6 WFV，但压缩包文件名疑似为 HY-1C 产品，请切换数据类型或重新选择产品包";
+  }
+  return undefined;
+}
+
 export function archiveStatusLabel(status: ArchiveImportStatus) {
   const labels: Record<ArchiveImportStatus, string> = {
     IDLE: "等待导入",

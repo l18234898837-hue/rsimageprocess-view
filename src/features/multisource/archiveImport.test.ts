@@ -4,6 +4,7 @@ import {
   ARCHIVE_CHUNK_SIZE,
   ARCHIVE_MAX_SIZE,
   ARCHIVE_SERVER_ONLY,
+  archiveProductMismatch,
   archiveStatusLabel,
   assertArchiveSize,
   getArchiveChunkCount,
@@ -41,5 +42,19 @@ test("recognizes unavailable archive endpoints without hiding server failures", 
   assert.equal(
     isArchiveServerUnavailable({ response: { status: 422 } }),
     false
+  );
+});
+
+test("rejects an obvious product mismatch before uploading the archive", () => {
+  assert.match(
+    archiveProductMismatch(
+      "GF6_WFV_E107.6_N9.0_20260716_L1A1420724603.zip",
+      "hy1c-czi-l2a-v1"
+    ) ?? "",
+    /当前选择的是 HY-1C.*GF-6/
+  );
+  assert.equal(
+    archiveProductMismatch("HY1C_CZI_L2A.zip", "hy1c-czi-l2a-v1"),
+    undefined
   );
 });
