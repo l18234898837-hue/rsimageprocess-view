@@ -63,6 +63,7 @@ const emit = defineEmits<{
 const errorMessage = ref("");
 const drawingActive = ref(false);
 const footprintEntityId = "multisource-roi-footprint";
+const footprintColor = Cesium.Color.fromCssColorString("#ff3b30");
 
 function isContained(roi: RoiBounds, bounds: RoiBounds) {
   return (
@@ -98,8 +99,8 @@ function showFootprint() {
         south
       ]),
       width: 3,
-      material: Cesium.Color.fromCssColorString("#00e5ff"),
-      depthFailMaterial: Cesium.Color.fromCssColorString("#00e5ff"),
+      material: footprintColor,
+      depthFailMaterial: footprintColor,
       clampToGround: true
     }
   });
