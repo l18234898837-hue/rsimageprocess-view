@@ -57,4 +57,18 @@ test("rejects an obvious product mismatch before uploading the archive", () => {
     archiveProductMismatch("HY1C_CZI_L2A.zip", "hy1c-czi-l2a-v1"),
     undefined
   );
+  assert.match(
+    archiveProductMismatch(
+      "FY3H_MERSI_L1_1000M_GEO1K.HDF.zip",
+      "gf6-wfv-l1a-v1"
+    ) ?? "",
+    /当前选择的是 GF-6 WFV.*FY-3H MERSI/
+  );
+  assert.match(
+    archiveProductMismatch(
+      "HY2D_IDR_2MC_2026.tar.gz",
+      "fy3h-mersi-l1-1000m-geo1k-v1"
+    ) ?? "",
+    /当前选择的是 FY-3H MERSI.*HY-2D/
+  );
 });

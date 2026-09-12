@@ -79,16 +79,42 @@ export function assertArchiveSize(
 
 export function archiveProductMismatch(fileName: string, templateId: string) {
   const normalized = fileName.toLowerCase();
-  if (templateId.includes("hy1c-czi") && /(gf[-_ ]?6|wfv)/i.test(normalized)) {
-    return "当前选择的是 HY-1C，但压缩包文件名疑似为 GF-6 产品，请切换数据类型或重新选择产品包";
-  }
-  if (
-    templateId.includes("gf6-wfv") &&
-    /(hy[-_ ]?1c|h1c|czi)/i.test(normalized)
-  ) {
-    return "当前选择的是 GF-6 WFV，但压缩包文件名疑似为 HY-1C 产品，请切换数据类型或重新选择产品包";
-  }
-  return undefined;
+  const productMarkers = [
+    {
+      id: "gf6-wfv",
+      label: "GF-6 WFV",
+      pattern: /(?:gf[-_ ]?6|wfv)/i
+    },
+    {
+      id: "fy4b-agri",
+      label: "FY-4B AGRI",
+      pattern: /(?:fy[-_ ]?4b|fy4|agri|fdi)/i
+    },
+    {
+      id: "hy1c-czi",
+      label: "HY-1C",
+      pattern: /(?:hy[-_ ]?1c|h1c|czi)/i
+    },
+    {
+      id: "fy3h-mersi",
+      label: "FY-3H MERSI",
+      pattern: /(?:fy[-_ ]?3h?|fy3|mersi|geo1k)/i
+    },
+    {
+      id: "hy2d-altimeter",
+      label: "HY-2D 高度计",
+      pattern: /(?:hy[-_ ]?2d|hy2d|idr|altimeter)/i
+    }
+  ];
+  const selected = productMarkers.find(marker =>
+    templateId.includes(marker.id)
+  );
+  if (!selected) return undefined;
+  const detected = productMarkers.find(
+    marker => marker.id !== selected.id && marker.pattern.test(normalized)
+  );
+  if (!detected) return undefined;
+  return `当前选择的是 ${selected.label}，但压缩包文件名疑似为 ${detected.label} 产品，请切换数据类型或重新选择产品包`;
 }
 
 export function archiveStatusLabel(status: ArchiveImportStatus) {
