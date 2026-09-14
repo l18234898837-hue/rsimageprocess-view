@@ -69,6 +69,26 @@ test("ignores GF-6 footprint sidecars that are outside the upload contract", () 
   ]);
 });
 
+test("ignores per-tile GF-6 RPB sidecars when matching the main RPB", () => {
+  const result = matchProductArchiveEntries(
+    [
+      entry("GF6_tile_01.tif"),
+      entry("GF6_tile_02.tif"),
+      entry("GF6_tile_03.tif"),
+      entry("GF6_tile_01.rpb"),
+      entry("GF6_tile_02.rpb"),
+      entry("GF6_tile_03.rpb"),
+      entry("GF6_product.rpb")
+    ],
+    GF6_WFV_L1A_TEMPLATE
+  );
+  assert.equal(result.conflicts.length, 0);
+  assert.equal(
+    result.matches.find(match => match.slot.id === "rpcRpb")?.entry.name,
+    "GF6_product.rpb"
+  );
+});
+
 test("reports duplicate archive candidates instead of choosing silently", () => {
   const result = matchProductArchiveEntries(
     [entry("GF6_tile_01_a.tif"), entry("GF6_tile_01_b.tif")],

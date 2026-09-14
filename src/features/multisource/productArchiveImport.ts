@@ -53,10 +53,18 @@ function markerMatches(name: string, slot: ProductFileSlot) {
   if (role === "GEO1K") return /geo1k|geo_?1k|geo/.test(normalized);
   if (role === "MAIN_TIFF_TILE") return /tif{1,2}$/.test(normalized);
   if (role === "METADATA_XML") return /xml$/.test(normalized);
-  if (role === "RPC_RPB") return /rpb$/.test(normalized);
+  if (role === "RPC_RPB") {
+    // GF-6 packages may contain one RPB per TIFF tile. Only the
+    // package-level RPB belongs in the main RPC slot.
+    return /rpb$/.test(normalized) && !isTileRpb(normalized);
+  }
   if (role === "NAV") return /nav/.test(normalized);
   if (role === "TILE_INDEX_TIL") return /til/.test(normalized);
   return true;
+}
+
+function isTileRpb(name: string) {
+  return /(?:[-_ ](?:tile|t|part|block)?[-_ ]*0?[1-3])\.rpb$/i.test(name);
 }
 
 function tileOrdinal(name: string) {
