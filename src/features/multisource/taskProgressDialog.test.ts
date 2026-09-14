@@ -116,6 +116,19 @@ test("artifact rows use the capability contract for view state and retain direct
   assert.match(dialog, /下载全部产物 ZIP/);
 });
 
+test("task progress dialog exposes a terminal-only quality report section", () => {
+  assert.match(dialog, /质量检测报告/);
+  assert.match(dialog, /qualityReportSummary/);
+  assert.match(dialog, /isLoadingQualityReport/);
+  assert.match(dialog, /isDownloadingQualityReport/);
+  assert.match(dialog, /:disabled="!isTerminal"/);
+  assert.match(dialog, /view-quality-report/);
+  assert.match(dialog, /download-quality-report/);
+  assert.match(processPanel, /getQualityReport/);
+  assert.match(processPanel, /window\.open/);
+  assert.match(processPanel, /downloadQualityReport/);
+});
+
 test("map overlays expose layer cleanup, opacity control, and an original-image mode", () => {
   assert.match(processPanel, /artifact-map-layers/);
   assert.match(processPanel, /MAX_ARTIFACT_MAP_LAYERS/);
@@ -124,4 +137,46 @@ test("map overlays expose layer cleanup, opacity control, and an original-image 
   assert.match(processPanel, /clearArtifactMapPreview/);
   assert.match(processPanel, /查看原图/);
   assert.match(processPanel, /SingleTileImageryProvider/);
+});
+
+test("map overlay visibility toggles the Cesium imagery layer and requests a redraw", () => {
+  assert.match(processPanel, /toggleArtifactMapLayerVisibility/);
+  assert.match(
+    processPanel,
+    /:aria-label="layer\.visible \? '隐藏图层' : '显示图层'"/
+  );
+  assert.match(processPanel, /rawLayer\.show = nextVisible/);
+  assert.match(processPanel, /scene\.requestRender\(\)/);
+  assert.match(
+    processPanel,
+    /viewer\.imageryLayers\.remove\(rawLayer, false\)/
+  );
+  assert.match(processPanel, /viewer\.imageryLayers\.add\(rawLayer\)/);
+});
+
+test("removing a map overlay hides and detaches the exact Cesium layer", () => {
+  assert.match(processPanel, /rawLayer\.show = false/);
+  assert.match(processPanel, /toRaw\(target\.layer\)/);
+  assert.match(processPanel, /viewer\.imageryLayers\.remove\(rawLayer, true\)/);
+  assert.match(processPanel, /viewer\.scene\.requestRender\(\)/);
+});
+
+test("TIFF tile overlays use the server's Web Mercator tile grid", () => {
+  assert.match(
+    processPanel,
+    /tilingScheme:\s*new Cesium\.WebMercatorTilingScheme\(\)/
+  );
+  assert.doesNotMatch(processPanel, /new Cesium\.GeographicTilingScheme\(\)/);
+});
+
+test("TIFF original preview is disabled while map tiles remain available", () => {
+  assert.match(processPanel, /TIFF 原图暂不支持在线预览，请下载查看/);
+  assert.match(
+    processPanel,
+    /:disabled="!isOriginalPreviewableArtifact\(layer\.artifact\)"/
+  );
+  assert.match(
+    processPanel,
+    /artifactMapLayers\.value\[index\] = \{ \.\.\.layer, opacity: nextOpacity \}/
+  );
 });

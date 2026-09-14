@@ -19,13 +19,152 @@ export interface TileArtifactVisualization extends ArtifactVisualization {
 export function parseTilePreviewDescriptor(
   descriptor: ArtifactTilePreviewResponse
 ): TileArtifactVisualization | undefined {
-  return parseTileVisualization({ ...descriptor, kind: "tiles" });
+  return parseTileVisualization({
+    ...descriptor,
+    kind: "tiles",
+    tileUrl: resolveArtifactTileUrl(descriptor.tileUrl)
+  });
+}
+
+/**
+ * Tile URLs are consumed by Cesium directly, outside the Axios client that
+ * already knows the development API origin. Resolve the server's `/api` path
+ * against VITE_API_PATH so local development does not request tiles from the
+ * Vite host (which has no `/api` proxy).
+ */
+export function resolveArtifactTileUrl(
+  tileUrl: string,
+  configuredApiPath?: string
+) {
+  const runtimeEnv = (
+    import.meta as ImportMeta & {
+      env?: Record<string, unknown>;
+    }
+  ).env;
+  const apiPath = String(
+    configuredApiPath ?? runtimeEnv?.VITE_API_PATH ?? ""
+  ).trim();
+  if (!/^https?:\/\//i.test(apiPath) || !tileUrl.startsWith("/")) {
+    return tileUrl;
+  }
+
+  // Cesium replaces {z}/{x}/{y} at request time. URL() percent-encodes
+  // those placeholders, so concatenate the origin without URL parsing.
+  return `${apiPath.replace(/\/$/, "")}${tileUrl}`;
 }
 
 export interface ImageArtifactVisualization extends ArtifactVisualization {
   kind: "bounds";
   imageUrl: string;
   bounds: [number, number, number, number];
+}
+
+/**
+ * Cesium uploads a SingleTileImageryProvider image as one GPU texture. Keep
+ * that fallback below the device limit so oversized browse PNGs cannot stop
+ * the whole scene renderer.
+ */
+export async function createBoundedImageOverlayUrl(
+  url: string,
+  maxTextureSize = 8192
+): Promise<string> {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) {
+    throw new Error(`图片预览请求失败（HTTP ${response.status}）`);
+  }
+  const blob = await response.blob();
+  // Prefer ImageBitmap (it avoids an extra DOM image), but do not treat its
+  // absence/failure as permission to upload the original image. Older
+  // browsers and some Chromium deployments disable createImageBitmap for
+  // cross-origin/blob images; those images still need the same safety bound.
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(blob);
+      try {
+        return await resizeImageToBound(bitmap, maxTextureSize);
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      // Fall through to the HTMLImageElement decoder below.
+    }
+  }
+
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const image = await loadImageElement(objectUrl);
+    return await resizeImageToBound(image, maxTextureSize);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function loadImageElement(url: string): Promise<HTMLImageElement> {
+  const image = new Image();
+  image.decoding = "async";
+  if (typeof image.decode === "function") {
+    image.src = url;
+    await image.decode();
+  } else {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("图片解码失败"));
+      image.src = url;
+    });
+  }
+  if (!image.naturalWidth || !image.naturalHeight) {
+    throw new Error("图片尺寸无效");
+  }
+  return image;
+}
+
+async function resizeImageToBound(
+  source: CanvasImageSource & { width: number; height: number },
+  maxTextureSize: number
+): Promise<string> {
+  const sourceWidth =
+    "naturalWidth" in source && typeof source.naturalWidth === "number"
+      ? source.naturalWidth
+      : source.width;
+  const sourceHeight =
+    "naturalHeight" in source && typeof source.naturalHeight === "number"
+      ? source.naturalHeight
+      : source.height;
+  const scale = Math.min(
+    1,
+    maxTextureSize / sourceWidth,
+    maxTextureSize / sourceHeight
+  );
+  if (scale === 1) {
+    // The source may be an ImageBitmap or an HTMLImageElement. Convert it to
+    // a blob URL so the caller has one uniform lifetime to revoke.
+    const canvas = document.createElement("canvas");
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("浏览器不支持图片缩放");
+    context.drawImage(source, 0, 0);
+    const copy = await canvasToPng(canvas);
+    return URL.createObjectURL(copy);
+  }
+  const width = Math.max(1, Math.floor(sourceWidth * scale));
+  const height = Math.max(1, Math.floor(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("浏览器不支持图片缩放");
+  context.drawImage(source, 0, 0, width, height);
+  return URL.createObjectURL(await canvasToPng(canvas));
+}
+
+function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(result => {
+      if (result) resolve(result);
+      else reject(new Error("图片缩放失败"));
+    }, "image/png");
+  });
 }
 
 export function isMapPreviewCandidate(artifact: ExecutionProgressArtifact) {
@@ -46,7 +185,13 @@ export function isMapPreviewCandidate(artifact: ExecutionProgressArtifact) {
 export function parseTileArtifactVisualization(
   artifact: ExecutionProgressArtifact
 ): TileArtifactVisualization | undefined {
-  return parseTileVisualization(artifact.visualization);
+  const visualization = parseTileVisualization(artifact.visualization);
+  return visualization
+    ? {
+        ...visualization,
+        tileUrl: resolveArtifactTileUrl(visualization.tileUrl)
+      }
+    : undefined;
 }
 
 function parseTileVisualization(
@@ -97,7 +242,7 @@ export function parseImageArtifactVisualization(
   return {
     ...visualization,
     kind: "bounds",
-    imageUrl: visualization.imageUrl,
+    imageUrl: resolveArtifactTileUrl(visualization.imageUrl),
     bounds
   };
 }
@@ -126,10 +271,31 @@ function normalizedMediaType(artifact: ExecutionProgressArtifact) {
 
 function parseJson(value: string): unknown {
   try {
-    return JSON.parse(value);
+    // JSON files exported by desktop GIS tools may start with an UTF-8 BOM;
+    // some gateways also prepend the standard XSSI protection marker.
+    const normalized = value
+      .replace(/^\uFEFF/, "")
+      .replace(/^\s*\)\]\}',?\s*/, "")
+      .trim();
+    const parsed = JSON.parse(normalized) as unknown;
+    return unwrapJsonEnvelope(parsed);
   } catch {
     throw new Error("空间 JSON 格式无效");
   }
+}
+
+function unwrapJsonEnvelope(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  const nested = value.data ?? value.result;
+  if (
+    nested !== undefined &&
+    (value.code !== undefined ||
+      value.status !== undefined ||
+      value.success !== undefined)
+  ) {
+    return typeof nested === "string" ? parseJson(nested) : nested;
+  }
+  return value;
 }
 
 function isGeoJson(value: unknown): value is GeoJson {
@@ -149,7 +315,12 @@ function isGeoJson(value: unknown): value is GeoJson {
 function extractBounds(
   value: unknown
 ): [number, number, number, number] | undefined {
-  return isRecord(value) ? validBounds(value.bbox) : undefined;
+  if (!isRecord(value)) return undefined;
+  for (const candidate of [value.bbox, value.bounds, value.extent]) {
+    const bounds = validBounds(candidate);
+    if (bounds) return bounds;
+  }
+  return extractBounds(value.data) || extractBounds(value.result);
 }
 
 function validBounds(

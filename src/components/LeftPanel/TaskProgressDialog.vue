@@ -217,6 +217,56 @@
                 >重试</el-button
               >
             </article>
+            <article
+              class="task-progress-dialog__stage task-progress-dialog__quality-stage"
+              :class="qualityReportStageClass"
+            >
+              <span
+                class="task-progress-dialog__stage-marker"
+                aria-hidden="true"
+              />
+              <div class="task-progress-dialog__stage-body">
+                <div class="task-progress-dialog__stage-heading">
+                  <strong>质量检测报告</strong>
+                  <small class="task-progress-dialog__stage-kind"
+                    >质量检测</small
+                  >
+                  <span>{{ qualityReportStatusLabel }}</span>
+                </div>
+                <p class="task-progress-dialog__stage-description">
+                  任务级基础质量与产物完整性检查
+                </p>
+                <small class="task-progress-dialog__stage-meta">
+                  {{ qualityReportMeta }}
+                </small>
+              </div>
+              <div class="task-progress-dialog__quality-actions">
+                <el-button
+                  size="small"
+                  text
+                  type="primary"
+                  :disabled="!isTerminal"
+                  :loading="isLoadingQualityReport"
+                  @click="emit('view-quality-report')"
+                >
+                  <el-icon v-if="!isLoadingQualityReport"><View /></el-icon>
+                  查看
+                </el-button>
+                <el-button
+                  size="small"
+                  text
+                  type="primary"
+                  :disabled="!isTerminal"
+                  :loading="isDownloadingQualityReport"
+                  @click="emit('download-quality-report')"
+                >
+                  <el-icon v-if="!isDownloadingQualityReport"
+                    ><Download
+                  /></el-icon>
+                  下载
+                </el-button>
+              </div>
+            </article>
           </div>
         </el-collapse-item>
       </el-collapse>
@@ -276,6 +326,15 @@ const props = defineProps<{
   canCancel: boolean;
   isBusy: boolean;
   isDownloadingResult: boolean;
+  isDownloadingQualityReport: boolean;
+  isLoadingQualityReport: boolean;
+  qualityReportSummary?: {
+    overallStatus: string;
+    totalChecks: number;
+    passedChecks: number;
+    warningChecks: number;
+    failedChecks: number;
+  } | null;
   expandedArtifactStageIds: readonly ProcessingIdentifier[];
   previewingArtifact?: ExecutionProgressArtifact | null;
   downloadingArtifact?: ExecutionProgressArtifact | null;
@@ -299,6 +358,8 @@ const emit = defineEmits<{
   "retry-stage": [stageId: ProcessingIdentifier];
   cancel: [];
   "download-result": [];
+  "view-quality-report": [];
+  "download-quality-report": [];
   reset: [];
 }>();
 
@@ -311,6 +372,42 @@ const expandedSections = ref(["execution"]);
 const progressPercent = computed(() =>
   Math.max(0, Math.min(100, Math.round(props.progressPercent)))
 );
+
+const qualityReportStageClass = computed(() => {
+  if (!props.isTerminal) return "is-waiting";
+  switch (props.qualityReportSummary?.overallStatus?.toUpperCase()) {
+    case "PASS":
+      return "is-succeeded";
+    case "WARN":
+      return "is-needs_rerun";
+    case "FAIL":
+      return "is-failed";
+    default:
+      return "is-succeeded";
+  }
+});
+
+const qualityReportStatusLabel = computed(() => {
+  if (!props.isTerminal) return "待生成";
+  switch (props.qualityReportSummary?.overallStatus?.toUpperCase()) {
+    case "PASS":
+      return "已通过";
+    case "WARN":
+      return "有警告";
+    case "FAIL":
+      return "未通过";
+    default:
+      return "可查看";
+  }
+});
+
+const qualityReportMeta = computed(() => {
+  const summary = props.qualityReportSummary;
+  if (!summary) {
+    return props.isTerminal ? "任务结束后可查看报告" : "任务结束后生成报告";
+  }
+  return `检查 ${summary.totalChecks} 项 · 通过 ${summary.passedChecks} · 警告 ${summary.warningChecks} · 失败 ${summary.failedChecks}`;
+});
 
 function statusLabel(status: ProcessingStepViewStatus) {
   return processingStepStatusLabel(status);
@@ -742,6 +839,15 @@ function emptyArtifactHint(view: RuntimeStageView) {
   border-color: #e6c38f;
 }
 
+.task-progress-dialog__stage.is-waiting {
+  background: #fbfdfe;
+  border-color: #dce8ed;
+}
+
+.task-progress-dialog__quality-stage {
+  cursor: default;
+}
+
 .task-progress-dialog__stage-body {
   display: grid;
   grid-template-columns: minmax(132px, 1fr) minmax(0, 1.25fr) auto;
@@ -919,6 +1025,23 @@ function emptyArtifactHint(view: RuntimeStageView) {
 
 .task-progress-dialog__footer-spacer {
   flex: 1;
+}
+
+.task-progress-dialog__quality-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.task-progress-dialog__quality-actions :deep(.el-button) {
+  min-width: 0;
+  padding: 4px 5px;
+}
+
+.task-progress-dialog__quality-actions :deep(.el-button .el-icon) {
+  margin-right: 3px;
 }
 
 @media (max-width: 560px) {

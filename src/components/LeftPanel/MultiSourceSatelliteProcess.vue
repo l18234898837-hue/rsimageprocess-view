@@ -1188,6 +1188,7 @@ import {
   assertArchiveSize,
   getArchiveChunkCount,
   getArchiveChunkRange,
+  getArchiveUploadErrorMessage,
   isArchiveServerUnavailable,
   type ArchiveImportProgress
 } from "@/features/multisource/archiveImport";
@@ -2395,9 +2396,7 @@ async function handleArchiveChange(event: Event) {
         throw new Error(
           isArchiveServerUnavailable(error)
             ? "服务端分片解析接口不可用，请检查后端接口是否已部署"
-            : error instanceof Error
-              ? error.message
-              : "服务端 ZIP 解析失败"
+            : getArchiveUploadErrorMessage(error)
         );
       }
       if (!isArchiveServerUnavailable(error)) {
@@ -2478,9 +2477,9 @@ async function handleArchiveChange(event: Event) {
       type: "success"
     });
   } catch (error) {
-    archiveImportProgress.error =
-      error instanceof Error ? error.message : "ZIP 产品包解析失败";
-    message(error instanceof Error ? error.message : "ZIP 产品包解析失败", {
+    const errorMessage = getArchiveUploadErrorMessage(error);
+    archiveImportProgress.error = errorMessage;
+    message(errorMessage, {
       type: "warning"
     });
   } finally {
@@ -2666,16 +2665,49 @@ function escapeReportHtml(value: unknown) {
     .replace(/'/g, "&#39;");
 }
 
+function reportStatusLabel(status: unknown) {
+  switch (String(status ?? "").toUpperCase()) {
+    case "PASS":
+      return "通过";
+    case "WARN":
+      return "警告";
+    case "FAIL":
+      return "失败";
+    case "NOT_CHECKED":
+      return "未检查";
+    default:
+      return String(status ?? "未知");
+  }
+}
+
+function reportAvailabilityLabel(availability: unknown) {
+  switch (String(availability ?? "").toUpperCase()) {
+    case "CHECKED":
+      return "已检查";
+    case "NOT_CHECKED":
+      return "未检查";
+    case "NOT_APPLICABLE":
+      return "不适用";
+    default:
+      return String(availability ?? "");
+  }
+}
+
+function reportCell(value: unknown, fallback = "—") {
+  const text = String(value ?? "").trim();
+  return escapeReportHtml(text || fallback);
+}
+
 function renderQualityReportHtml(
   report: import("@/api/multiSourceSatellite").QualityReportResponse
 ) {
   const rows = report.checks
     .map(
       check =>
-        `<tr><td>${escapeReportHtml(check.name)}</td><td class="${escapeReportHtml(check.status)}">${escapeReportHtml(check.status)}</td><td>${escapeReportHtml(check.userMessage)}</td><td>${escapeReportHtml(check.actualValue)}</td></tr>`
+        `<tr><td>${reportCell(check.name)}</td><td class="${escapeReportHtml(String(check.status ?? ""))}"><span class="status-label">${reportCell(reportStatusLabel(check.status))}</span>${check.availability ? `<small class="availability">${reportCell(reportAvailabilityLabel(check.availability))}</small>` : ""}</td><td>${reportCell(check.userMessage)}</td><td>${reportCell(check.actualValue)}</td><td>${reportCell(check.threshold)}</td><td>${reportCell(check.recommendation)}</td></tr>`
     )
     .join("");
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>质量检测报告</title><style>body{font-family:system-ui,sans-serif;max-width:1000px;margin:32px auto;padding:0 20px;color:#243746}.status{padding:8px 12px;border-radius:6px;background:#eef5f7;display:inline-block}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:9px;border-bottom:1px solid #dce8ed;text-align:left;vertical-align:top}th{background:#f6fafb}.PASS{color:#216b4c}.WARN{color:#9a6b20}.FAIL{color:#a13f3f}</style></head><body><h1>质量检测报告</h1><p>任务 ${escapeReportHtml(report.taskId)} · 生成时间 ${escapeReportHtml(report.generatedAt)}</p><div class="status ${escapeReportHtml(report.overallStatus)}">总体结论：${escapeReportHtml(report.overallStatus)} · 检查 ${report.summary.totalChecks} 项，通过 ${report.summary.passedChecks}，警告 ${report.summary.warningChecks}，失败 ${report.summary.failedChecks}</div><table><thead><tr><th>检查项</th><th>状态</th><th>说明</th><th>实际值</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>质量检测报告</title><style>body{font-family:system-ui,sans-serif;max-width:1180px;margin:32px auto;padding:0 20px;color:#243746;background:#fff}.status{padding:8px 12px;border-radius:6px;background:#eef5f7;display:inline-block}.report-meta{color:#5d7480;font-size:14px}.report-note{color:#6a7f88;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed}th,td{padding:9px;border-bottom:1px solid #dce8ed;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#f6fafb;color:#38505b;font-weight:600}th:nth-child(1){width:16%}th:nth-child(2){width:12%}th:nth-child(3){width:24%}th:nth-child(4){width:16%}th:nth-child(5){width:14%}th:nth-child(6){width:18%}.status-label{font-weight:600}.availability{display:block;margin-top:4px;color:#71858d;font-size:12px}.PASS{color:#216b4c}.WARN{color:#9a6b20}.FAIL{color:#a13f3f}.NOT_CHECKED{color:#687c84}</style></head><body><h1>质量检测报告</h1><p class="report-meta">任务 ${escapeReportHtml(report.taskId)} · 生成时间 ${escapeReportHtml(report.generatedAt)} · 规则版本 ${reportCell(report.ruleVersion)}</p><div class="status ${escapeReportHtml(report.overallStatus)}">总体结论：${reportCell(reportStatusLabel(report.overallStatus))} · 检查 ${report.summary.totalChecks} 项，通过 ${report.summary.passedChecks}，警告 ${report.summary.warningChecks}，失败 ${report.summary.failedChecks}</div><p class="report-note">报告基于产物真实内容生成；“未检查”表示当前文件缺少可解释的质量指标，不代表文件质量合格。</p><table><thead><tr><th>检查项</th><th>状态</th><th>说明</th><th>实际值</th><th>规则 / 阈值</th><th>建议</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
 }
 
 async function viewQualityReport() {

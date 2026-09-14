@@ -152,6 +152,55 @@ export interface ExecutionProgressResponse {
   qualityStatus: string;
   stages: ExecutionProgressStage[];
   artifacts: ExecutionProgressArtifact[];
+  qualityReportSummary?: QualityReportSummary;
+}
+
+export interface QualityReportSummary {
+  overallStatus: "PASS" | "WARN" | "FAIL" | "NOT_CHECKED" | string;
+  totalChecks: number;
+  passedChecks: number;
+  warningChecks: number;
+  failedChecks: number;
+}
+
+export interface QualityReportCheck {
+  checkId: string;
+  functionKey?: string | null;
+  stageId?: ProcessingIdentifier | null;
+  artifactType?: string | null;
+  name: string;
+  status: "PASS" | "WARN" | "FAIL" | string;
+  actualValue?: string | null;
+  threshold?: string | null;
+  unit?: string | null;
+  userMessage?: string | null;
+  technicalMessage?: string | null;
+  severity?: string | null;
+  details?: Record<string, unknown>;
+  availability?: string | null;
+  recommendation?: string | null;
+}
+
+export interface QualityReportArtifactReference {
+  stageId?: ProcessingIdentifier | null;
+  type: string;
+  displayName: string;
+  format: string;
+  sizeBytes: number;
+  checksum: string;
+  retention?: string | null;
+}
+
+export interface QualityReportResponse {
+  reportId: string;
+  taskId: ProcessingIdentifier;
+  generatedAt: string;
+  overallStatus: QualityReportSummary["overallStatus"];
+  summary: QualityReportSummary;
+  selectedFunctions: string[];
+  checks: QualityReportCheck[];
+  artifactReferences: QualityReportArtifactReference[];
+  ruleVersion: string;
 }
 
 export const uploadStaticFile = (
@@ -209,6 +258,22 @@ export const getProcessingProgress = (taskId: ProcessingIdentifier) =>
     "get",
     `/api/multisource/processing-tasks/${taskId}/progress`
   );
+
+export const getProcessingQualityReport = (taskId: ProcessingIdentifier) =>
+  http.request<Result<QualityReportResponse>>(
+    "get",
+    `/api/multisource/processing-tasks/${taskId}/quality-report`
+  );
+
+export const downloadProcessingQualityReport = (
+  taskId: ProcessingIdentifier,
+  fileName = `task-${taskId}-quality-report.html`
+) => {
+  startBrowserDownload(
+    `/api/multisource/processing-tasks/${taskId}/quality-report.html`
+  );
+  return fileName;
+};
 
 export const cancelProcessingTask = (taskId: ProcessingIdentifier) =>
   http.request<Result<void>>(

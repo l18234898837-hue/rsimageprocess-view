@@ -37,6 +37,29 @@ const parseImageArtifactVisualization = (
 ).parseImageArtifactVisualization as (
   artifact: ExecutionProgressArtifact
 ) => unknown;
+const resolveArtifactTileUrl = (artifactMapPreview as Record<string, unknown>)
+  .resolveArtifactTileUrl as (tileUrl: string, apiPath?: string) => string;
+const createBoundedImageOverlayUrl = (
+  artifactMapPreview as Record<string, unknown>
+).createBoundedImageOverlayUrl as (
+  url: string,
+  maxTextureSize?: number
+) => Promise<string>;
+
+test("exposes a bounded image overlay loader for GPU texture limits", () => {
+  assert.equal(typeof createBoundedImageOverlayUrl, "function");
+});
+
+test("resolves API tile origins without encoding Cesium placeholders", () => {
+  const tileUrl = resolveArtifactTileUrl(
+    "/api/multisource/tasks/1/tiles/{z}/{x}/{y}.png?ticket=t",
+    "http://127.0.0.1:8080"
+  );
+  assert.equal(
+    tileUrl,
+    "http://127.0.0.1:8080/api/multisource/tasks/1/tiles/{z}/{x}/{y}.png?ticket=t"
+  );
+});
 const parseTilePreviewDescriptor = (
   artifactMapPreview as Record<string, unknown>
 ).parseTilePreviewDescriptor as (descriptor: {

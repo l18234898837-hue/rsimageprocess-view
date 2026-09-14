@@ -9,6 +9,7 @@ import {
   assertArchiveSize,
   getArchiveChunkCount,
   getArchiveChunkRange,
+  getArchiveUploadErrorMessage,
   isArchiveServerUnavailable
 } from "./archiveImport";
 
@@ -42,6 +43,22 @@ test("recognizes unavailable archive endpoints without hiding server failures", 
   assert.equal(
     isArchiveServerUnavailable({ response: { status: 422 } }),
     false
+  );
+});
+
+test("prefers backend archive error details and explains bare 409 responses", () => {
+  assert.equal(
+    getArchiveUploadErrorMessage({
+      response: {
+        status: 409,
+        data: { msg: "服务器临时空间不足，请清理历史上传或稍后重试" }
+      }
+    }),
+    "服务器临时空间不足，请清理历史上传或稍后重试"
+  );
+  assert.equal(
+    getArchiveUploadErrorMessage({ response: { status: 409, data: {} } }),
+    "ZIP 上传被服务器拒绝，请检查服务器临时空间后重试"
   );
 });
 

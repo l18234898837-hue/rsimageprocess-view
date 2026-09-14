@@ -38,6 +38,27 @@ export function isArchiveServerUnavailable(error: unknown) {
   return candidate?.message === "Network Error";
 }
 
+export function getArchiveUploadErrorMessage(error: unknown) {
+  const candidate = error as {
+    message?: string;
+    response?: {
+      status?: number;
+      data?: { msg?: unknown; message?: unknown };
+    };
+  } | null;
+  const responseMessage =
+    typeof candidate?.response?.data?.msg === "string"
+      ? candidate.response.data.msg
+      : typeof candidate?.response?.data?.message === "string"
+        ? candidate.response.data.message
+        : "";
+  if (responseMessage.trim()) return responseMessage;
+  if (candidate?.response?.status === 409) {
+    return "ZIP 上传被服务器拒绝，请检查服务器临时空间后重试";
+  }
+  return candidate?.message || "服务端 ZIP 解析失败";
+}
+
 export function getArchiveChunkCount(
   fileSize: number,
   chunkSize = ARCHIVE_CHUNK_SIZE

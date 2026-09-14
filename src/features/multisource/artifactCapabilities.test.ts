@@ -102,15 +102,10 @@ test("promotes PNG artifacts with safe overlay metadata to map viewing", () => {
   );
 });
 
-test("does not advertise TIFF map viewing without a safe tile service", () => {
+test("advertises TIFF map viewing for the lazy protected tile service", () => {
   assert.deepEqual(
     resolveArtifactView(artifact({ uri: "rs://out/scene.tif" })),
-    {
-      format: "COG",
-      enabled: false,
-      mode: "disabled",
-      reason: "TIFF/COG 需要安全瓦片服务才能在线查看，请下载后查看"
-    }
+    { format: "COG", enabled: true, mode: "map" }
   );
 });
 

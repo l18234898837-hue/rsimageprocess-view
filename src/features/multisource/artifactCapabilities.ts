@@ -83,11 +83,14 @@ function fallbackArtifactView(
     /\.tiff?$/.test(path) ||
     ["TIFF", "TIF", "COG", "GEOTIFF"].includes(format)
   ) {
-    return disabled(
+    // TIFF/COG tiles are requested lazily from the protected preview
+    // endpoint. The task payload does not need to contain visualization
+    // metadata for the artifact to be map-viewable.
+    return enabled(
       type.toUpperCase().includes("COG") || format === "COG"
         ? "COG"
         : "GEOTIFF",
-      "TIFF/COG 需要安全瓦片服务才能在线查看，请下载后查看"
+      "map"
     );
   }
   return disabled("BINARY", "该二进制产物暂不支持在线查看");

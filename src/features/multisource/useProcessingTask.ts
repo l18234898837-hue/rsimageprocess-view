@@ -6,11 +6,14 @@ import {
   downloadProcessingArtifact,
   downloadProcessingResult,
   getProcessingProgress,
+  getProcessingQualityReport,
+  downloadProcessingQualityReport,
   preflightProcessingTask,
   retryProcessingStage,
   uploadStaticFile,
   type ExecutionProgressArtifact,
   type ExecutionProgressResponse,
+  type QualityReportResponse,
   type PreflightCandidate,
   type ProcessingIdentifier,
   type ProcessingLifecycleStatus,
@@ -187,6 +190,7 @@ export function useProcessingTask(
     )
   );
   const isDownloadingResult = ref(false);
+  const isDownloadingQualityReport = ref(false);
 
   function stopPolling() {
     if (pollTimer !== undefined) {
@@ -492,6 +496,33 @@ export function useProcessingTask(
     }
   }
 
+  async function getQualityReport(): Promise<QualityReportResponse> {
+    if (
+      taskId.value === undefined ||
+      !TERMINAL_STATUSES.has(taskStatus.value as ProcessingLifecycleStatus)
+    ) {
+      throw new Error("任务尚未结束，质量检测报告暂不可用");
+    }
+    return responseData(await getProcessingQualityReport(taskId.value));
+  }
+
+  async function downloadQualityReport(): Promise<boolean> {
+    if (isDownloadingQualityReport.value) return false;
+    if (
+      taskId.value === undefined ||
+      !TERMINAL_STATUSES.has(taskStatus.value as ProcessingLifecycleStatus)
+    ) {
+      throw new Error("任务尚未结束，质量检测报告暂不可用");
+    }
+    isDownloadingQualityReport.value = true;
+    try {
+      downloadProcessingQualityReport(taskId.value);
+      return true;
+    } finally {
+      isDownloadingQualityReport.value = false;
+    }
+  }
+
   async function getArtifactBlob(artifact: ExecutionProgressArtifact) {
     if (taskId.value === undefined) throw new Error("任务标识已失效");
     const currentArtifact = authorizeArtifactDownload(
@@ -529,6 +560,7 @@ export function useProcessingTask(
     isTaskActive,
     isUploading,
     isDownloadingResult,
+    isDownloadingQualityReport,
     preflight,
     candidate,
     taskId,
@@ -547,6 +579,8 @@ export function useProcessingTask(
     cancel,
     retry,
     downloadResult,
+    getQualityReport,
+    downloadQualityReport,
     downloadArtifact,
     getArtifactBlob,
     stopPolling,
