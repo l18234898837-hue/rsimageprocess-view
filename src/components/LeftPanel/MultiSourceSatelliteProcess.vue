@@ -1253,7 +1253,23 @@ const STAGE_LABELS: Record<string, string> = {
   WRITE_STANDARD_TRACK_OUTPUT: "生成标准沿轨产品",
   GRID_TRACK_OPTIONAL: "生成可选网格产品",
   STANDARDIZE_FY4B_AGRI: "处理 FY-4B AGRI 全圆盘产品",
-  STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品"
+  STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品",
+  VALIDATE_GF6_WFV_L1A: "校验 GF-6 WFV L1A 产品包",
+  MOSAIC_GF6_TILES: "三层拼接",
+  GEOLOCATE_GF6_RPC: "RPC/导航定位",
+  STANDARDIZE_GF6_PROJECTION: "投影与标准影像",
+  WRITE_GF6_STANDARD_COG: "生成 GF-6 标准 COG",
+  EXTRACT_GF6_FEATURES: "提取 GF-6 影像特征",
+  FUSE_GF6_RGB: "生成 GF-6 RGB 融合",
+  DETECT_GF6_SALIENCY: "检测 GF-6 显著性",
+  VALIDATE_FY4B_PACKAGE: "校验 FY-4B AGRI 产品包",
+  BUILD_FY4B_NOMINAL_GRID: "构建 FY-4B 名义定位网格",
+  CALIBRATE_AND_GEOREFERENCE_FY4B: "FY-4B 辐射定标与地理配准",
+  REPROJECT_AND_CROP_FY4B: "FY-4B 重投影与范围裁剪",
+  WRITE_FY4B_STANDARD_COG: "生成 FY-4B 标准 COG",
+  EXTRACT_FY4B_FEATURES: "提取 FY-4B 影像特征",
+  FUSE_FY4B_BANDS: "生成 FY-4B 波段融合",
+  DETECT_FY4B_SALIENCY: "检测 FY-4B 显著性"
 };
 
 const l2aForm = reactive(defaultL2aForm());
@@ -2279,6 +2295,12 @@ async function extractArchiveMetadataFiles(
         })
       );
     }
+  } catch (error) {
+    // The server has already parsed and registered every matched file. Some
+    // legacy archives use non-UTF-8 entry names that zip.js cannot decode;
+    // metadata extraction is only an optional client-side enhancement and
+    // must not turn a successful server import into a failed upload.
+    console.warn("ZIP 元数据客户端读取失败，继续使用服务端匹配结果", error);
   } finally {
     await reader.close();
   }

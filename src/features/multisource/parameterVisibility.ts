@@ -24,6 +24,8 @@ const PREPROCESSING_STEPS = new Set([
   "rpc-geolocation",
   "projection-standardization",
   "geo-grid-construction",
+  "calibration-georeference",
+  "reprojection-crop",
   "radiometric-calibration",
   "quality-mask",
   "band-metadata-decode",

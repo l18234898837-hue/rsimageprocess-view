@@ -135,12 +135,11 @@ const PIPELINES: readonly PipelineDefinition[] = [
       anomaly: "AGRI 显著性检测"
     },
     [
-      { key: "geo-grid-construction", title: "GEO 网格构建" },
-      { key: "radiometric-calibration", title: "辐射定标" },
-      { key: "quality-mask", title: "质量掩膜" },
+      { key: "geo-grid-construction", title: "构建名义定位网格" },
+      { key: "calibration-georeference", title: "辐射定标与地理配准" },
       {
-        key: "projection-standardization",
-        title: "投影与 ROI",
+        key: "reprojection-crop",
+        title: "重投影与范围裁剪",
         configurable: true
       }
     ]

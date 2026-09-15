@@ -200,13 +200,13 @@ const REMOTE_STAGE_UI_STEPS: Record<string, readonly string[]> = {
   DECODE_SCALE_AND_NODATA: ["band-metadata-decode", "scale-factor-processing"],
   CROP_CZI: ["projection-standardization"],
   CALIBRATE_MERSI_L1: ["radiometric-calibration"],
-  CALIBRATE_AND_GEOREFERENCE_FY4B: [
-    "radiometric-calibration",
-    "projection-standardization"
-  ],
+  CALIBRATE_AND_GEOREFERENCE_FY4B: ["calibration-georeference"],
   BUILD_FY4B_NOMINAL_GRID: ["geo-grid-construction"],
-  REPROJECT_AND_CROP_FY4B: ["projection-standardization"],
+  REPROJECT_AND_CROP_FY4B: ["reprojection-crop"],
   VALIDATE_GF6_WFV_L1A: ["upload-validation"],
+  MOSAIC_GF6_TILES: ["tile-mosaic"],
+  GEOLOCATE_GF6_RPC: ["rpc-geolocation"],
+  STANDARDIZE_GF6_PROJECTION: ["projection-standardization"],
   WRITE_GF6_STANDARD_COG: ["standard-product"],
   WRITE_FY4B_STANDARD_COG: ["standard-product"],
   EXTRACT_FY4B_FEATURES: ["feature-extraction"],

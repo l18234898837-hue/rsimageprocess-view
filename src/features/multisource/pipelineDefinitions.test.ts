@@ -32,9 +32,9 @@ test("image products expose product-specific preprocessing subfunctions", () => 
       .slice(0, 4),
     [
       "geo-grid-construction",
-      "radiometric-calibration",
-      "quality-mask",
-      "projection-standardization"
+      "calibration-georeference",
+      "reprojection-crop",
+      "feature-extraction"
     ]
   );
   assert.deepEqual(

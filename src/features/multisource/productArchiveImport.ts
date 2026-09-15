@@ -52,7 +52,9 @@ function markerMatches(name: string, slot: ProductFileSlot) {
     return /1000m|observation|observ/.test(normalized);
   if (role === "GEO1K") return /geo1k|geo_?1k|geo/.test(normalized);
   if (role === "MAIN_TIFF_TILE") return /tif{1,2}$/.test(normalized);
-  if (role === "METADATA_XML") return /xml$/.test(normalized);
+  if (role === "METADATA_XML") {
+    return /xml$/.test(normalized) && !/\.rpb\.aux\.xml$/.test(normalized);
+  }
   if (role === "RPC_RPB") {
     // GF-6 packages may contain one RPB per TIFF tile. Only the
     // package-level RPB belongs in the main RPC slot.
@@ -72,7 +74,9 @@ function tileOrdinal(name: string) {
   const match = normalized.match(
     /(?:tile|t|part|block)[-_ ]*0?([1-3])(?:\D|$)/
   );
-  return match ? Number(match[1]) - 1 : undefined;
+  if (match) return Number(match[1]) - 1;
+  const suffix = normalized.match(/[-_ ]0?([1-3])\.tiff?$/);
+  return suffix ? Number(suffix[1]) - 1 : undefined;
 }
 
 function candidatesForSlot(

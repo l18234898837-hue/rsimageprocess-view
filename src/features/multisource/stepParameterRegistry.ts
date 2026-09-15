@@ -78,7 +78,7 @@ const REGISTRIES: Readonly<Record<string, StepParameterRegistry>> = {
     buildGf6WfvL1aSnapshot
   ),
   "fy4b-agri-v1": createRegistry<Fy4bAgriForm>(
-    IMAGE_EDITABLE_STEPS,
+    [...IMAGE_EDITABLE_STEPS, "reprojection-crop"],
     defaultFy4bAgriForm,
     validateFy4bAgriForm,
     buildFy4bAgriSnapshot

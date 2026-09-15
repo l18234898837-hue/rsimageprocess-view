@@ -2,7 +2,7 @@
   <el-dialog
     v-model="visible"
     class="task-progress-dialog"
-    width="min(760px, calc(100vw - 32px))"
+    width="min(1000px, calc(100vw - 32px))"
     append-to-body
     :modal="false"
     :lock-scroll="false"

@@ -44,6 +44,37 @@ test("matches GF-6 archive files to all required slots by extension and tile ord
   assert.deepEqual(result.missingRequired, []);
 });
 
+test("matches real GF-6 suffix tiles and ignores RPB auxiliary XML", () => {
+  const base = "GF6_WFV_E107.6_N9.0_20260716_L1A1420724603";
+  const result = matchProductArchiveEntries(
+    [
+      entry(`${base}-1.tiff`),
+      entry(`${base}-2.tiff`),
+      entry(`${base}-3.tiff`),
+      entry(`${base}.xml`),
+      entry(`${base}-1.rpb.aux.xml`),
+      entry(`${base}.rpb`),
+      entry(`${base}.nav`),
+      entry(`${base}.til`)
+    ],
+    GF6_WFV_L1A_TEMPLATE
+  );
+
+  assert.deepEqual(
+    result.matches.map(match => match.slot.id),
+    [
+      "mainTiffTile0",
+      "mainTiffTile1",
+      "mainTiffTile2",
+      "metadataXml",
+      "rpcRpb",
+      "nav",
+      "tileIndexTil"
+    ]
+  );
+  assert.deepEqual(result.missingRequired, []);
+});
+
 test("ignores GF-6 footprint sidecars that are outside the upload contract", () => {
   const result = matchProductArchiveEntries(
     [
