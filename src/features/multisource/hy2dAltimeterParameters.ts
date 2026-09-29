@@ -35,7 +35,7 @@ export function defaultHy2dAltimeterForm(): Hy2dAltimeterForm {
       jumpThresholdMeters: 0.5
     },
     grid: {
-      enabled: false,
+      enabled: true,
       spacingDegrees: 0.25
     }
   };

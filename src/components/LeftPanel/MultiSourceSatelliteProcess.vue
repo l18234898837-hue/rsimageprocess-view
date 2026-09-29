@@ -2616,6 +2616,11 @@ function removeProductSlot(slotId: SlotId) {
 async function startTask() {
   isBusy.value = true;
   try {
+    // The selected processing targets define which optional HY-2D outputs
+    // are materialized in the Worker plan. Reapply them immediately before
+    // serializing the task snapshot so the displayed plan and submitted plan
+    // cannot diverge after an edited parameter form is returned by the drawer.
+    syncProductAlgorithmSelection(productForms, selectedTargets.value);
     const snapshot = isHy1c.value
       ? buildHy1cCziL2aSnapshot(l2aForm)
       : isFy3h.value

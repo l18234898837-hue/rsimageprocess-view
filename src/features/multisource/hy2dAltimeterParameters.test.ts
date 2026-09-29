@@ -17,7 +17,7 @@ test("default HY-2D form builds the exact Worker parameter object", () => {
       jumpThresholdMeters: 0.5
     },
     grid: {
-      enabled: false,
+      enabled: true,
       spacingDegrees: 0.25
     }
   });
