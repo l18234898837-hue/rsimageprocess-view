@@ -146,6 +146,35 @@ function saveBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+export async function getArtifactBlobForTask(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact,
+  authorizedArtifacts: readonly ExecutionProgressArtifact[]
+) {
+  const currentArtifact = authorizeArtifactDownload(
+    authorizedArtifacts,
+    artifact
+  );
+  const response = await downloadProcessingArtifact(
+    taskId,
+    currentArtifact.type
+  );
+  return responseBlob(response);
+}
+
+export async function downloadArtifactForTask(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact,
+  authorizedArtifacts: readonly ExecutionProgressArtifact[]
+) {
+  const blob = await getArtifactBlobForTask(
+    taskId,
+    artifact,
+    authorizedArtifacts
+  );
+  saveBlob(blob, artifactDownloadFileName(artifact));
+}
+
 export function useProcessingTask(
   initialTemplate: ProductTemplate = GF6_WFV_L1A_TEMPLATE
 ) {
@@ -525,20 +554,20 @@ export function useProcessingTask(
 
   async function getArtifactBlob(artifact: ExecutionProgressArtifact) {
     if (taskId.value === undefined) throw new Error("任务标识已失效");
-    const currentArtifact = authorizeArtifactDownload(
-      progress.value?.artifacts || [],
-      artifact
-    );
-    const response = await downloadProcessingArtifact(
+    return getArtifactBlobForTask(
       taskId.value,
-      currentArtifact.type
+      artifact,
+      progress.value?.artifacts || []
     );
-    return responseBlob(response);
   }
 
   async function downloadArtifact(artifact: ExecutionProgressArtifact) {
-    const blob = await getArtifactBlob(artifact);
-    saveBlob(blob, artifactDownloadFileName(artifact));
+    if (taskId.value === undefined) throw new Error("任务标识已失效");
+    await downloadArtifactForTask(
+      taskId.value,
+      artifact,
+      progress.value?.artifacts || []
+    );
   }
 
   function reset() {

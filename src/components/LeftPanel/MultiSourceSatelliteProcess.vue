@@ -306,6 +306,16 @@
       @reset="resetTask"
     />
 
+    <TaskHistoryDialog
+      v-model="isTaskHistoryOpen"
+      @preview-artifact="previewHistoryArtifact"
+      @download-artifact="downloadHistoryArtifact"
+      @download-result="downloadHistoryTask"
+      @show-artifact-on-map="showHistoryArtifactOnMap"
+      @view-quality-report="viewHistoryQualityReport"
+      @download-quality-report="downloadHistoryQualityReport"
+    />
+
     <section
       v-if="artifactMapLayers.length"
       class="artifact-map-layers"
@@ -440,6 +450,19 @@
       </el-button>
     </section>
 
+    <button
+      class="mission-section mission-history-entry"
+      type="button"
+      aria-label="打开历史任务与产物"
+      @click="isTaskHistoryOpen = true"
+    >
+      <span class="mission-history-entry__copy">
+        <strong>历史任务与产物</strong>
+        <small>可查看、下载和管理已完成任务的产物</small>
+      </span>
+      <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+    </button>
+
     <el-dialog
       v-model="isArtifactPreviewOpen"
       class="artifact-preview-dialog"
@@ -500,7 +523,7 @@
         <el-button
           v-if="previewedArtifact"
           type="primary"
-          @click="downloadStageArtifact(previewedArtifact)"
+          @click="downloadPreviewedArtifact"
         >
           <el-icon><Download /></el-icon>
           下载
@@ -1051,6 +1074,7 @@ import {
 import { message } from "@/utils/message";
 import ProcessingPlanPanel from "@/components/LeftPanel/ProcessingPlanPanel.vue";
 import TaskProgressDialog from "@/components/LeftPanel/TaskProgressDialog.vue";
+import TaskHistoryDialog from "@/components/LeftPanel/TaskHistoryDialog.vue";
 import Fy3hMersiParameterDrawer from "@/features/multisource/Fy3hMersiParameterDrawer.vue";
 import Hy2dAltimeterParameterDrawer from "@/features/multisource/Hy2dAltimeterParameterDrawer.vue";
 import Fy4bAgriParameterDrawer from "@/features/multisource/Fy4bAgriParameterDrawer.vue";
@@ -1164,13 +1188,23 @@ import {
   PRODUCT_TEMPLATES,
   type SlotId
 } from "@/features/multisource/productTemplates";
-import { useProcessingTask } from "@/features/multisource/useProcessingTask";
+import {
+  downloadArtifactForTask,
+  getArtifactBlobForTask,
+  useProcessingTask
+} from "@/features/multisource/useProcessingTask";
 import type {
   ArtifactTilePreviewResponse,
   ExecutionProgressArtifact,
-  ExecutionProgressStage
+  ExecutionProgressStage,
+  ProcessingIdentifier
 } from "@/api/multiSourceSatellite";
-import { getArtifactTilePreview } from "@/api/multiSourceSatellite";
+import {
+  downloadProcessingQualityReport,
+  downloadProcessingResult,
+  getArtifactTilePreview,
+  getProcessingQualityReport
+} from "@/api/multiSourceSatellite";
 import { BlobReader, BlobWriter, ZipReader } from "@zip.js/zip.js";
 import {
   cancelArchiveUpload,
@@ -1453,6 +1487,7 @@ watch(taskStatus, status => {
 
 const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
 const isTaskProgressOpen = ref(false);
+const isTaskHistoryOpen = ref(false);
 const isArtifactPreviewOpen = ref(false);
 const artifactPreviewUrl = ref("");
 const artifactPreviewName = ref("");
@@ -1465,6 +1500,7 @@ const artifactPreviewText = ref("");
 const artifactPreviewFieldTree = ref<JsonArtifactFieldNode[]>([]);
 const artifactPreviewTab = ref("fields");
 const previewedArtifact = ref<ExecutionProgressArtifact | null>(null);
+const previewedArtifactTaskId = ref<ProcessingIdentifier>();
 const isHy1c = computed(
   () => activeTemplate.value.id === HY1C_CZI_L2A_TEMPLATE.id
 );
@@ -1799,17 +1835,18 @@ function isMapPreviewableArtifact(artifact: ExecutionProgressArtifact) {
   );
 }
 
-async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
+async function showArtifactOnMapForTask(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact,
+  artifactBlob: () => Promise<Blob>
+) {
   try {
     if (!isMapPreviewableArtifact(artifact)) {
       throw new Error("该产物暂不支持在地图中查看");
     }
     const viewer = await map.readyPromise;
     const descriptorResponse = isRasterArtifact(artifact)
-      ? await getArtifactTilePreview(
-          progress.value?.taskId ?? "",
-          artifact.type
-        )
+      ? await getArtifactTilePreview(taskId, artifact.type)
       : undefined;
     const tileDescriptor = descriptorResponse
       ? (descriptorResponse as { data?: unknown }).data ?? descriptorResponse
@@ -1877,7 +1914,7 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       clearArtifactMapDataSource();
       const preview = parseMapArtifactPreview(
         artifact,
-        await (await getArtifactBlob(artifact)).text()
+        await (await artifactBlob()).text()
       );
       if (preview.kind === "bounds") {
         viewer.camera.flyTo({
@@ -1906,6 +1943,26 @@ async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
       type: "error"
     });
   }
+}
+
+async function showArtifactOnMap(artifact: ExecutionProgressArtifact) {
+  const currentTaskId = progress.value?.taskId;
+  if (currentTaskId === undefined) {
+    message("任务标识已失效，请刷新任务后重试", { type: "error" });
+    return;
+  }
+  await showArtifactOnMapForTask(currentTaskId, artifact, () =>
+    getArtifactBlob(artifact)
+  );
+}
+
+async function showHistoryArtifactOnMap(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact
+) {
+  await showArtifactOnMapForTask(taskId, artifact, () =>
+    getArtifactBlobForTask(taskId, artifact, [artifact])
+  );
 }
 
 function artifactMapLayerId(artifact: ExecutionProgressArtifact) {
@@ -2041,13 +2098,21 @@ function clearArtifactMapPreview() {
   clearArtifactMapDataSource();
 }
 
-async function previewArtifact(artifact: ExecutionProgressArtifact) {
+async function previewArtifactForTask(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact,
+  authorizedArtifacts: readonly ExecutionProgressArtifact[]
+) {
   previewingArtifact.value = artifact;
   try {
     assertArtifactPreviewable(artifact);
     const kind = resolveArtifactPreviewKind(artifact);
     if (!kind) throw new Error("该产物格式暂不支持在线查看，请下载后查看");
-    const blob = await getArtifactBlob(artifact);
+    const blob = await getArtifactBlobForTask(
+      taskId,
+      artifact,
+      authorizedArtifacts
+    );
     clearArtifactPreview();
     if (kind === "image") artifactPreviewUrl.value = URL.createObjectURL(blob);
     else {
@@ -2074,6 +2139,7 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
     artifactPreviewDescription.value = artifactPreviewDescriptionFor(artifact);
     artifactPreviewKind.value = kind;
     previewedArtifact.value = artifact;
+    previewedArtifactTaskId.value = taskId;
     isArtifactPreviewOpen.value = true;
   } catch (error) {
     message(error instanceof Error ? error.message : "产物预览失败", {
@@ -2084,10 +2150,34 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
   }
 }
 
-async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
+async function previewArtifact(artifact: ExecutionProgressArtifact) {
+  const currentTaskId = progress.value?.taskId;
+  if (currentTaskId === undefined) {
+    message("任务标识已失效，请刷新任务后重试", { type: "error" });
+    return;
+  }
+  await previewArtifactForTask(
+    currentTaskId,
+    artifact,
+    progress.value?.artifacts || []
+  );
+}
+
+async function previewHistoryArtifact(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact
+) {
+  await previewArtifactForTask(taskId, artifact, [artifact]);
+}
+
+async function downloadArtifactForTaskId(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact,
+  authorizedArtifacts: readonly ExecutionProgressArtifact[]
+) {
   downloadingArtifact.value = artifact;
   try {
-    await downloadArtifact(artifact);
+    await downloadArtifactForTask(taskId, artifact, authorizedArtifacts);
   } catch (error) {
     message(error instanceof Error ? error.message : "产物下载失败", {
       type: "error"
@@ -2095,6 +2185,37 @@ async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
   } finally {
     downloadingArtifact.value = null;
   }
+}
+
+async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
+  const currentTaskId = progress.value?.taskId;
+  if (currentTaskId === undefined) {
+    message("任务标识已失效，请刷新任务后重试", { type: "error" });
+    return;
+  }
+  await downloadArtifactForTaskId(
+    currentTaskId,
+    artifact,
+    progress.value?.artifacts || []
+  );
+}
+
+async function downloadHistoryArtifact(
+  taskId: ProcessingIdentifier,
+  artifact: ExecutionProgressArtifact
+) {
+  await downloadArtifactForTaskId(taskId, artifact, [artifact]);
+}
+
+async function downloadPreviewedArtifact() {
+  if (!previewedArtifact.value || previewedArtifactTaskId.value === undefined) {
+    return;
+  }
+  await downloadArtifactForTaskId(
+    previewedArtifactTaskId.value,
+    previewedArtifact.value,
+    [previewedArtifact.value]
+  );
 }
 
 function clearArtifactPreview() {
@@ -2107,6 +2228,7 @@ function clearArtifactPreview() {
   artifactPreviewFieldTree.value = [];
   artifactPreviewTab.value = "fields";
   previewedArtifact.value = null;
+  previewedArtifactTaskId.value = undefined;
   isArtifactPreviewOpen.value = false;
 }
 
@@ -2688,6 +2810,23 @@ async function downloadTask() {
   }
 }
 
+async function downloadHistoryTask(
+  taskId: ProcessingIdentifier,
+  taskNo: string
+) {
+  try {
+    const started = await downloadProcessingResult(
+      taskId,
+      `task-${taskNo}.zip`
+    );
+    if (started) message("结果 ZIP 已加入浏览器下载列表", { type: "success" });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "结果下载失败", {
+      type: "error"
+    });
+  }
+}
+
 function escapeReportHtml(value: unknown) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -2742,15 +2881,37 @@ function renderQualityReportHtml(
   return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>质量检测报告</title><style>body{font-family:system-ui,sans-serif;max-width:1180px;margin:32px auto;padding:0 20px;color:#243746;background:#fff}.status{padding:8px 12px;border-radius:6px;background:#eef5f7;display:inline-block}.report-meta{color:#5d7480;font-size:14px}.report-note{color:#6a7f88;font-size:13px}table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed}th,td{padding:9px;border-bottom:1px solid #dce8ed;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#f6fafb;color:#38505b;font-weight:600}th:nth-child(1){width:16%}th:nth-child(2){width:12%}th:nth-child(3){width:24%}th:nth-child(4){width:16%}th:nth-child(5){width:14%}th:nth-child(6){width:18%}.status-label{font-weight:600}.availability{display:block;margin-top:4px;color:#71858d;font-size:12px}.PASS{color:#216b4c}.WARN{color:#9a6b20}.FAIL{color:#a13f3f}.NOT_CHECKED{color:#687c84}</style></head><body><h1>质量检测报告</h1><p class="report-meta">任务 ${escapeReportHtml(report.taskId)} · 生成时间 ${escapeReportHtml(report.generatedAt)} · 规则版本 ${reportCell(report.ruleVersion)}</p><div class="status ${escapeReportHtml(report.overallStatus)}">总体结论：${reportCell(reportStatusLabel(report.overallStatus))} · 检查 ${report.summary.totalChecks} 项，通过 ${report.summary.passedChecks}，警告 ${report.summary.warningChecks}，失败 ${report.summary.failedChecks}</div><p class="report-note">报告基于产物真实内容生成；“未检查”表示当前文件缺少可解释的质量指标，不代表文件质量合格。</p><table><thead><tr><th>检查项</th><th>状态</th><th>说明</th><th>实际值</th><th>规则 / 阈值</th><th>建议</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
 }
 
+function openQualityReportWindow(
+  report: import("@/api/multiSourceSatellite").QualityReportResponse
+) {
+  const popup = window.open("", "_blank", "width=980,height=760");
+  if (!popup) throw new Error("浏览器阻止了报告窗口，请允许弹出窗口后重试");
+  popup.document.write(renderQualityReportHtml(report));
+  popup.document.close();
+}
+
 async function viewQualityReport() {
   if (!isTerminal.value || isLoadingQualityReport.value) return;
   isLoadingQualityReport.value = true;
   try {
     const report = await getQualityReport();
-    const popup = window.open("", "_blank", "width=980,height=760");
-    if (!popup) throw new Error("浏览器阻止了报告窗口，请允许弹出窗口后重试");
-    popup.document.write(renderQualityReportHtml(report));
-    popup.document.close();
+    openQualityReportWindow(report);
+  } catch (error) {
+    message(error instanceof Error ? error.message : "质量检测报告查看失败", {
+      type: "error"
+    });
+  } finally {
+    isLoadingQualityReport.value = false;
+  }
+}
+
+async function viewHistoryQualityReport(taskId: ProcessingIdentifier) {
+  if (isLoadingQualityReport.value) return;
+  isLoadingQualityReport.value = true;
+  try {
+    const report = (await getProcessingQualityReport(taskId)).data;
+    if (!report) throw new Error("后端响应缺少质量检测报告");
+    openQualityReportWindow(report);
   } catch (error) {
     message(error instanceof Error ? error.message : "质量检测报告查看失败", {
       type: "error"
@@ -2765,6 +2926,17 @@ async function downloadQualityReportFile() {
     const started = await downloadQualityReport();
     if (started)
       message("质量检测报告已加入浏览器下载列表", { type: "success" });
+  } catch (error) {
+    message(error instanceof Error ? error.message : "质量检测报告下载失败", {
+      type: "error"
+    });
+  }
+}
+
+function downloadHistoryQualityReport(taskId: ProcessingIdentifier) {
+  try {
+    downloadProcessingQualityReport(taskId);
+    message("质量检测报告已加入浏览器下载列表", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "质量检测报告下载失败", {
       type: "error"
@@ -3352,6 +3524,65 @@ function resetTask() {
   color: #698294;
   font-size: 9px;
   line-height: 1.4;
+}
+
+.mission-history-entry {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: #21566d;
+  text-align: left;
+  cursor: pointer;
+  background: #f2f8fa;
+  border: 1px solid #bfd8e1;
+  border-left: 3px solid #2d98bd;
+  border-radius: 4px;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.mission-history-entry:hover {
+  background: #e4f3f8;
+  border-color: #73b6ca;
+  transform: translateX(1px);
+}
+
+.mission-history-entry:focus-visible {
+  outline: 2px solid #2188aa;
+  outline-offset: 2px;
+}
+
+.mission-history-entry__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mission-history-entry__copy strong {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mission-history-entry__copy small {
+  overflow: hidden;
+  color: #63808d;
+  font-size: 10px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-history-entry > .el-icon {
+  flex: 0 0 auto;
+  color: #258bb0;
+  font-size: 15px;
 }
 
 .stage-timeline {

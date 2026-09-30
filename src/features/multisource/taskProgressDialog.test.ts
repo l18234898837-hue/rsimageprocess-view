@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const dialog = readFileSync(
   "src/components/LeftPanel/TaskProgressDialog.vue",
@@ -10,6 +10,8 @@ const processPanel = readFileSync(
   "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
   "utf8"
 );
+
+const taskHistoryDialogPath = "src/components/LeftPanel/TaskHistoryDialog.vue";
 
 test("task progress dialog renders shared runtime states and actions", () => {
   assert.match(dialog, /<el-dialog/);
@@ -67,6 +69,23 @@ test("stage artifact actions are grouped behind an expandable stage control", ()
   assert.match(dialog, /emit\("download-artifact", artifact\)/);
   assert.match(dialog, /artifactDescription\(artifact\)/);
   assert.doesNotMatch(dialog, /stageDetailHint/);
+});
+
+test("history tasks use a separate dialog with explicit task identifiers", () => {
+  assert.equal(
+    existsSync(taskHistoryDialogPath),
+    true,
+    "history task management must be isolated from the active task dialog"
+  );
+  const historyDialog = readFileSync(taskHistoryDialogPath, "utf8");
+  assert.match(historyDialog, /<el-dialog/);
+  assert.match(historyDialog, /历史任务与产物/);
+  assert.match(historyDialog, /preview-artifact.*taskId/);
+  assert.match(historyDialog, /download-result.*taskId/);
+  assert.match(historyDialog, /historyActions/);
+  assert.match(processPanel, /TaskHistoryDialog/);
+  assert.match(processPanel, /isTaskHistoryOpen/);
+  assert.match(processPanel, /历史任务与产物/);
 });
 
 test("completed stages stay collapsed until the user expands their artifacts", () => {
