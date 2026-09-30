@@ -136,12 +136,47 @@ test("task progress is an interactive non-modal floating panel", () => {
   assert.match(dialog, /aria-modal="false"/);
   assert.match(dialog, /@pointerdown="startPanelDrag"/);
   assert.match(dialog, /resize: both/);
-  assert.match(dialog, /resetPanelPosition/);
+  assert.match(dialog, /centerTaskProgressPanel/);
   assert.match(dialog, /window\.innerHeight/);
   assert.match(dialog, /getBoundingClientRect\(\)/);
   assert.match(dialog, /pointercancel/);
   assert.match(dialog, /<Teleport to="body">/);
   assert.doesNotMatch(dialog, /<el-dialog/);
+});
+
+test("floating result windows promote the clicked panel and center task progress from its title bar", () => {
+  assert.match(dialog, /useFloatingPanelStack/);
+  assert.match(processPanel, /useFloatingPanelStack/);
+  assert.match(dialog, /@pointerdown\.capture="activateTaskProgress"/);
+  assert.match(dialog, /@pointerdown\.capture="activateInterpretation"/);
+  assert.match(processPanel, /:style="artifactPreviewPanelStyle"/);
+  assert.match(processPanel, /@pointerdown\.capture="activateArtifactPreview"/);
+  assert.match(dialog, /@dblclick="centerTaskProgressPanel"/);
+  assert.match(dialog, /window\.innerWidth - centeredWidth/);
+  assert.doesNotMatch(dialog, />归位</);
+});
+
+test("artifact preview owns its floating layer instead of relying on Element Plus dialog state", () => {
+  assert.match(
+    processPanel,
+    /class="artifact-preview-dialog__body"[\s\S]*@pointerdown\.capture="activateArtifactPreview"/
+  );
+  assert.match(processPanel, /class="artifact-preview-panel"/);
+  assert.match(processPanel, /:style="artifactPreviewPanelStyle"/);
+  assert.match(processPanel, /@pointerdown="startArtifactPreviewDrag"/);
+  assert.match(processPanel, /zIndex: artifactPreviewZIndex\.value/);
+  assert.doesNotMatch(
+    processPanel,
+    /<el-dialog\s+v-model="isArtifactPreviewOpen"/
+  );
+});
+
+test("result interpretation action uses the reading icon", () => {
+  assert.match(
+    dialog,
+    /import \{[^}]*Reading[^}]*\} from "@element-plus\/icons-vue"/
+  );
+  assert.match(dialog, /<el-icon><Reading \/><\/el-icon>/);
 });
 
 test("task progress dialog exposes a terminal-only quality report section", () => {

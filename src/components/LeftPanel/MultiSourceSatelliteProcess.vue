@@ -440,73 +440,96 @@
       </el-button>
     </section>
 
-    <el-dialog
-      v-model="isArtifactPreviewOpen"
-      class="artifact-preview-dialog"
-      width="min(520px, calc(100vw - 24px))"
-      append-to-body
-      destroy-on-close
-      draggable
-      :modal="false"
-      :lock-scroll="false"
-      @closed="clearArtifactPreview"
-    >
-      <template #header>
-        <div class="artifact-preview-dialog__heading">
-          <strong class="artifact-preview-dialog__title">
-            {{ artifactPreviewName }}
-          </strong>
-          <small>{{ artifactPreviewDescription }}</small>
-        </div>
-      </template>
-      <div class="artifact-preview-dialog__body">
-        <img
-          v-if="artifactPreviewKind === 'image' && artifactPreviewUrl"
-          :src="artifactPreviewUrl"
-          :alt="artifactPreviewName"
-        />
-        <el-tabs
-          v-else-if="artifactPreviewKind === 'json'"
-          v-model="artifactPreviewTab"
-          class="artifact-json-preview"
+    <Teleport to="body">
+      <section
+        v-show="isArtifactPreviewOpen"
+        ref="artifactPreviewPanel"
+        class="artifact-preview-panel"
+        :style="artifactPreviewPanelStyle"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="artifact-preview-title"
+        @pointerdown.capture="activateArtifactPreview"
+      >
+        <header
+          class="artifact-preview-panel__header"
+          @pointerdown="startArtifactPreviewDrag"
         >
-          <el-tab-pane name="fields" label="详细字段">
-            <el-tree
-              v-if="artifactPreviewFieldTree.length"
-              :data="artifactPreviewFieldTree"
-              node-key="key"
-              default-expand-all
-              class="artifact-json-field-tree"
+          <div class="artifact-preview-dialog__heading">
+            <strong
+              id="artifact-preview-title"
+              class="artifact-preview-dialog__title"
             >
-              <template #default="{ data }">
-                <span class="artifact-json-field-tree__node">
-                  <strong>{{ data.key }}</strong>
-                  <span v-if="data.kind === 'scalar'">：{{ data.value }}</span>
-                  <small v-else-if="data.kind === 'array'"
-                    >（{{ data.value }}）</small
-                  >
-                </span>
-              </template>
-            </el-tree>
-            <p v-else class="artifact-json-preview__invalid">暂无可展开字段</p>
-          </el-tab-pane>
-          <el-tab-pane name="raw" label="原始 JSON">
-            <pre>{{ artifactPreviewText }}</pre>
-          </el-tab-pane>
-        </el-tabs>
-        <pre v-else-if="artifactPreviewText">{{ artifactPreviewText }}</pre>
-      </div>
-      <template #footer>
-        <el-button
-          v-if="previewedArtifact"
-          type="primary"
-          @click="downloadStageArtifact(previewedArtifact)"
+              {{ artifactPreviewName }}
+            </strong>
+            <small>{{ artifactPreviewDescription }}</small>
+          </div>
+          <button
+            class="artifact-preview-panel__close"
+            type="button"
+            aria-label="关闭产物预览"
+            @pointerdown.stop
+            @click.stop="clearArtifactPreview"
+          >
+            <el-icon><Close /></el-icon>
+          </button>
+        </header>
+        <div
+          class="artifact-preview-dialog__body"
+          @pointerdown.capture="activateArtifactPreview"
         >
-          <el-icon><Download /></el-icon>
-          下载
-        </el-button>
-      </template>
-    </el-dialog>
+          <img
+            v-if="artifactPreviewKind === 'image' && artifactPreviewUrl"
+            :src="artifactPreviewUrl"
+            :alt="artifactPreviewName"
+          />
+          <el-tabs
+            v-else-if="artifactPreviewKind === 'json'"
+            v-model="artifactPreviewTab"
+            class="artifact-json-preview"
+          >
+            <el-tab-pane name="fields" label="详细字段">
+              <el-tree
+                v-if="artifactPreviewFieldTree.length"
+                :data="artifactPreviewFieldTree"
+                node-key="key"
+                default-expand-all
+                class="artifact-json-field-tree"
+              >
+                <template #default="{ data }">
+                  <span class="artifact-json-field-tree__node">
+                    <strong>{{ data.key }}</strong>
+                    <span v-if="data.kind === 'scalar'"
+                      >：{{ data.value }}</span
+                    >
+                    <small v-else-if="data.kind === 'array'"
+                      >（{{ data.value }}）</small
+                    >
+                  </span>
+                </template>
+              </el-tree>
+              <p v-else class="artifact-json-preview__invalid">
+                暂无可展开字段
+              </p>
+            </el-tab-pane>
+            <el-tab-pane name="raw" label="原始 JSON">
+              <pre>{{ artifactPreviewText }}</pre>
+            </el-tab-pane>
+          </el-tabs>
+          <pre v-else-if="artifactPreviewText">{{ artifactPreviewText }}</pre>
+        </div>
+        <footer class="artifact-preview-panel__footer">
+          <el-button
+            v-if="previewedArtifact"
+            type="primary"
+            @click="downloadStageArtifact(previewedArtifact)"
+          >
+            <el-icon><Download /></el-icon>
+            下载
+          </el-button>
+        </footer>
+      </section>
+    </Teleport>
     <el-drawer
       v-if="isHy1c"
       v-model="isParameterDrawerOpen"
@@ -1072,6 +1095,7 @@ import {
   type JsonArtifactFieldNode
 } from "@/features/multisource/artifactPreview";
 import { resolveArtifactView } from "@/features/multisource/artifactCapabilities";
+import { useFloatingPanelStack } from "@/features/multisource/floatingPanelStack";
 import {
   isMapPreviewCandidate,
   isRasterArtifact,
@@ -1449,6 +1473,23 @@ watch(taskStatus, status => {
 const expandedArtifactStageIds = ref<ExecutionProgressStage["stageId"][]>([]);
 const isTaskProgressOpen = ref(false);
 const isArtifactPreviewOpen = ref(false);
+const { panelZIndex, bringToFront } = useFloatingPanelStack();
+const artifactPreviewZIndex = computed(() => panelZIndex("artifact-preview"));
+const artifactPreviewPanel = ref<HTMLElement | null>(null);
+const artifactPreviewPosition = ref({
+  left: 24,
+  top: 80,
+  width: 520,
+  height: 520
+});
+const artifactPreviewPanelStyle = computed(() => ({
+  left: `${artifactPreviewPosition.value.left}px`,
+  top: `${artifactPreviewPosition.value.top}px`,
+  width: `${artifactPreviewPosition.value.width}px`,
+  height: `${artifactPreviewPosition.value.height}px`,
+  zIndex: artifactPreviewZIndex.value
+}));
+let artifactPreviewDrag: { offsetX: number; offsetY: number } | null = null;
 const artifactPreviewUrl = ref("");
 const artifactPreviewName = ref("");
 const artifactPreviewDescription = ref("");
@@ -2069,6 +2110,7 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
     artifactPreviewDescription.value = artifactPreviewDescriptionFor(artifact);
     artifactPreviewKind.value = kind;
     previewedArtifact.value = artifact;
+    activateArtifactPreview();
     isArtifactPreviewOpen.value = true;
   } catch (error) {
     message(error instanceof Error ? error.message : "产物预览失败", {
@@ -2077,6 +2119,64 @@ async function previewArtifact(artifact: ExecutionProgressArtifact) {
   } finally {
     previewingArtifact.value = null;
   }
+}
+
+function activateArtifactPreview() {
+  bringToFront("artifact-preview");
+}
+
+function clampArtifactPreviewPosition() {
+  if (typeof window === "undefined") return;
+  const position = artifactPreviewPosition.value;
+  const visibleWidth = Math.min(position.width, window.innerWidth - 16);
+  const visibleHeight = Math.min(position.height, window.innerHeight - 16);
+  position.left = Math.max(
+    8,
+    Math.min(position.left, window.innerWidth - visibleWidth - 8)
+  );
+  position.top = Math.max(
+    8,
+    Math.min(position.top, window.innerHeight - Math.min(48, visibleHeight) - 8)
+  );
+}
+
+function startArtifactPreviewDrag(event: PointerEvent) {
+  if ((event.target as HTMLElement).closest("button")) return;
+  const rect = artifactPreviewPanel.value?.getBoundingClientRect();
+  if (rect) {
+    artifactPreviewPosition.value = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+  artifactPreviewDrag = {
+    offsetX: event.clientX - artifactPreviewPosition.value.left,
+    offsetY: event.clientY - artifactPreviewPosition.value.top
+  };
+  activateArtifactPreview();
+  window.addEventListener("pointermove", handleArtifactPreviewDrag);
+  window.addEventListener("pointerup", stopArtifactPreviewDrag, { once: true });
+  window.addEventListener("pointercancel", stopArtifactPreviewDrag, {
+    once: true
+  });
+}
+
+function handleArtifactPreviewDrag(event: PointerEvent) {
+  if (!artifactPreviewDrag) return;
+  artifactPreviewPosition.value.left =
+    event.clientX - artifactPreviewDrag.offsetX;
+  artifactPreviewPosition.value.top =
+    event.clientY - artifactPreviewDrag.offsetY;
+  clampArtifactPreviewPosition();
+}
+
+function stopArtifactPreviewDrag() {
+  artifactPreviewDrag = null;
+  window.removeEventListener("pointermove", handleArtifactPreviewDrag);
+  window.removeEventListener("pointerup", stopArtifactPreviewDrag);
+  window.removeEventListener("pointercancel", stopArtifactPreviewDrag);
 }
 
 async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
@@ -2093,6 +2193,7 @@ async function downloadStageArtifact(artifact: ExecutionProgressArtifact) {
 }
 
 function clearArtifactPreview() {
+  stopArtifactPreviewDrag();
   if (artifactPreviewUrl.value) URL.revokeObjectURL(artifactPreviewUrl.value);
   artifactPreviewUrl.value = "";
   artifactPreviewName.value = "";
@@ -3586,10 +3687,56 @@ function resetTask() {
   white-space: nowrap;
 }
 
+.artifact-preview-panel {
+  position: fixed;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  resize: both;
+  background: #fff;
+  border: 1px solid #bfd9e5;
+  border-radius: 7px;
+  box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
+}
+
+.artifact-preview-panel__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 12px 10px 16px;
+  cursor: move;
+  user-select: none;
+  border-bottom: 1px solid #e1ebef;
+}
+
+.artifact-preview-panel__close {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  color: #657b86;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+
+.artifact-preview-panel__close:hover {
+  color: #173b4d;
+  background: #edf5f8;
+}
+
 .artifact-preview-dialog__body {
   display: flex;
-  max-height: 76vh;
-  min-height: 320px;
+  min-height: 0;
   justify-content: center;
   overflow: auto;
   background: #f3f8fa;
@@ -3656,24 +3803,7 @@ function resetTask() {
   line-height: 1.5;
 }
 
-:global(.artifact-preview-dialog) {
-  overflow: hidden;
-  border: 1px solid #bfd9e5;
-  border-radius: 7px;
-  box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
-}
-
-:global(.artifact-preview-dialog .el-dialog__header) {
-  padding: 13px 16px 10px;
-  margin-right: 0;
-  border-bottom: 1px solid #e1ebef;
-}
-
-:global(.artifact-preview-dialog .el-dialog__body) {
-  padding: 0;
-}
-
-:global(.artifact-preview-dialog .el-dialog__footer) {
+.artifact-preview-panel__footer {
   display: flex;
   justify-content: center;
   padding: 10px 16px 12px;
@@ -3681,9 +3811,12 @@ function resetTask() {
 }
 
 @media (max-width: 560px) {
-  .artifact-preview-dialog__body {
-    max-height: 72vh;
+  .artifact-preview-panel {
     min-height: 260px;
+  }
+
+  .artifact-preview-dialog__body {
+    min-height: 0;
   }
 }
 

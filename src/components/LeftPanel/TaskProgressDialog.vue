@@ -8,10 +8,13 @@
       role="dialog"
       aria-modal="false"
       aria-labelledby="task-progress-dialog-title"
+      @pointerdown.capture="activateTaskProgress"
     >
       <header
         class="task-progress-dialog__header"
+        title="可拖动窗口；双击标题栏回到屏幕中心"
         @pointerdown="startPanelDrag"
+        @dblclick="centerTaskProgressPanel"
       >
         <div class="task-progress-dialog__heading">
           <strong id="task-progress-dialog-title">任务进度</strong>
@@ -28,9 +31,6 @@
             >{{ progressPercent }}%</strong
           >
           <span class="task-progress-dialog__header-actions">
-            <el-button size="small" text @click.stop="resetPanelPosition"
-              >归位</el-button
-            >
             <el-button size="small" text @click.stop="visible = false"
               >关闭</el-button
             >
@@ -191,6 +191,7 @@
                           type="primary"
                           @click="openArtifactInterpretation(artifact)"
                         >
+                          <el-icon><Reading /></el-icon>
                           结果解读
                         </el-button>
                         <el-tooltip
@@ -317,6 +318,7 @@
       role="dialog"
       aria-modal="false"
       aria-labelledby="result-interpretation-title"
+      @pointerdown.capture="activateInterpretation"
     >
       <header
         class="result-interpretation-panel__header"
@@ -346,8 +348,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
-import { Document, Download, Location, View } from "@element-plus/icons-vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
+import {
+  Document,
+  Download,
+  Location,
+  Reading,
+  View
+} from "@element-plus/icons-vue";
 import type {
   ExecutionProgressArtifact,
   ExecutionProgressStage,
@@ -361,6 +369,7 @@ import {
   type RuntimeStageView
 } from "@/features/multisource/processingRunState";
 import { resolveArtifactView } from "@/features/multisource/artifactCapabilities";
+import { useFloatingPanelStack } from "@/features/multisource/floatingPanelStack";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -417,7 +426,7 @@ const visible = computed({
   set: value => emit("update:modelValue", value)
 });
 const expandedSections = ref(["execution"]);
-const panelPosition = ref({ left: 24, top: 72, width: 720, height: 520 });
+const panelPosition = ref(centeredPanelPosition(720, 520));
 const taskProgressPanel = ref<HTMLElement | null>(null);
 const isInterpretationOpen = ref(false);
 const selectedInterpretationArtifact = ref<ExecutionProgressArtifact | null>(
@@ -430,6 +439,12 @@ const interpretationPosition = ref({
   height: 300
 });
 const interpretationPanel = ref<HTMLElement | null>(null);
+const { panelZIndex, bringToFront } = useFloatingPanelStack();
+const taskProgressZIndex = computed(() => panelZIndex("task-progress"));
+const interpretationZIndex = computed(() =>
+  panelZIndex("result-interpretation")
+);
+let hasPlacedTaskProgressPanel = false;
 let activeDrag: {
   kind: "panel" | "interpretation";
   offsetX: number;
@@ -440,14 +455,47 @@ const panelStyle = computed(() => ({
   left: `${panelPosition.value.left}px`,
   top: `${panelPosition.value.top}px`,
   width: `${panelPosition.value.width}px`,
-  height: `${panelPosition.value.height}px`
+  height: `${panelPosition.value.height}px`,
+  zIndex: taskProgressZIndex.value
 }));
 const interpretationPanelStyle = computed(() => ({
   left: `${interpretationPosition.value.left}px`,
   top: `${interpretationPosition.value.top}px`,
   width: `${interpretationPosition.value.width}px`,
-  height: `${interpretationPosition.value.height}px`
+  height: `${interpretationPosition.value.height}px`,
+  zIndex: interpretationZIndex.value
 }));
+
+function activateTaskProgress() {
+  bringToFront("task-progress");
+}
+
+function activateInterpretation() {
+  bringToFront("result-interpretation");
+}
+
+function centeredPanelPosition(width: number, height: number) {
+  if (typeof window === "undefined")
+    return { left: 24, top: 72, width, height };
+  const availableWidth = Math.max(320, window.innerWidth - 16);
+  const availableHeight = Math.max(240, window.innerHeight - 16);
+  const centeredWidth = Math.min(width, availableWidth);
+  const centeredHeight = Math.min(height, availableHeight);
+  return {
+    left: Math.max(8, Math.round((window.innerWidth - centeredWidth) / 2)),
+    top: Math.max(8, Math.round((window.innerHeight - centeredHeight) / 2)),
+    width: centeredWidth,
+    height: centeredHeight
+  };
+}
+
+function centerTaskProgressPanel() {
+  const rect = taskProgressPanel.value?.getBoundingClientRect();
+  const width = rect?.width || panelPosition.value.width;
+  const height = rect?.height || panelPosition.value.height;
+  panelPosition.value = centeredPanelPosition(width, height);
+  activateTaskProgress();
+}
 
 function clampPosition(position: {
   left: number;
@@ -511,12 +559,10 @@ function stopDrag() {
   window.removeEventListener("pointerup", stopDrag);
   window.removeEventListener("pointercancel", stopDrag);
 }
-function resetPanelPosition() {
-  panelPosition.value = { left: 24, top: 72, width: 720, height: 520 };
-}
 function openArtifactInterpretation(artifact: ExecutionProgressArtifact) {
   selectedInterpretationArtifact.value = artifact;
   isInterpretationOpen.value = true;
+  activateInterpretation();
 }
 function artifactInterpretation(artifact: ExecutionProgressArtifact) {
   const label =
@@ -550,6 +596,18 @@ function artifactInterpretation(artifact: ExecutionProgressArtifact) {
 }
 
 onBeforeUnmount(() => stopDrag());
+
+watch(
+  visible,
+  isVisible => {
+    if (!isVisible || hasPlacedTaskProgressPanel) return;
+    nextTick(() => {
+      centerTaskProgressPanel();
+      hasPlacedTaskProgressPanel = true;
+    });
+  },
+  { immediate: true }
+);
 
 const progressPercent = computed(() =>
   Math.max(0, Math.min(100, Math.round(props.progressPercent)))
