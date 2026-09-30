@@ -57,6 +57,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, toRefs, computed, watch } from "vue";
+import type { FormRules } from "element-plus";
 import { message } from "@/utils/message";
 import { updateSysColorRamp, addSysColorRamp } from "@/api/ribbon";
 
@@ -171,14 +172,20 @@ const data = reactive({
     colorRampStr: JSON.stringify(DEFAULT_RGB_STOPS)
   } as any,
   rules: {
-    name: [{ required: true, message: "色带名称不能为空", trigger: "blur" }],
-    minValue: [{ required: true, message: "最小值不能为空", trigger: "blur" }],
-    maxValue: [{ required: true, message: "最大值不能为空", trigger: "blur" }],
+    name: [
+      { required: true, message: "色带名称不能为空", trigger: "blur" as const }
+    ],
+    minValue: [
+      { required: true, message: "最小值不能为空", trigger: "blur" as const }
+    ],
+    maxValue: [
+      { required: true, message: "最大值不能为空", trigger: "blur" as const }
+    ],
     colorRampStr: [
-      { required: true, message: "色带范围不能为空", trigger: "blur" },
-      { validator: validateColorRamp, trigger: "blur" }
+      { required: true, message: "色带范围不能为空", trigger: "blur" as const },
+      { validator: validateColorRamp, trigger: "blur" as const }
     ]
-  }
+  } as FormRules
 });
 
 const { form, rules } = toRefs(data);
@@ -313,8 +320,8 @@ defineExpose({ formDialog, setData });
 .color-ramp-tip {
   margin: 0 0 10px;
   font-size: 12px;
-  color: #909399;
   line-height: 1.5;
+  color: #909399;
 }
 
 .color-ramp-pickers {
@@ -325,8 +332,8 @@ defineExpose({ formDialog, setData });
 
 .color-ramp-row {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: center;
 }
 
 .color-ramp-idx {
@@ -344,14 +351,14 @@ defineExpose({ formDialog, setData });
 .preview-gradient {
   height: 36px;
   margin-top: 12px;
-  border-radius: 4px;
   border: 1px solid #dcdfe6;
+  border-radius: 4px;
 }
 
 .form-tip {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   margin-top: 8px;
   font-size: 12px;
   color: #909399;

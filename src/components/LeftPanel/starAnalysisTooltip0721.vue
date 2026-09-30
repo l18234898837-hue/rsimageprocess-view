@@ -721,7 +721,8 @@ onMounted(() => {
       area1: "",
       area2: "",
       area3: "",
-      area4: ""
+      area4: "",
+      qaAlgorithm: ""
     };
     form1.value = {
       analysisType: "",

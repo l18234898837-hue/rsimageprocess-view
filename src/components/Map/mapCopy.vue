@@ -123,7 +123,7 @@ const startPickPointMode = () => {
   (viewer.container as HTMLElement).style.cursor = "crosshair";
   pickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
   pickHandler.setInputAction(
-    (click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
+    async (click: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
       const cartesian = getPointFromWindowPoint(viewer, click.position);
       if (!cartesian) {
         message("请点击地图有效区域", { type: "warning" });
@@ -141,7 +141,7 @@ const startPickPointMode = () => {
         lat: pickedLat.value,
         lon: pickedLng.value
       };
-      let res = getTimeSeqPoint(params);
+      const res = await getTimeSeqPoint(params);
       if (res.code === 200) {
         console.log(res, 555);
       }

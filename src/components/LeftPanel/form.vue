@@ -256,10 +256,23 @@ const checkedDataIds2 = () => {
 
 const menuTree = ref([]);
 const checkedLv3Array = ref([]);
+type DataSetNode = {
+  id?: string | number;
+  menuId?: string | number;
+  name?: string;
+  menuName?: string;
+  catalogId?: string | number;
+  children?: DataSetNode[];
+  disabled?: boolean;
+  checkedArray?: unknown[];
+  checkAll?: boolean;
+  isIndeterminate?: boolean;
+  isOnline?: boolean;
+};
 const getMenuTreeData = async () => {
   const { data } = await getStMenuInfoTree();
   console.log("data", data);
-  let dataSet = [];
+  let dataSet: DataSetNode | undefined;
   data.map((item: any) => {
     if (item.menuName == "遥感计算") {
       item.children.map(item2 => {
@@ -318,7 +331,7 @@ const getMenuTreeData = async () => {
   });
   //遥感计算
   // return;
-  dataSet.children?.forEach(item => {
+  dataSet?.children?.forEach(item => {
     // console.log(item, "item");
     item.id = item.menuId || item.id;
     item.name = item.menuName || item.name;
@@ -338,7 +351,7 @@ const getMenuTreeData = async () => {
       ? true
       : item.children?.some(item => item.disabled) || false;
   });
-  dataSetList.value = dataSet.children || [];
+  dataSetList.value = dataSet?.children || [];
   console.log("dataSetList.value", dataSetList.value);
   dataSetList.value.forEach(item => {
     if (item.catalogId) {

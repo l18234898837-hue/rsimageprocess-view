@@ -90,7 +90,7 @@ bus.on("updateLegend", (config: UpdateLegendConfig) => {
   if (config.maxValue !== undefined)
     legendConfig.value.maxValue = config.maxValue;
   if (config.colorRamp !== undefined)
-    legendConfig.value.colorRamp = JSON.parse(config.colorRamp);
+    legendConfig.value.colorRamp = config.colorRamp.map(color => [...color]);
 });
 
 // ====================== 核心：自动生成图例 ======================
