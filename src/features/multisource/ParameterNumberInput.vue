@@ -42,7 +42,7 @@ import { computed, nextTick, ref } from "vue";
 
 const props = withDefaults(
   defineProps<{
-    modelValue: number | "";
+    modelValue: number;
     min?: number;
     max?: number;
     step?: number;
@@ -52,13 +52,11 @@ const props = withDefaults(
   { disabled: false, readonly: false, step: 1 }
 );
 
-const emit = defineEmits<{ "update:modelValue": [value: number | ""] }>();
+const emit = defineEmits<{ "update:modelValue": [value: number] }>();
 const inputElement = ref<HTMLInputElement>();
 
 const numericValue = computed(() => Number(props.modelValue));
-const hasNumericValue = computed(
-  () => props.modelValue !== "" && Number.isFinite(numericValue.value)
-);
+const hasNumericValue = computed(() => Number.isFinite(numericValue.value));
 const atMinimum = computed(
   () =>
     hasNumericValue.value &&
@@ -79,7 +77,7 @@ function decimalPlaces(value: number) {
 
 function updateFromInput(event: Event) {
   const value = (event.target as HTMLInputElement).value;
-  emit("update:modelValue", value === "" ? "" : Number(value));
+  emit("update:modelValue", value === "" ? Number.NaN : Number(value));
 }
 
 function stepValue(direction: -1 | 1) {

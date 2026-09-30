@@ -70,14 +70,14 @@
             <ParameterNumberInput
               v-if="isWgs84"
               v-model="form.resolutionDegrees"
-              min="0.000001"
-              step="0.001"
+              :min="0.000001"
+              :step="0.001"
             />
             <ParameterNumberInput
               v-else
               v-model="form.resolutionMeters"
-              min="0.01"
-              step="10"
+              :min="0.01"
+              :step="10"
             />
             <ParameterFieldStatus
               :issues="issues"
@@ -137,7 +137,7 @@
             /></span>
             <ParameterNumberInput
               v-model="form.roi[field.key]"
-              step="0.0001"
+              :step="0.0001"
               :min="field.longitude ? -180 : -90"
               :max="field.longitude ? 180 : 90"
               :disabled="locked"
@@ -205,8 +205,8 @@
               </span>
               <ParameterNumberInput
                 v-model="form.features.windowSize"
-                min="3"
-                step="2"
+                :min="3"
+                :step="2"
                 :disabled="!form.features.enabled || locked"
               />
               <ParameterFieldStatus
@@ -267,8 +267,8 @@
                 text="显示拉伸的下限，范围 0 到 100，且必须小于高百分位。" /></span
             ><ParameterNumberInput
               v-model="form.fusion.lowPercentile"
-              min="0"
-              max="100"
+              :min="0"
+              :max="100"
               :disabled="!form.fusion.enabled || locked"
             />
             <ParameterFieldStatus
@@ -285,8 +285,8 @@
                 text="显示拉伸的上限，范围 0 到 100，且必须大于低百分位。" /></span
             ><ParameterNumberInput
               v-model="form.fusion.highPercentile"
-              min="0"
-              max="100"
+              :min="0"
+              :max="100"
               :disabled="!form.fusion.enabled || locked"
             />
             <ParameterFieldStatus
@@ -343,8 +343,8 @@
                 text="检测的局部邻域，必须为不小于 3 的奇数。" /></span
             ><ParameterNumberInput
               v-model="form.saliency.windowSize"
-              min="3"
-              step="2"
+              :min="3"
+              :step="2"
               :disabled="!form.saliency.enabled || locked"
             />
             <ParameterFieldStatus
@@ -361,9 +361,9 @@
                 text="异常显著程度的判定值，范围 0 到 1；数值越高，判定越严格。" /></span
             ><ParameterNumberInput
               v-model="form.saliency.threshold"
-              min="0"
-              max="1"
-              step="0.05"
+              :min="0"
+              :max="1"
+              :step="0.05"
               :disabled="!form.saliency.enabled || locked"
             />
             <ParameterFieldStatus

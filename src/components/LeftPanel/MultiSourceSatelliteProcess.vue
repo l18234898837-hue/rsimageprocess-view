@@ -614,8 +614,8 @@
                 /></span>
                 <ParameterNumberInput
                   v-model="l2aForm.grid.resolutionMeters"
-                  min="0.01"
-                  step="1"
+                  :min="0.01"
+                  :step="1"
                   :disabled="isConfigurationLocked"
                 />
                 <ParameterFieldStatus
@@ -688,7 +688,7 @@
                   /></span>
                   <ParameterNumberInput
                     v-model="l2aForm.roi[field.key]"
-                    step="0.0001"
+                    :step="0.0001"
                     :min="field.longitude ? -180 : -90"
                     :max="field.longitude ? 180 : 90"
                     :disabled="!l2aForm.roi.enabled || isConfigurationLocked"
@@ -749,8 +749,8 @@
                   </span>
                   <ParameterNumberInput
                     v-model="l2aForm.algorithms.features.windowSize"
-                    min="3"
-                    step="2"
+                    :min="3"
+                    :step="2"
                     :disabled="
                       !l2aForm.algorithms.features.enabled ||
                       isConfigurationLocked
@@ -825,9 +825,9 @@
                 /></span>
                 <ParameterNumberInput
                   v-model="l2aForm.algorithms.fusion.lowPercentile"
-                  min="0"
-                  max="100"
-                  step="1"
+                  :min="0"
+                  :max="100"
+                  :step="1"
                   :disabled="
                     !l2aForm.algorithms.fusion.enabled || isConfigurationLocked
                   "
@@ -847,9 +847,9 @@
                 /></span>
                 <ParameterNumberInput
                   v-model="l2aForm.algorithms.fusion.highPercentile"
-                  min="0"
-                  max="100"
-                  step="1"
+                  :min="0"
+                  :max="100"
+                  :step="1"
                   :disabled="
                     !l2aForm.algorithms.fusion.enabled || isConfigurationLocked
                   "
@@ -913,9 +913,9 @@
                 /></span>
                 <ParameterNumberInput
                   v-model="l2aForm.algorithms.saliency.threshold"
-                  min="0"
-                  max="1"
-                  step="0.05"
+                  :min="0"
+                  :max="1"
+                  :step="0.05"
                   :disabled="
                     !l2aForm.algorithms.saliency.enabled ||
                     isConfigurationLocked
@@ -936,8 +936,8 @@
                 /></span>
                 <ParameterNumberInput
                   v-model="l2aForm.algorithms.saliency.windowSize"
-                  min="3"
-                  step="2"
+                  :min="3"
+                  :step="2"
                   :disabled="
                     !l2aForm.algorithms.saliency.enabled ||
                     isConfigurationLocked
@@ -1280,7 +1280,12 @@ const hy1cRoiModel = computed<RoiBounds | null>({
     const { minLon, minLat, maxLon, maxLat } = l2aForm.roi;
     return l2aForm.roi.enabled &&
       [minLon, minLat, maxLon, maxLat].every(Number.isFinite)
-      ? [minLon as number, minLat as number, maxLon as number, maxLat as number]
+      ? ([
+          minLon as number,
+          minLat as number,
+          maxLon as number,
+          maxLat as number
+        ] as RoiBounds)
       : null;
   },
   set: value => {
@@ -1601,20 +1606,20 @@ const activeParametersValid = computed(() => {
   if (isGf6WfvL1a.value) return gf6ParameterValidation.value.valid;
   return true;
 });
+const packageValidationIssue = computed(() => {
+  const result = validation.value;
+  if (result.valid || !allSlotsUploaded.value) return "";
+  const invalidExtension = result.invalidExtensions[0];
+  if (invalidExtension) {
+    return `${invalidExtension.slot.label} 文件格式不正确，应为 ${invalidExtension.expectedExtensions.join("、")}`;
+  }
+  if (result.mismatchedBasenames)
+    return "产品包文件基名不一致，请选择同一产品的配套文件";
+  return result.productIssues[0] || "产品包校验未通过";
+});
 const launchHint = computed(() => {
   if (isTaskActive.value || isBusy.value) return "任务正在处理中，请稍候";
   if (isUploading.value || isArchiveImporting.value) {
-    const packageValidationIssue = computed(() => {
-      const result = validation.value;
-      if (result.valid || !allSlotsUploaded.value) return "";
-      const invalidExtension = result.invalidExtensions[0];
-      if (invalidExtension) {
-        return `${invalidExtension.slot.label} 文件格式不正确，应为 ${invalidExtension.expectedExtensions.join("、")}`;
-      }
-      if (result.mismatchedBasenames)
-        return "产品包文件基名不一致，请选择同一产品的配套文件";
-      return result.productIssues[0] || "产品包校验未通过";
-    });
     return "产品包正在处理中，请等待上传、解析和匹配完成";
   }
   if (!allSlotsUploaded.value) return "请先上传完整产品包";
