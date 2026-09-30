@@ -91,8 +91,8 @@
 <script lang="ts" setup>
 import { computed, ref } from "vue";
 import bus from "@/utils/bus";
-import { EVENT_TYPE, Data } from "@/components/LayerList/layers";
-import { search } from "@/api/dataSource/legend";
+import { EVENT_TYPE } from "@/components/LayerList/layers";
+import { getSentinelSearch } from "@/api/dataSource/legend";
 import map from "@/libs/tdtmap";
 import { Picture as IconPicture } from "@element-plus/icons-vue";
 import DataDetail from "./DataDetail.vue";
@@ -100,8 +100,21 @@ import DataDetail from "./DataDetail.vue";
 const detail = ref(false); // 详情
 
 const searchForm = ref();
-const dataList = ref<Array<Data>>([]);
-const checkedDataList = ref<Array<Data>>([]);
+type OnlineDataItem = {
+  id: string;
+  checked?: boolean;
+  properties: {
+    datetime: string;
+    "eo:cloud_cover"?: number;
+  };
+  assets: {
+    thumbnail?: { href: string };
+    data?: { href: string };
+  };
+};
+
+const dataList = ref<OnlineDataItem[]>([]);
+const checkedDataList = ref<OnlineDataItem[]>([]);
 const allChecked = ref<boolean>(false);
 const loading = ref(false);
 const noMore = ref(false);
@@ -122,17 +135,19 @@ const startSearch = async form => {
   showList.value = true;
 };
 
-let entities = [];
+type OnlineMapEntity = { _id: string; show: boolean };
+let entities: OnlineMapEntity[] = [];
 const doSearch = async () => {
   loading.value = true;
   searchForm.value.limit = 50;
-  const res = await search(searchForm.value);
+  const res = await getSentinelSearch(searchForm.value);
   //将方框添加到地图上
-  entities = await map.loadGeoJSON(res.data);
-  res.data.features.forEach(row => (row.checked = false));
-  dataList.value = dataList.value.concat(res.data.features);
+  entities = (await map.loadGeoJSON(res.data)) as OnlineMapEntity[];
+  const features = res.data.features as OnlineDataItem[];
+  features.forEach(row => (row.checked = false));
+  dataList.value = dataList.value.concat(features);
   searchForm.value.next = dataList.value.length;
-  if (res.data.features.length < 50) {
+  if (features.length < 50) {
     noMore.value = true;
   }
   res.data.features = dataList.value;
