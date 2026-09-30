@@ -1,279 +1,295 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    class="task-progress-dialog"
-    width="min(1000px, calc(100vw - 32px))"
-    append-to-body
-    :modal="false"
-    :lock-scroll="false"
-    :close-on-click-modal="false"
-    draggable
-    destroy-on-close
-    aria-labelledby="task-progress-dialog-title"
-  >
-    <template #header>
-      <div class="task-progress-dialog__heading">
-        <strong id="task-progress-dialog-title">任务进度</strong>
-        <span
-          class="task-progress-dialog__task-status"
-          :class="`is-${taskStatusTone}`"
-        >
-          {{ taskStatusLabel }}
-        </span>
-        <span class="task-progress-dialog__stage-count">
-          已完成 {{ completedStageCount }}/{{ runtimeStageViews.length }}
-        </span>
-        <strong class="task-progress-dialog__percent"
-          >{{ progressPercent }}%</strong
-        >
-      </div>
-      <div
-        class="task-progress-dialog__progress-track"
-        role="progressbar"
-        aria-label="任务完成进度"
-        :aria-valuenow="progressPercent"
-        aria-valuemin="0"
-        aria-valuemax="100"
+  <Teleport to="body">
+    <section
+      v-show="visible"
+      ref="taskProgressPanel"
+      class="task-progress-dialog__panel"
+      :style="panelStyle"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="task-progress-dialog-title"
+    >
+      <header
+        class="task-progress-dialog__header"
+        @pointerdown="startPanelDrag"
       >
-        <span :style="{ width: `${progressPercent}%` }" />
-      </div>
-    </template>
-
-    <div class="task-progress-dialog__body">
-      <el-collapse
-        v-model="expandedSections"
-        class="task-progress-dialog__sections"
-      >
-        <el-collapse-item name="execution">
-          <template #title>
-            <span class="task-progress-dialog__section-title">
-              <strong>执行详情</strong>
-              <small>阶段状态与产物</small>
-            </span>
-          </template>
-          <div
-            v-if="!runtimeStageViews.length"
-            class="task-progress-dialog__empty"
-            role="status"
+        <div class="task-progress-dialog__heading">
+          <strong id="task-progress-dialog-title">任务进度</strong>
+          <span
+            class="task-progress-dialog__task-status"
+            :class="`is-${taskStatusTone}`"
           >
-            <strong>任务尚未启动</strong>
-            <span>启动处理后，这里会显示每个阶段的实时状态。</span>
-          </div>
-          <div
-            v-else
-            class="task-progress-dialog__timeline"
-            aria-label="阶段状态：等待执行、正在执行、已完成、执行失败、需要重新执行"
-            aria-live="polite"
+            {{ taskStatusLabel }}
+          </span>
+          <span class="task-progress-dialog__stage-count">
+            已完成 {{ completedStageCount }}/{{ runtimeStageViews.length }}
+          </span>
+          <strong class="task-progress-dialog__percent"
+            >{{ progressPercent }}%</strong
           >
-            <article
-              v-for="view in runtimeStageViews"
-              :key="runtimeKey(view)"
-              class="task-progress-dialog__stage"
-              :class="[
-                `is-${view.status.toLowerCase()}`,
-                isTopicStage(view) ? 'is-topic' : 'is-preprocess',
-                { 'is-expandable': Boolean(view.stage) }
-              ]"
-              :tabindex="view.stage ? 0 : -1"
-              :aria-expanded="
-                view.stage ? isStageArtifactsExpanded(view) : undefined
-              "
-              @click="handleStageClick($event, view)"
-              @keydown.enter.prevent="toggleStageArtifacts(view)"
-              @keydown.space.prevent="toggleStageArtifacts(view)"
+          <span class="task-progress-dialog__header-actions">
+            <el-button size="small" text @click.stop="resetPanelPosition"
+              >归位</el-button
             >
-              <span
-                class="task-progress-dialog__stage-marker"
-                aria-hidden="true"
-              />
-              <div class="task-progress-dialog__stage-body">
-                <div class="task-progress-dialog__stage-heading">
-                  <strong>{{ stageTitle(view) }}</strong>
-                  <small class="task-progress-dialog__stage-kind">
-                    {{ isTopicStage(view) ? "专题处理" : "预处理" }}
-                  </small>
-                  <span>{{ statusLabel(view.status) }}</span>
-                </div>
-                <p class="task-progress-dialog__stage-description">
-                  {{ stageDescription(view) }}
-                </p>
-                <small
-                  class="task-progress-dialog__stage-meta"
-                  :title="
-                    view.stage?.startedAt
-                      ? `${view.stage.startedAt} → ${view.stage.finishedAt || '运行中'}`
-                      : undefined
-                  "
-                  >耗时 {{ formatStageDuration(view.stage || {}) }} · 产物
-                  {{ view.artifacts.length }} 个</small
-                >
-                <div
-                  v-if="view.stage?.errorCode || view.stage?.errorMessage"
-                  class="task-progress-dialog__error"
-                  role="alert"
-                >
-                  <code v-if="view.stage?.errorCode">{{
-                    view.stage.errorCode
-                  }}</code>
-                  <span v-if="view.stage?.errorMessage">{{
-                    errorMessage(view.stage.errorMessage)
-                  }}</span>
-                </div>
-              </div>
-              <div
-                v-if="isStageArtifactsExpanded(view)"
-                :id="stageArtifactId(view)"
-                class="task-progress-dialog__stage-expanded"
-                @click.stop
-                @keydown.stop
+            <el-button size="small" text @click.stop="visible = false"
+              >关闭</el-button
+            >
+          </span>
+        </div>
+        <div
+          class="task-progress-dialog__progress-track"
+          role="progressbar"
+          aria-label="任务完成进度"
+          :aria-valuenow="progressPercent"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <span :style="{ width: `${progressPercent}%` }" />
+        </div>
+      </header>
+
+      <div class="task-progress-dialog__body">
+        <el-collapse
+          v-model="expandedSections"
+          class="task-progress-dialog__sections"
+        >
+          <el-collapse-item name="execution">
+            <template #title>
+              <span class="task-progress-dialog__section-title">
+                <strong>执行详情</strong>
+                <small>阶段状态与产物</small>
+              </span>
+            </template>
+            <div
+              v-if="!runtimeStageViews.length"
+              class="task-progress-dialog__empty"
+              role="status"
+            >
+              <strong>任务尚未启动</strong>
+              <span>启动处理后，这里会显示每个阶段的实时状态。</span>
+            </div>
+            <div
+              v-else
+              class="task-progress-dialog__timeline"
+              aria-label="阶段状态：等待执行、正在执行、已完成、执行失败、需要重新执行"
+              aria-live="polite"
+            >
+              <article
+                v-for="view in runtimeStageViews"
+                :key="runtimeKey(view)"
+                class="task-progress-dialog__stage"
+                :class="[
+                  `is-${view.status.toLowerCase()}`,
+                  isTopicStage(view) ? 'is-topic' : 'is-preprocess',
+                  { 'is-expandable': Boolean(view.stage) }
+                ]"
+                :tabindex="view.stage ? 0 : -1"
+                :aria-expanded="
+                  view.stage ? isStageArtifactsExpanded(view) : undefined
+                "
+                @click="handleStageClick($event, view)"
+                @keydown.enter.prevent="toggleStageArtifacts(view)"
+                @keydown.space.prevent="toggleStageArtifacts(view)"
               >
-                <div
-                  v-if="view.artifacts.length"
-                  class="task-progress-dialog__artifact-list"
-                  aria-label="阶段产物"
-                >
-                  <div
-                    v-for="artifact in view.artifacts"
-                    :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
-                    class="task-progress-dialog__artifact"
-                  >
-                    <div class="task-progress-dialog__artifact-main">
-                      <el-icon aria-hidden="true"><Document /></el-icon>
-                      <span>
-                        <strong :title="artifactName(artifact)">{{
-                          artifactName(artifact)
-                        }}</strong>
-                        <small>
-                          {{ artifactFormat(artifact) }} ·
-                          {{ artifactSize(artifact) }} ·
-                          {{ artifactRetentionLabel(artifact) }}
-                        </small>
-                      </span>
-                    </div>
-                    <small class="task-progress-dialog__artifact-description">
-                      {{ artifactDescription(artifact) }}
+                <span
+                  class="task-progress-dialog__stage-marker"
+                  aria-hidden="true"
+                />
+                <div class="task-progress-dialog__stage-body">
+                  <div class="task-progress-dialog__stage-heading">
+                    <strong>{{ stageTitle(view) }}</strong>
+                    <small class="task-progress-dialog__stage-kind">
+                      {{ isTopicStage(view) ? "专题处理" : "预处理" }}
                     </small>
-                    <div class="task-progress-dialog__artifact-actions">
-                      <el-tooltip
-                        :content="artifactPreviewHint(artifact)"
-                        placement="top"
-                        effect="light"
-                      >
-                        <span>
-                          <el-button
-                            size="small"
-                            text
-                            type="primary"
-                            :disabled="!canPreviewArtifact(artifact)"
-                            :loading="isPreviewingArtifact(artifact)"
-                            @click="openArtifact(artifact)"
-                          >
-                            <el-icon v-if="!isPreviewingArtifact(artifact)">
-                              <Location v-if="isMapArtifact(artifact)" />
-                              <View v-else />
-                            </el-icon>
-                            查看
-                          </el-button>
-                        </span>
-                      </el-tooltip>
-                      <el-tooltip
-                        :content="
-                          artifact.downloadable === false
-                            ? '该产物暂不可下载'
-                            : '下载产物'
-                        "
-                        placement="top"
-                        effect="light"
-                      >
-                        <span>
-                          <el-button
-                            size="small"
-                            text
-                            type="primary"
-                            :disabled="artifact.downloadable === false"
-                            :loading="isDownloadingArtifact(artifact)"
-                            @click="downloadArtifact(artifact)"
-                          >
-                            <el-icon v-if="!isDownloadingArtifact(artifact)">
-                              <Download />
-                            </el-icon>
-                            下载
-                          </el-button>
-                        </span>
-                      </el-tooltip>
-                    </div>
+                    <span>{{ statusLabel(view.status) }}</span>
+                  </div>
+                  <p class="task-progress-dialog__stage-description">
+                    {{ stageDescription(view) }}
+                  </p>
+                  <small
+                    class="task-progress-dialog__stage-meta"
+                    :title="
+                      view.stage?.startedAt
+                        ? `${view.stage.startedAt} → ${view.stage.finishedAt || '运行中'}`
+                        : undefined
+                    "
+                    >耗时 {{ formatStageDuration(view.stage || {}) }} · 产物
+                    {{ view.artifacts.length }} 个</small
+                  >
+                  <div
+                    v-if="view.stage?.errorCode || view.stage?.errorMessage"
+                    class="task-progress-dialog__error"
+                    role="alert"
+                  >
+                    <code v-if="view.stage?.errorCode">{{
+                      view.stage.errorCode
+                    }}</code>
+                    <span v-if="view.stage?.errorMessage">{{
+                      errorMessage(view.stage.errorMessage)
+                    }}</span>
                   </div>
                 </div>
-                <p v-else class="task-progress-dialog__artifact-empty">
-                  {{ emptyArtifactHint(view) }}
-                </p>
-              </div>
-              <el-button
-                v-if="view.stage && canRetry(view.stage.status)"
-                text
-                type="warning"
-                :disabled="isBusy"
-                @click.stop="emit('retry-stage', view.stage.stageId)"
-                >重试</el-button
-              >
-            </article>
-            <article
-              class="task-progress-dialog__stage task-progress-dialog__quality-stage"
-              :class="qualityReportStageClass"
-            >
-              <span
-                class="task-progress-dialog__stage-marker"
-                aria-hidden="true"
-              />
-              <div class="task-progress-dialog__stage-body">
-                <div class="task-progress-dialog__stage-heading">
-                  <strong>质量检测报告</strong>
-                  <small class="task-progress-dialog__stage-kind"
-                    >质量检测</small
+                <div
+                  v-if="isStageArtifactsExpanded(view)"
+                  :id="stageArtifactId(view)"
+                  class="task-progress-dialog__stage-expanded"
+                  @click.stop
+                  @keydown.stop
+                >
+                  <div
+                    v-if="view.artifacts.length"
+                    class="task-progress-dialog__artifact-list"
+                    aria-label="阶段产物"
                   >
-                  <span>{{ qualityReportStatusLabel }}</span>
+                    <div
+                      v-for="artifact in view.artifacts"
+                      :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
+                      class="task-progress-dialog__artifact"
+                    >
+                      <div class="task-progress-dialog__artifact-main">
+                        <el-icon aria-hidden="true"><Document /></el-icon>
+                        <span>
+                          <strong :title="artifactName(artifact)">{{
+                            artifactName(artifact)
+                          }}</strong>
+                          <small>
+                            {{ artifactFormat(artifact) }} ·
+                            {{ artifactSize(artifact) }} ·
+                            {{ artifactRetentionLabel(artifact) }}
+                          </small>
+                        </span>
+                      </div>
+                      <small class="task-progress-dialog__artifact-description">
+                        {{ artifactDescription(artifact) }}
+                      </small>
+                      <div class="task-progress-dialog__artifact-actions">
+                        <el-tooltip
+                          :content="artifactPreviewHint(artifact)"
+                          placement="top"
+                          effect="light"
+                        >
+                          <span>
+                            <el-button
+                              size="small"
+                              text
+                              type="primary"
+                              :disabled="!canPreviewArtifact(artifact)"
+                              :loading="isPreviewingArtifact(artifact)"
+                              @click="openArtifact(artifact)"
+                            >
+                              <el-icon v-if="!isPreviewingArtifact(artifact)">
+                                <Location v-if="isMapArtifact(artifact)" />
+                                <View v-else />
+                              </el-icon>
+                              查看
+                            </el-button>
+                          </span>
+                        </el-tooltip>
+                        <el-button
+                          size="small"
+                          text
+                          type="primary"
+                          @click="openArtifactInterpretation(artifact)"
+                        >
+                          结果解读
+                        </el-button>
+                        <el-tooltip
+                          :content="
+                            artifact.downloadable === false
+                              ? '该产物暂不可下载'
+                              : '下载产物'
+                          "
+                          placement="top"
+                          effect="light"
+                        >
+                          <span>
+                            <el-button
+                              size="small"
+                              text
+                              type="primary"
+                              :disabled="artifact.downloadable === false"
+                              :loading="isDownloadingArtifact(artifact)"
+                              @click="downloadArtifact(artifact)"
+                            >
+                              <el-icon v-if="!isDownloadingArtifact(artifact)">
+                                <Download />
+                              </el-icon>
+                              下载
+                            </el-button>
+                          </span>
+                        </el-tooltip>
+                      </div>
+                    </div>
+                  </div>
+                  <p v-else class="task-progress-dialog__artifact-empty">
+                    {{ emptyArtifactHint(view) }}
+                  </p>
                 </div>
-                <p class="task-progress-dialog__stage-description">
-                  任务级基础质量与产物完整性检查
-                </p>
-                <small class="task-progress-dialog__stage-meta">
-                  {{ qualityReportMeta }}
-                </small>
-              </div>
-              <div class="task-progress-dialog__quality-actions">
                 <el-button
-                  size="small"
+                  v-if="view.stage && canRetry(view.stage.status)"
                   text
-                  type="primary"
-                  :disabled="!isTerminal"
-                  :loading="isLoadingQualityReport"
-                  @click="emit('view-quality-report')"
+                  type="warning"
+                  :disabled="isBusy"
+                  @click.stop="emit('retry-stage', view.stage.stageId)"
+                  >重试</el-button
                 >
-                  <el-icon v-if="!isLoadingQualityReport"><View /></el-icon>
-                  查看
-                </el-button>
-                <el-button
-                  size="small"
-                  text
-                  type="primary"
-                  :disabled="!isTerminal"
-                  :loading="isDownloadingQualityReport"
-                  @click="emit('download-quality-report')"
-                >
-                  <el-icon v-if="!isDownloadingQualityReport"
-                    ><Download
-                  /></el-icon>
-                  下载
-                </el-button>
-              </div>
-            </article>
-          </div>
-        </el-collapse-item>
-      </el-collapse>
-    </div>
+              </article>
+              <article
+                class="task-progress-dialog__stage task-progress-dialog__quality-stage"
+                :class="qualityReportStageClass"
+              >
+                <span
+                  class="task-progress-dialog__stage-marker"
+                  aria-hidden="true"
+                />
+                <div class="task-progress-dialog__stage-body">
+                  <div class="task-progress-dialog__stage-heading">
+                    <strong>质量检测报告</strong>
+                    <small class="task-progress-dialog__stage-kind"
+                      >质量检测</small
+                    >
+                    <span>{{ qualityReportStatusLabel }}</span>
+                  </div>
+                  <p class="task-progress-dialog__stage-description">
+                    任务级基础质量与产物完整性检查
+                  </p>
+                  <small class="task-progress-dialog__stage-meta">
+                    {{ qualityReportMeta }}
+                  </small>
+                </div>
+                <div class="task-progress-dialog__quality-actions">
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    :disabled="!isTerminal"
+                    :loading="isLoadingQualityReport"
+                    @click="emit('view-quality-report')"
+                  >
+                    <el-icon v-if="!isLoadingQualityReport"><View /></el-icon>
+                    查看
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="primary"
+                    :disabled="!isTerminal"
+                    :loading="isDownloadingQualityReport"
+                    @click="emit('download-quality-report')"
+                  >
+                    <el-icon v-if="!isDownloadingQualityReport"
+                      ><Download
+                    /></el-icon>
+                    下载
+                  </el-button>
+                </div>
+              </article>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
 
-    <template #footer>
-      <div class="task-progress-dialog__footer">
+      <footer class="task-progress-dialog__footer">
         <el-button v-if="canCancel" plain @click="emit('cancel')"
           >取消任务</el-button
         >
@@ -291,13 +307,46 @@
         <el-button v-if="isTerminal" plain @click="emit('reset')"
           >重新处理</el-button
         >
+      </footer>
+    </section>
+    <section
+      v-if="isInterpretationOpen && selectedInterpretationArtifact"
+      ref="interpretationPanel"
+      class="result-interpretation-panel"
+      :style="interpretationPanelStyle"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="result-interpretation-title"
+    >
+      <header
+        class="result-interpretation-panel__header"
+        @pointerdown="startInterpretationDrag"
+      >
+        <div>
+          <strong id="result-interpretation-title">结果说明</strong>
+          <small>{{ artifactName(selectedInterpretationArtifact) }}</small>
+        </div>
+        <el-button size="small" text @click="isInterpretationOpen = false"
+          >关闭</el-button
+        >
+      </header>
+      <div class="result-interpretation-panel__body">
+        <p>
+          {{ artifactInterpretation(selectedInterpretationArtifact).summary }}
+        </p>
+        <h4>怎么看</h4>
+        <p>
+          {{ artifactInterpretation(selectedInterpretationArtifact).howToRead }}
+        </p>
+        <h4>使用提示</h4>
+        <p>{{ artifactInterpretation(selectedInterpretationArtifact).tip }}</p>
       </div>
-    </template>
-  </el-dialog>
+    </section>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { Document, Download, Location, View } from "@element-plus/icons-vue";
 import type {
   ExecutionProgressArtifact,
@@ -368,6 +417,139 @@ const visible = computed({
   set: value => emit("update:modelValue", value)
 });
 const expandedSections = ref(["execution"]);
+const panelPosition = ref({ left: 24, top: 72, width: 720, height: 520 });
+const taskProgressPanel = ref<HTMLElement | null>(null);
+const isInterpretationOpen = ref(false);
+const selectedInterpretationArtifact = ref<ExecutionProgressArtifact | null>(
+  null
+);
+const interpretationPosition = ref({
+  left: 760,
+  top: 120,
+  width: 360,
+  height: 300
+});
+const interpretationPanel = ref<HTMLElement | null>(null);
+let activeDrag: {
+  kind: "panel" | "interpretation";
+  offsetX: number;
+  offsetY: number;
+} | null = null;
+
+const panelStyle = computed(() => ({
+  left: `${panelPosition.value.left}px`,
+  top: `${panelPosition.value.top}px`,
+  width: `${panelPosition.value.width}px`,
+  height: `${panelPosition.value.height}px`
+}));
+const interpretationPanelStyle = computed(() => ({
+  left: `${interpretationPosition.value.left}px`,
+  top: `${interpretationPosition.value.top}px`,
+  width: `${interpretationPosition.value.width}px`,
+  height: `${interpretationPosition.value.height}px`
+}));
+
+function clampPosition(position: {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}) {
+  const visibleWidth = Math.min(position.width, window.innerWidth - 16);
+  const visibleHeight = Math.min(position.height, window.innerHeight - 16);
+  position.left = Math.max(
+    8,
+    Math.min(position.left, window.innerWidth - visibleWidth - 8)
+  );
+  position.top = Math.max(
+    8,
+    Math.min(position.top, window.innerHeight - Math.min(48, visibleHeight) - 8)
+  );
+}
+function startDrag(kind: "panel" | "interpretation", event: PointerEvent) {
+  const position =
+    kind === "panel" ? panelPosition.value : interpretationPosition.value;
+  const element =
+    kind === "panel" ? taskProgressPanel.value : interpretationPanel.value;
+  const rect = element?.getBoundingClientRect();
+  if (rect) {
+    position.left = rect.left;
+    position.top = rect.top;
+    position.width = rect.width;
+    position.height = rect.height;
+  }
+  activeDrag = {
+    kind,
+    offsetX: event.clientX - position.left,
+    offsetY: event.clientY - position.top
+  };
+  window.addEventListener("pointermove", handleDrag);
+  window.addEventListener("pointerup", stopDrag, { once: true });
+  window.addEventListener("pointercancel", stopDrag, { once: true });
+}
+function startPanelDrag(event: PointerEvent) {
+  if ((event.target as HTMLElement).closest("button")) return;
+  startDrag("panel", event);
+}
+function startInterpretationDrag(event: PointerEvent) {
+  if ((event.target as HTMLElement).closest("button")) return;
+  startDrag("interpretation", event);
+}
+function handleDrag(event: PointerEvent) {
+  if (!activeDrag) return;
+  const position =
+    activeDrag.kind === "panel"
+      ? panelPosition.value
+      : interpretationPosition.value;
+  position.left = event.clientX - activeDrag.offsetX;
+  position.top = event.clientY - activeDrag.offsetY;
+  clampPosition(position);
+}
+function stopDrag() {
+  activeDrag = null;
+  window.removeEventListener("pointermove", handleDrag);
+  window.removeEventListener("pointerup", stopDrag);
+  window.removeEventListener("pointercancel", stopDrag);
+}
+function resetPanelPosition() {
+  panelPosition.value = { left: 24, top: 72, width: 720, height: 520 };
+}
+function openArtifactInterpretation(artifact: ExecutionProgressArtifact) {
+  selectedInterpretationArtifact.value = artifact;
+  isInterpretationOpen.value = true;
+}
+function artifactInterpretation(artifact: ExecutionProgressArtifact) {
+  const label =
+    `${artifact.displayName || ""} ${artifact.type} ${artifact.uri}`.toLowerCase();
+  if (/saliency|显著|anomaly|异常/.test(label)) {
+    return {
+      summary: "这是一张用于定位局部异常或显著变化的结果图。",
+      howToRead: "颜色或数值越突出，表示该位置与周边差异越明显。",
+      tip: "显著区域仅表示局部变化线索，需结合原始影像和业务阈值判断。"
+    };
+  }
+  if (/fusion|rgb|合成/.test(label)) {
+    return {
+      summary: "这是按所选波段合成的彩色影像，用于快速观察地表目标。",
+      howToRead: "先看整体色彩和纹理，再对照图例或原始波段确认目标。",
+      tip: "显示颜色取决于波段组合，不等同于肉眼真实颜色。"
+    };
+  }
+  if (/grid|网格|track|沿轨/.test(label)) {
+    return {
+      summary: "这是将观测数据整理到空间网格或沿轨位置后的结果。",
+      howToRead: "空白区域通常表示没有有效观测，不代表数值为零。",
+      tip: "比较不同区域时应同时关注覆盖范围和数据质量。"
+    };
+  }
+  return {
+    summary: artifactDescription(artifact),
+    howToRead: "结合结果名称、格式和地图位置查看本阶段输出。",
+    tip: "需要精确分析时，请下载原始文件并结合处理参数使用。"
+  };
+}
+
+onBeforeUnmount(() => stopDrag());
 
 const progressPercent = computed(() =>
   Math.max(0, Math.min(100, Math.round(props.progressPercent)))
@@ -572,26 +754,116 @@ function emptyArtifactHint(view: RuntimeStageView) {
   gap: 10px;
 }
 
+.task-progress-dialog__panel,
+.result-interpretation-panel {
+  position: fixed;
+  z-index: 2200;
+  display: flex;
+  flex-direction: column;
+  min-width: 360px;
+  min-height: 240px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #bfd9e5;
+  border-radius: 7px;
+  box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
+  resize: both;
+}
+
+.task-progress-dialog__panel {
+  padding: 0;
+}
+
+.task-progress-dialog__header,
+.result-interpretation-panel__header {
+  flex: 0 0 auto;
+  padding: 13px 16px 0;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.task-progress-dialog__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.task-progress-dialog__body,
+.result-interpretation-panel__body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.task-progress-dialog__body {
+  flex: 1 1 auto;
+  padding: 12px 16px 14px;
+}
+
+.task-progress-dialog__footer {
+  flex: 0 0 auto;
+  padding: 10px 16px 14px;
+  border-top: 1px solid #e1ebef;
+}
+
+.result-interpretation-panel {
+  z-index: 2210;
+}
+
+.result-interpretation-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e1ebef;
+}
+
+.result-interpretation-panel__header > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.result-interpretation-panel__header strong {
+  color: #243746;
+  font-size: 15px;
+}
+
+.result-interpretation-panel__header small {
+  overflow: hidden;
+  color: #71838e;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-interpretation-panel__body {
+  flex: 1 1 auto;
+  padding: 14px 16px 18px;
+  color: #405665;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.result-interpretation-panel__body h4 {
+  margin: 14px 0 4px;
+  color: #314957;
+  font-size: 12px;
+}
+
+.result-interpretation-panel__body p {
+  margin: 0;
+}
+
 :global(.task-progress-dialog) {
   overflow: hidden;
   border: 1px solid #bfd9e5;
   border-radius: 7px;
   box-shadow: 0 18px 42px rgb(30 66 84 / 22%);
-}
-
-:global(.task-progress-dialog .el-dialog__header) {
-  padding: 13px 16px 0;
-  margin-right: 0;
-  border-bottom: 0;
-}
-
-:global(.task-progress-dialog .el-dialog__body) {
-  padding: 12px 16px 14px;
-}
-
-:global(.task-progress-dialog .el-dialog__footer) {
-  padding: 10px 16px 14px;
-  border-top: 1px solid #e1ebef;
 }
 
 .task-progress-dialog__heading {

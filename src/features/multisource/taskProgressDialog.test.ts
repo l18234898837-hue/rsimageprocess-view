@@ -12,8 +12,9 @@ const processPanel = readFileSync(
 );
 
 test("task progress dialog renders shared runtime states and actions", () => {
-  assert.match(dialog, /<el-dialog/);
-  assert.match(dialog, /v-model="visible"/);
+  assert.match(dialog, /<Teleport to="body">/);
+  assert.match(dialog, /class="task-progress-dialog__panel"/);
+  assert.match(dialog, /v-show="visible"/);
   assert.match(dialog, /任务进度/);
   assert.match(dialog, /任务尚未启动/);
   assert.match(dialog, /runtimeStageViews/);
@@ -114,6 +115,33 @@ test("artifact rows use the capability contract for view state and retain direct
   assert.match(dialog, /@click="openArtifact\(artifact\)"/);
   assert.match(dialog, /@click="downloadArtifact\(artifact\)"/);
   assert.match(dialog, /下载全部产物 ZIP/);
+});
+
+test("artifact rows provide a plain-language result interpretation beside viewing and downloading", () => {
+  assert.match(dialog, /结果解读/);
+  assert.match(
+    dialog,
+    /artifactInterpretation\(selectedInterpretationArtifact\)/
+  );
+  assert.match(dialog, /结果说明/);
+  assert.match(dialog, /openArtifactInterpretation\(artifact\)/);
+  assert.match(dialog, /result-interpretation-panel/);
+  assert.match(dialog, /怎么看/);
+  assert.match(dialog, /使用提示/);
+});
+
+test("task progress is an interactive non-modal floating panel", () => {
+  assert.match(dialog, /task-progress-dialog__panel/);
+  assert.match(dialog, /role="dialog"/);
+  assert.match(dialog, /aria-modal="false"/);
+  assert.match(dialog, /@pointerdown="startPanelDrag"/);
+  assert.match(dialog, /resize: both/);
+  assert.match(dialog, /resetPanelPosition/);
+  assert.match(dialog, /window\.innerHeight/);
+  assert.match(dialog, /getBoundingClientRect\(\)/);
+  assert.match(dialog, /pointercancel/);
+  assert.match(dialog, /<Teleport to="body">/);
+  assert.doesNotMatch(dialog, /<el-dialog/);
 });
 
 test("task progress dialog exposes a terminal-only quality report section", () => {
