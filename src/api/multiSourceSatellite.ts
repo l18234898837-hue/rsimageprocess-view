@@ -77,6 +77,78 @@ export type ProcessingLifecycleStatus =
   | "FAILED"
   | "CANCELED";
 
+export type TaskArtifactRetentionStatus =
+  | "AVAILABLE"
+  | "PINNED"
+  | "RECYCLE_BIN"
+  | "PURGING"
+  | "PURGE_FAILED"
+  | "PURGED"
+  | "MISSING";
+
+export type ArtifactRetentionOperation = "PIN" | "RECYCLE" | "RESTORE";
+
+export interface TaskArtifactRetention {
+  taskId: ProcessingIdentifier;
+  status: TaskArtifactRetentionStatus;
+  pinned: boolean;
+  recycledAt?: string | null;
+  purgeStartedAt?: string | null;
+  purgedAt?: string | null;
+  operatorId?: ProcessingIdentifier | null;
+  failureReason?: string | null;
+  version: number;
+}
+
+export interface TaskHistoryItem {
+  taskId: ProcessingIdentifier;
+  taskNo: string;
+  taskName: string;
+  productCodes: string[];
+  completedAt: string;
+  lifecycleStatus: ProcessingLifecycleStatus;
+  artifactCount: number;
+  artifactSizeBytes: number;
+  retentionStatus: TaskArtifactRetentionStatus;
+}
+
+export interface TaskHistoryQueryParams {
+  productCode?: string;
+  lifecycle?: ProcessingLifecycleStatus;
+  completedFrom?: string;
+  completedTo?: string;
+  retention?: TaskArtifactRetentionStatus;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TaskHistoryResponse {
+  items: TaskHistoryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface TaskHistoryDetailView {
+  id: ProcessingIdentifier;
+  lifecycleStatus: ProcessingLifecycleStatus;
+  qualityStatus: string;
+  stages: ExecutionProgressStage[];
+  artifacts: ExecutionProgressArtifact[];
+}
+
+export interface TaskHistoryDetailResponse {
+  detail: TaskHistoryDetailView;
+  retention: TaskArtifactRetention;
+  artifactSizeBytes: number;
+}
+
+export interface ProcessingStorageSummaryResponse {
+  availableArtifactCount: number;
+  recycleBinBytes: number;
+  totalArtifactBytes: number;
+}
+
 export interface ExecutionProgressStage {
   stageId: ProcessingIdentifier;
   stageKey: string;
@@ -257,6 +329,45 @@ export const getProcessingProgress = (taskId: ProcessingIdentifier) =>
   http.request<Result<ExecutionProgressResponse>>(
     "get",
     `/api/multisource/processing-tasks/${taskId}/progress`
+  );
+
+export const getProcessingTaskHistory = (params: TaskHistoryQueryParams) =>
+  http.request<Result<TaskHistoryResponse>>(
+    "get",
+    "/api/multisource/processing-tasks/history",
+    { params }
+  );
+
+export const getProcessingTaskHistoryDetail = (taskId: ProcessingIdentifier) =>
+  http.request<Result<TaskHistoryDetailResponse>>(
+    "get",
+    `/api/multisource/processing-tasks/${taskId}/history-detail`
+  );
+
+export const changeProcessingTaskArtifactRetention = (
+  taskId: ProcessingIdentifier,
+  operation: ArtifactRetentionOperation
+) =>
+  http.request<Result<TaskArtifactRetention>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/artifact-retention`,
+    { data: { operation } }
+  );
+
+export const purgeProcessingTaskArtifacts = (
+  taskId: ProcessingIdentifier,
+  taskNo: string
+) =>
+  http.request<Result<TaskArtifactRetention>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/artifact-purge`,
+    { data: { taskNo } }
+  );
+
+export const getProcessingStorageSummary = () =>
+  http.request<Result<ProcessingStorageSummaryResponse>>(
+    "get",
+    "/api/multisource/processing-storage/summary"
   );
 
 export const getProcessingQualityReport = (taskId: ProcessingIdentifier) =>
