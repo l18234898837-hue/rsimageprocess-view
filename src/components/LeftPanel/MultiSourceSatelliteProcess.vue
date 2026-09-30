@@ -1067,6 +1067,7 @@ import {
   QuestionFilled,
   FolderOpened,
   WarningFilled,
+  Download,
   View,
   Hide
 } from "@element-plus/icons-vue";

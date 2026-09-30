@@ -88,6 +88,14 @@ test("history tasks use a separate dialog with explicit task identifiers", () =>
   assert.match(processPanel, /历史任务与产物/);
 });
 
+test("artifact preview resolves the download icon locally", () => {
+  assert.match(processPanel, /<Download\s*\/>/);
+  assert.match(
+    processPanel,
+    /import\s*\{[\s\S]*?\bDownload\b[\s\S]*?\}\s*from\s*["']@element-plus\/icons-vue["']/
+  );
+});
+
 test("completed stages stay collapsed until the user expands their artifacts", () => {
   assert.doesNotMatch(processPanel, /watch\(newlyCompletedStageIds/);
 });
