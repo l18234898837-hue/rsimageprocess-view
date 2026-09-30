@@ -126,7 +126,7 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
 import { useNav } from "@/layout/hooks/useNav";
 import { useRoute, useRouter } from "vue-router";

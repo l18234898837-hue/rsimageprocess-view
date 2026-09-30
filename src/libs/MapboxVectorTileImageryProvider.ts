@@ -6,6 +6,8 @@ import { Resource } from "cesium";
 import Protobuf from "pbf";
 import { cloneDeep } from "@pureadmin/utils";
 
+type Coordinate = Pick<Point, "x" | "y">;
+
 export interface MarkerSymbol {
   //填充颜色
   color?: string;
@@ -353,7 +355,7 @@ export default class UrlTemplateMapboxVectorTileImageryProvider extends Cesium.U
       }
       //将properties缓存起来，以id做key，properties作为value
       const properties = feature.properties;
-      this.propertiesCache.set(feature.id, properties);
+      this.propertiesCache.set(String(feature.id), properties);
       if (
         this.featureCount > 0 &&
         this.featureCount == this.propertiesCache.size
@@ -824,7 +826,7 @@ export default class UrlTemplateMapboxVectorTileImageryProvider extends Cesium.U
    * @param v1
    * @param v2
    */
-  private crossMul(v1: Point, v2: Point) {
+  private crossMul(v1: Coordinate, v2: Coordinate) {
     return v1.x * v2.y - v1.y * v2.x;
   }
 
@@ -835,7 +837,12 @@ export default class UrlTemplateMapboxVectorTileImageryProvider extends Cesium.U
    * @param p3
    * @param p4
    */
-  private lineCross(p1: Point, p2: Point, p3: Point, p4: Point) {
+  private lineCross(
+    p1: Coordinate,
+    p2: Coordinate,
+    p3: Coordinate,
+    p4: Coordinate
+  ) {
     let v1 = { x: p1.x - p3.x, y: p1.y - p3.y },
       v2 = { x: p2.x - p3.x, y: p2.y - p3.y },
       v3 = { x: p4.x - p3.x, y: p4.y - p3.y };
@@ -855,7 +862,7 @@ export default class UrlTemplateMapboxVectorTileImageryProvider extends Cesium.U
    * @param p
    * @param coordinates
    */
-  private isPolygonClick(p: Point, coordinates: Point[][]) {
+  private isPolygonClick(p: Coordinate, coordinates: Coordinate[][]) {
     const p1 = p,
       p2 = { x: -100, y: p.y };
     //相交的次数

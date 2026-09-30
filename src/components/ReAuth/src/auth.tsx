@@ -1,5 +1,6 @@
 import { defineComponent, Fragment } from "vue";
-import { hasAuth } from "@/router/utils";
+import { hasRequiredPermissions } from "@/router/utils";
+import { useUserStoreHook } from "@/store/modules/user";
 
 export default defineComponent({
   name: "Auth",
@@ -12,7 +13,10 @@ export default defineComponent({
   setup(props, { slots }) {
     return () => {
       if (!slots) return null;
-      return hasAuth(props.value) ? (
+      return hasRequiredPermissions(
+        useUserStoreHook().permissions ?? [],
+        props.value as string | string[] | undefined
+      ) ? (
         <Fragment>{slots.default?.()}</Fragment>
       ) : null;
     };

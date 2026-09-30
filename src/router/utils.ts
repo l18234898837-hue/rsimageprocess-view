@@ -26,4 +26,15 @@ function getHistoryMode(routerHistory): RouterHistory {
   }
 }
 
+export function hasRequiredPermissions(
+  permissions: readonly string[],
+  required: string | readonly string[] | undefined
+): boolean {
+  const requiredPermissions =
+    typeof required === "string" ? [required] : required ?? [];
+  return requiredPermissions.every(permission =>
+    permissions.includes(permission)
+  );
+}
+
 export { getHistoryMode };
