@@ -1,4 +1,5 @@
 import { http } from "@/utils/http";
+import type { Result } from "@/api/api";
 
 export type UserResult = {
   success: boolean;
@@ -73,12 +74,12 @@ export const verifyResetPasswordEmail = (data: object) => {
 };
 
 /** 用户密码重置 */
-export const updateUserPwd = (oldPassword, newPassword) => {
+export const updateUserPwd = (oldPassword: string, newPassword: string) => {
   const data = {
     oldPassword,
     newPassword
   };
-  return http.request("put", "/system/user/profile/updatePwd", {
+  return http.request<Result>("put", "/system/user/profile/updatePwd", {
     params: data
   });
 };

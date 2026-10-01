@@ -1,7 +1,7 @@
 <template>
   <div>
     <template v-for="item of options" :key="item.value">
-      <template v-if="values.includes(item.value)">
+      <template v-if="values.includes(String(item.value))">
         <span
           v-if="item.elTagType == 'default' || !item.elTagType"
           :class="item.elTagClass"
@@ -22,19 +22,33 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-const props = defineProps({
-  // 数据
-  options: {
-    type: Array,
-    default: null
-  },
-  // 当前的值
-  value: [Number, String, Array]
-});
+type DictionaryOption = {
+  value: string | number;
+  label: string;
+  elTagType?:
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "info"
+    | "default"
+    | "";
+  elTagClass?: string;
+};
+
+const props = withDefaults(
+  defineProps<{
+    options?: DictionaryOption[];
+    value?: string | number | Array<string | number>;
+  }>(),
+  { options: () => [] }
+);
 
 const values = computed(() => {
   if (props.value !== null && typeof props.value !== "undefined") {
-    return Array.isArray(props.value) ? props.value : [String(props.value)];
+    return (Array.isArray(props.value) ? props.value : [props.value]).map(
+      String
+    );
   } else {
     return [];
   }

@@ -35,6 +35,12 @@ export interface LayerInfo {
   detail: Layer;
 }
 
+interface OnlineImageLayer {
+  id: string | number;
+  layer: Cesium.ImageryLayer;
+  name?: string;
+}
+
 const defaultStyle = {
   outlineColor: Cesium.Color.RED,
   outlineWidth: 8,
@@ -89,7 +95,7 @@ class TDTMap {
   public readyPromise: Promise<Cesium.Viewer> = new Promise<Cesium.Viewer>(
     r => (this.ready = r)
   );
-  private onlineImageLayers: Array<Cesium.ImageryLayer> = [];
+  private onlineImageLayers: OnlineImageLayer[] = [];
   private localImageLayers: Array<any> = [];
   private baseLayers: Array<Cesium.ImageryLayer> = [];
   /** CesiumWind 粒子风场实例 */
@@ -149,7 +155,7 @@ class TDTMap {
    * 移除所有在线数据快视图
    */
   public removeImageLayers() {
-    this.onlineImageLayers.forEach(({ layer }: any) => {
+    this.onlineImageLayers.forEach(({ layer }) => {
       this.viewer.imageryLayers.remove(layer, true);
     });
     this.onlineImageLayers = [];
@@ -186,7 +192,7 @@ class TDTMap {
   /**
    * 将在线数据快视图添加到数组
    */
-  public addImageLayers(layer) {
+  public addImageLayers(layer: OnlineImageLayer) {
     this.onlineImageLayers.push(layer);
   }
 
@@ -733,16 +739,13 @@ class TDTMap {
   entitySelected(item) {
     if (this.dataSource) {
       if (this.selectEntity) {
-        this.selectEntity.polygon.outlineColor = defaultStyle.outlineColor;
-        this.selectEntity.polygon.material = defaultStyle.material;
+        this.applyPolygonStyle(this.selectEntity, defaultStyle);
         this.selectEntity = undefined;
       }
       const entity = this.dataSource.entities.getById(item.id);
       if (entity) {
         this.selectEntity = entity;
-        this.selectEntity.polygon.outlineColor = selectStyle.outlineColor;
-        this.selectEntity.polygon.outlineWidth = selectStyle.outlineWidth;
-        this.selectEntity.polygon.material = selectStyle.material;
+        this.applyPolygonStyle(this.selectEntity, selectStyle);
       }
     }
   }
@@ -750,11 +753,20 @@ class TDTMap {
   entityUnSelected(item) {
     const entity = this.dataSource.entities.getById(item.id);
     if (entity && this.selectEntity && entity == this.selectEntity) {
-      entity.polygon.outlineColor = defaultStyle.outlineColor;
-      entity.polygon.outlineWidth = defaultStyle.outlineWidth;
-      entity.polygon.material = defaultStyle.material;
+      this.applyPolygonStyle(entity, defaultStyle);
       this.selectEntity = undefined;
     }
+  }
+
+  private applyPolygonStyle(
+    entity: Cesium.Entity,
+    style: typeof defaultStyle
+  ): void {
+    const polygon = entity.polygon;
+    if (!polygon) return;
+    polygon.outlineColor = new Cesium.ConstantProperty(style.outlineColor);
+    polygon.outlineWidth = new Cesium.ConstantProperty(style.outlineWidth);
+    polygon.material = new Cesium.ColorMaterialProperty(style.material);
   }
   /**
    * 截取当前视野画布，不 fly、不改相机
@@ -1252,7 +1264,7 @@ class TDTMap {
 
   /** 将指定在线快视图影像置于最上层 */
   public bringOnlineImageLayerToTop(id: string | number) {
-    const item = this.onlineImageLayers.find((x: any) => x.id == id);
+    const item = this.onlineImageLayers.find(x => x.id == id);
     if (item?.layer) {
       this.viewer.imageryLayers.raiseToTop(item.layer);
     }

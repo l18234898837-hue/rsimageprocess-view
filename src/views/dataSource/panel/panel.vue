@@ -1161,7 +1161,7 @@ const onSubmit = async formEl => {
       fieldValue.value = false;
       if (title.value == "现场观测数据" || title.value == "观测结果数据集") {
         const f = form.value;
-        const observeForm: Record<string, number> = {};
+        const observeForm: Record<string, string | number> = {};
         const addRange = (
           enabled: boolean,
           arr: number[] | undefined,
@@ -1297,6 +1297,7 @@ onMounted(() => {
 
 :deep(.el-form-item__label) {
   // color: #0e306b;
+  margin-left: 2px !important;
   text-wrap: nowrap;
 }
 
@@ -1369,14 +1370,11 @@ onMounted(() => {
 :deep(.el-checkbox) {
   color: #0e306b;
 }
-:deep(.el-form-item__content) {
-  color: #0e306b;
-  width: 7vw;
-}
-:deep(.el-form-item__label) {
-  margin-left: 2px !important;
-}
 
+:deep(.el-form-item__content) {
+  width: 7vw;
+  color: #0e306b;
+}
 // :deep(.lv1_checkbox .el-checkbox__inner) {
 // display: none;
 // }

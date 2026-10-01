@@ -50,8 +50,8 @@
                 text="沿轨局部统计使用的观测点数，必须是正奇数；数值越大，结果越平滑。" /></span
             ><ParameterNumberInput
               v-model="form.featureWindowSize"
-              min="1"
-              step="2"
+              :min="1"
+              :step="2"
             />
             <ParameterFieldStatus
               :issues="issues"
@@ -82,8 +82,8 @@
                 text="基于中位数绝对偏差识别异常的阈值，不得小于 0.1；数值越高，判定越严格。" /></span
             ><ParameterNumberInput
               v-model="form.anomaly.madThreshold"
-              min="0.1"
-              step="0.1"
+              :min="0.1"
+              :step="0.1"
             />
             <ParameterFieldStatus
               :issues="issues"
@@ -99,8 +99,8 @@
                 text="相邻观测高度跳变的判定阈值，不得小于 0.01 米。" /></span
             ><ParameterNumberInput
               v-model="form.anomaly.jumpThresholdMeters"
-              min="0.01"
-              step="0.1"
+              :min="0.01"
+              :step="0.1"
             />
             <ParameterFieldStatus
               :issues="issues"
@@ -131,9 +131,9 @@
                 text="规则网格的空间间隔，范围为 0.1 到 5 度。" /></span
             ><ParameterNumberInput
               v-model="form.grid.spacingDegrees"
-              min="0.1"
-              max="5"
-              step="0.05"
+              :min="0.1"
+              :max="5"
+              :step="0.05"
               :disabled="!form.grid.enabled || locked"
             />
             <ParameterFieldStatus

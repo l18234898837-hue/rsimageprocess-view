@@ -126,11 +126,12 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
 import { useNav } from "@/layout/hooks/useNav";
 import { useRoute, useRouter } from "vue-router";
 import { Avatar, ArrowDown, QuestionFilled } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
 import { message } from "@/utils/message";
 import map from "@/libs/tdtmap";
 
