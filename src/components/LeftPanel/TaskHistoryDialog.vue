@@ -135,7 +135,7 @@
           <el-button :disabled="page <= 1 || isLoading" @click="changePage(-1)"
             >上一页</el-button
           >
-          <span>第 {{ page }} 页</span>
+          <span>第 {{ page }} / {{ totalPages }} 页</span>
           <el-button
             :disabled="page * pageSize >= total || isLoading"
             @click="changePage(1)"
@@ -262,78 +262,138 @@
           </p>
           <section v-else class="task-history-dialog__artifacts">
             <div class="task-history-dialog__subheading">
-              <strong>任务阶段</strong>
+              <strong>执行详情</strong>
               <span
-                >{{
-                  selectedProgress?.stages.length ??
-                  detail?.detail.stages.length ??
-                  0
-                }}
-                个</span
+                >{{ completedStageCount }} /
+                {{ runtimeStageViews.length }} 个阶段已完成</span
               >
             </div>
-            <ol class="task-history-dialog__stages">
-              <li v-for="stage in selectedStages" :key="String(stage.stageId)">
-                <strong>{{ stage.stageCode || stage.stageKey }}</strong>
-                <span>{{ stage.status }}</span>
-              </li>
-            </ol>
-            <div class="task-history-dialog__subheading">
-              <strong>产物</strong>
-              <span>{{ selectedArtifacts.length }} 个</span>
+            <div
+              v-if="!runtimeStageViews.length"
+              class="task-history-dialog__empty"
+              role="status"
+            >
+              <strong>任务尚未启动</strong>
+              <span>该任务没有可展示的执行阶段。</span>
             </div>
-            <p
-              v-if="!selectedArtifacts.length"
-              class="task-history-dialog__artifact-empty"
+            <div
+              v-else
+              class="task-progress-dialog__timeline"
+              aria-label="阶段状态与产物"
             >
-              {{ selectedActions.reason || "该任务没有可展示的产物。" }}
-            </p>
-            <article
-              v-for="artifact in selectedArtifacts"
-              :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
-              class="task-history-dialog__artifact"
-            >
-              <div>
-                <strong :title="artifactName(artifact)">{{
-                  artifactName(artifact)
-                }}</strong>
-                <small
-                  >{{ artifact.format || artifact.type }} ·
-                  {{ formatBytes(artifact.sizeBytes || 0) }}</small
+              <article
+                v-for="view in runtimeStageViews"
+                :key="runtimeKey(view)"
+                class="task-progress-dialog__stage"
+                :class="[
+                  `is-${view.status.toLowerCase()}`,
+                  { 'is-expandable': Boolean(view.stage) }
+                ]"
+                :tabindex="view.stage ? 0 : -1"
+                :aria-expanded="
+                  view.stage ? isStageArtifactsExpanded(view) : undefined
+                "
+                @click="handleStageClick($event, view)"
+                @keydown.enter.prevent="toggleStageArtifacts(view)"
+                @keydown.space.prevent="toggleStageArtifacts(view)"
+              >
+                <span
+                  class="task-progress-dialog__stage-marker"
+                  aria-hidden="true"
+                />
+                <div class="task-progress-dialog__stage-body">
+                  <div class="task-progress-dialog__stage-heading">
+                    <strong>{{ stageTitle(view) }}</strong>
+                    <span>{{ statusLabel(view.status) }}</span>
+                  </div>
+                  <p>{{ stageDescription(view) }}</p>
+                  <small v-if="view.stage"
+                    >耗时 {{ formatStageDuration(view.stage) }}</small
+                  >
+                </div>
+                <div
+                  v-if="isStageArtifactsExpanded(view)"
+                  :id="stageArtifactId(view)"
+                  class="task-progress-dialog__stage-expanded"
+                  @click.stop
+                  @keydown.stop
                 >
-              </div>
-              <div class="task-history-dialog__artifact-actions">
-                <el-tooltip :content="selectedActions.reason || '查看产物'">
-                  <span>
-                    <el-button
-                      size="small"
-                      text
-                      type="primary"
-                      :disabled="!selectedActions.canPreview"
-                      @click="openArtifact(artifact)"
-                      >查看</el-button
+                  <div
+                    v-if="view.artifacts.length"
+                    class="task-progress-dialog__artifact-list"
+                    aria-label="阶段产物"
+                  >
+                    <div
+                      v-for="artifact in view.artifacts"
+                      :key="`${artifact.stageId}-${artifact.type}-${artifact.uri}`"
+                      class="task-progress-dialog__artifact"
                     >
-                  </span>
-                </el-tooltip>
-                <el-tooltip :content="selectedActions.reason || '下载产物'">
-                  <span>
-                    <el-button
-                      size="small"
-                      text
-                      type="primary"
-                      :disabled="
-                        !selectedActions.canDownload ||
-                        artifact.downloadable === false
-                      "
-                      @click="
-                        emit('download-artifact', selectedTask.taskId, artifact)
-                      "
-                      >下载</el-button
-                    >
-                  </span>
-                </el-tooltip>
-              </div>
-            </article>
+                      <div class="task-progress-dialog__artifact-main">
+                        <el-icon aria-hidden="true"><Document /></el-icon>
+                        <span>
+                          <strong :title="artifactName(artifact)">{{
+                            artifactName(artifact)
+                          }}</strong>
+                          <small
+                            >{{ artifactFormat(artifact) }} ·
+                            {{ formatBytes(artifact.sizeBytes || 0) }} ·
+                            {{ artifactRetentionLabel(artifact) }}</small
+                          >
+                        </span>
+                      </div>
+                      <small
+                        class="task-progress-dialog__artifact-description"
+                        >{{ artifactDescription(artifact) }}</small
+                      >
+                      <div class="task-progress-dialog__artifact-actions">
+                        <el-tooltip :content="artifactPreviewHint(artifact)">
+                          <span>
+                            <el-button
+                              size="small"
+                              text
+                              type="primary"
+                              :disabled="!canPreviewArtifact(artifact)"
+                              @click="openArtifact(artifact)"
+                              ><el-icon
+                                ><Location
+                                  v-if="isMapArtifact(artifact)" /><View
+                                  v-else /></el-icon
+                              >查看</el-button
+                            >
+                          </span>
+                        </el-tooltip>
+                        <el-tooltip
+                          :content="selectedActions.reason || '下载产物'"
+                        >
+                          <span>
+                            <el-button
+                              size="small"
+                              text
+                              type="primary"
+                              :disabled="
+                                !selectedActions.canDownload ||
+                                artifact.downloadable === false
+                              "
+                              @click="
+                                emit(
+                                  'download-artifact',
+                                  selectedTask.taskId,
+                                  artifact
+                                )
+                              "
+                              ><el-icon><Download /></el-icon>下载</el-button
+                            >
+                          </span>
+                        </el-tooltip>
+                      </div>
+                    </div>
+                  </div>
+                  <p v-else class="task-history-dialog__artifact-empty">
+                    该阶段未生成可下载产物
+                  </p>
+                </div>
+              </article>
+            </div>
           </section>
         </template>
       </aside>
@@ -344,6 +404,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessageBox } from "element-plus";
+import { Document, Download, Location, View } from "@element-plus/icons-vue";
 import { message } from "@/utils/message";
 import {
   changeProcessingTaskArtifactRetention,
@@ -368,6 +429,14 @@ import {
   historyActions
 } from "@/features/multisource/taskHistory";
 import { resolveArtifactView } from "@/features/multisource/artifactCapabilities";
+import {
+  buildRuntimeStageViews,
+  collapseRuntimeStageViews,
+  formatStageDuration,
+  processingStepStatusLabel,
+  runtimeSucceededCount,
+  type RuntimeStageView
+} from "@/features/multisource/processingRunState";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -420,7 +489,7 @@ const completedRange = ref<string[]>([]);
 const items = ref<TaskHistoryItem[]>([]);
 const total = ref(0);
 const page = ref(1);
-const pageSize = 12;
+const pageSize = 10;
 const selectedTask = ref<TaskHistoryItem>();
 const detail = ref<TaskHistoryDetailResponse>();
 const selectedProgress = ref<ExecutionProgressResponse>();
@@ -429,6 +498,10 @@ const isLoading = ref(false);
 const isDetailLoading = ref(false);
 const isRetentionChanging = ref(false);
 const detailError = ref("");
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(total.value / pageSize))
+);
+const expandedArtifactStageIds = ref<ProcessingIdentifier[]>([]);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -455,6 +528,14 @@ const selectedStages = computed(
 const selectedArtifacts = computed(
   () =>
     selectedProgress.value?.artifacts ?? detail.value?.detail.artifacts ?? []
+);
+const runtimeStageViews = computed(() =>
+  collapseRuntimeStageViews(
+    buildRuntimeStageViews([], selectedStages.value, selectedArtifacts.value)
+  )
+);
+const completedStageCount = computed(() =>
+  runtimeSucceededCount(runtimeStageViews.value)
 );
 const cleanupTime = computed(() => {
   const retention = detail.value?.retention;
@@ -520,6 +601,95 @@ function artifactName(artifact: ExecutionProgressArtifact): string {
   return artifact.displayName || artifact.uri.split("/").pop() || artifact.type;
 }
 
+function runtimeKey(view: RuntimeStageView): string | number {
+  return view.stage?.stageId ?? view.step.key;
+}
+
+function stageTitle(view: RuntimeStageView): string {
+  return view.stage?.stageCode || view.stage?.stageKey || view.step.title;
+}
+
+function stageDescription(view: RuntimeStageView): string {
+  return view.stage?.description || view.step.title;
+}
+
+function statusLabel(status: RuntimeStageView["status"]): string {
+  return processingStepStatusLabel(status);
+}
+
+function stageArtifactId(view: RuntimeStageView): string {
+  return `task-history-artifacts-${String(runtimeKey(view)).replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
+function isStageArtifactsExpanded(view: RuntimeStageView): boolean {
+  return Boolean(
+    view.stage && expandedArtifactStageIds.value.includes(view.stage.stageId)
+  );
+}
+
+function toggleStageArtifacts(view: RuntimeStageView) {
+  if (!view.stage) return;
+  const stageId = view.stage.stageId;
+  const index = expandedArtifactStageIds.value.findIndex(
+    id => String(id) === String(stageId)
+  );
+  if (index >= 0) {
+    expandedArtifactStageIds.value = expandedArtifactStageIds.value.filter(
+      (_, currentIndex) => currentIndex !== index
+    );
+  } else {
+    expandedArtifactStageIds.value = [
+      ...expandedArtifactStageIds.value,
+      stageId
+    ];
+  }
+}
+
+function handleStageClick(event: MouseEvent, view: RuntimeStageView) {
+  if (!view.stage) return;
+  const target = event.target;
+  if (
+    target instanceof HTMLElement &&
+    target.closest("button, a, [role='button']")
+  ) {
+    return;
+  }
+  toggleStageArtifacts(view);
+}
+
+function artifactFormat(artifact: ExecutionProgressArtifact): string {
+  return (
+    artifact.format || resolveArtifactView(artifact).format || artifact.type
+  );
+}
+
+function artifactRetentionLabel(artifact: ExecutionProgressArtifact): string {
+  return artifact.retention === "FINAL" ? "最终产物" : "中间产物";
+}
+
+function artifactDescription(artifact: ExecutionProgressArtifact): string {
+  return (
+    artifact.description?.trim() ||
+    "本阶段生成的处理产物，可根据格式查看或下载。"
+  );
+}
+
+function artifactPreviewHint(artifact: ExecutionProgressArtifact): string {
+  const view = resolveArtifactView(artifact);
+  return view.enabled
+    ? "在线查看产物"
+    : view.reason || "该产物暂不支持在线查看，请下载后查看";
+}
+
+function canPreviewArtifact(artifact: ExecutionProgressArtifact): boolean {
+  const view = resolveArtifactView(artifact);
+  return selectedActions.value.canPreview && view.enabled;
+}
+
+function isMapArtifact(artifact: ExecutionProgressArtifact): boolean {
+  return resolveArtifactView(artifact).mode === "map";
+}
+
 function historyQuery(): TaskHistoryQueryParams {
   return {
     productCode: filters.productCode.trim() || undefined,
@@ -571,6 +741,7 @@ async function selectTask(task: TaskHistoryItem) {
   selectedTask.value = task;
   detail.value = undefined;
   selectedProgress.value = undefined;
+  expandedArtifactStageIds.value = [];
   detailError.value = "";
   isDetailLoading.value = true;
   try {
@@ -806,13 +977,17 @@ function openArtifact(artifact: ExecutionProgressArtifact) {
 .task-history-dialog__content {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-  min-height: 510px;
+  height: min(62vh, 560px);
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid #d2e1e7;
 }
 
 .task-history-dialog__list {
   min-width: 0;
+  min-height: 0;
   padding: 14px;
+  overflow-y: auto;
   background: #fbfdfe;
   border-right: 1px solid #d2e1e7;
 }
@@ -934,8 +1109,134 @@ function openArtifact(artifact: ExecutionProgressArtifact) {
 
 .task-history-dialog__detail {
   min-width: 0;
+  min-height: 0;
   padding: 16px;
+  overflow-y: auto;
   background: #fff;
+}
+
+.task-progress-dialog__timeline {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-progress-dialog__stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  color: #426477;
+  background: #f7fafb;
+  border: 1px solid #dce8ed;
+  border-radius: 4px;
+}
+
+.task-progress-dialog__stage.is-expandable {
+  cursor: pointer;
+}
+
+.task-progress-dialog__stage-marker {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  background: #9eb5c0;
+  border-radius: 50%;
+}
+
+.task-progress-dialog__stage.is-succeeded .task-progress-dialog__stage-marker {
+  background: #42a37e;
+}
+
+.task-progress-dialog__stage.is-processing .task-progress-dialog__stage-marker {
+  background: #3c94c1;
+}
+
+.task-progress-dialog__stage.is-failed .task-progress-dialog__stage-marker {
+  background: #c76666;
+}
+
+.task-progress-dialog__stage-body {
+  min-width: 0;
+}
+
+.task-progress-dialog__stage-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.task-progress-dialog__stage-heading span,
+.task-progress-dialog__stage-body small {
+  font-size: 11px;
+  color: #718994;
+}
+
+.task-progress-dialog__stage-body p {
+  margin: 4px 0;
+  font-size: 11px;
+  color: #6b828e;
+}
+
+.task-progress-dialog__stage-expanded {
+  grid-column: 2;
+  padding-top: 8px;
+  border-top: 1px solid #e0eaee;
+}
+
+.task-progress-dialog__artifact-list {
+  display: grid;
+  gap: 7px;
+}
+
+.task-progress-dialog__artifact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e4edf1;
+}
+
+.task-progress-dialog__artifact-main {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.task-progress-dialog__artifact-main > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.task-progress-dialog__artifact-main strong {
+  overflow: hidden;
+  font-size: 12px;
+  color: #35596a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-progress-dialog__artifact-main small,
+.task-progress-dialog__artifact-description {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #718994;
+}
+
+.task-progress-dialog__artifact-description {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.task-progress-dialog__artifact-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
 }
 
 .task-history-dialog__detail-empty,
@@ -1066,6 +1367,7 @@ function openArtifact(artifact: ExecutionProgressArtifact) {
 
   .task-history-dialog__content {
     grid-template-columns: 1fr;
+    height: min(72vh, 700px);
   }
 
   .task-history-dialog__list {

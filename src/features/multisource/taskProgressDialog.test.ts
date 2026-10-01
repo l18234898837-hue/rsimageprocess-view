@@ -96,6 +96,39 @@ test("artifact preview resolves the download icon locally", () => {
   );
 });
 
+test("history pagination keeps ten rows per page and shows total pages", () => {
+  const historyDialog = readFileSync(taskHistoryDialogPath, "utf8");
+  assert.match(historyDialog, /const pageSize = 10/);
+  assert.match(historyDialog, /totalPages/);
+  assert.match(historyDialog, /第 \{\{ page \}\} \/ \{\{ totalPages \}\} 页/);
+});
+
+test("history content has independent fixed-height panes", () => {
+  const historyDialog = readFileSync(taskHistoryDialogPath, "utf8");
+  assert.match(
+    historyDialog,
+    /\.task-history-dialog__content\s*\{[\s\S]*height:/
+  );
+  assert.match(
+    historyDialog,
+    /\.task-history-dialog__list\s*\{[\s\S]*overflow-y:\s*auto/
+  );
+  assert.match(
+    historyDialog,
+    /\.task-history-dialog__detail\s*\{[\s\S]*overflow-y:\s*auto/
+  );
+});
+
+test("history details use the shared runtime stage and artifact behavior", () => {
+  const historyDialog = readFileSync(taskHistoryDialogPath, "utf8");
+  assert.match(historyDialog, /buildRuntimeStageViews/);
+  assert.match(historyDialog, /collapseRuntimeStageViews/);
+  assert.match(historyDialog, /expandedArtifactStageIds/);
+  assert.match(historyDialog, /toggleStageArtifacts/);
+  assert.match(historyDialog, /task-progress-dialog__stage-expanded/);
+  assert.match(historyDialog, /task-progress-dialog__artifact-list/);
+});
+
 test("completed stages stay collapsed until the user expands their artifacts", () => {
   assert.doesNotMatch(processPanel, /watch\(newlyCompletedStageIds/);
 });
