@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const homeRoutes = readFileSync("src/router/modules/home.ts", "utf8");
+const router = readFileSync("src/router/index.ts", "utf8");
 const storagePagePath = "src/views/processingStorage/index.vue";
 const summaryCardsPath =
   "src/components/ProcessingStorage/StorageSummaryCards.vue";
@@ -17,6 +18,8 @@ test("processing storage route is registered for administrators", () => {
   assert.match(homeRoutes, /name:\s*"ProcessingStorage"/);
   assert.match(homeRoutes, /roles:\s*\["admin"\]/);
   assert.match(homeRoutes, /views\/processingStorage\/index\.vue/);
+  assert.match(router, /hasRequiredRoles/);
+  assert.match(router, /path:\s*"\/error\/403"/);
 });
 
 test("processing storage console shows independently measured storage categories", () => {
@@ -52,4 +55,6 @@ test("processing storage console keeps source inputs and task artifacts distinct
   assert.match(page, /getProcessingStorageSummary/);
   assert.match(page, /getProcessingStoragePolicy/);
   assert.match(page, /updateProcessingStoragePolicy/);
+  assert.match(page, /isPolicyConflict/);
+  assert.match(page, /已加载最新版本/);
 });

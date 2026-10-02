@@ -147,6 +147,29 @@ export interface ProcessingStorageSummaryResponse {
   availableArtifactCount: number;
   recycleBinBytes: number;
   totalArtifactBytes: number;
+  sourceBytes: number;
+  artifactBytes: number;
+  workerBytes: number;
+  zipBytes: number;
+  reclaimableBytes: number;
+  cleanupFailures: number;
+}
+
+export interface WorkspaceStoragePolicy {
+  workspaceKey: string;
+  inputRetentionDays: number;
+  orphanUploadTtlHours: number;
+  workerDirectoryTtlHours: number;
+  autoCleanupEnabled: boolean;
+  version: number;
+}
+
+export interface WorkspaceStoragePolicyRequest {
+  inputRetentionDays?: number;
+  orphanUploadTtlHours?: number;
+  workerDirectoryTtlHours?: number;
+  autoCleanupEnabled?: boolean;
+  expectedVersion: number;
 }
 
 export interface ExecutionProgressStage {
@@ -368,6 +391,23 @@ export const getProcessingStorageSummary = () =>
   http.request<Result<ProcessingStorageSummaryResponse>>(
     "get",
     "/api/multisource/processing-storage/summary"
+  );
+
+export const getProcessingStoragePolicy = (workspaceKey = "default") =>
+  http.request<Result<WorkspaceStoragePolicy>>(
+    "get",
+    "/api/multisource/processing-storage/policy",
+    { params: { workspaceKey } }
+  );
+
+export const updateProcessingStoragePolicy = (
+  data: WorkspaceStoragePolicyRequest,
+  workspaceKey = "default"
+) =>
+  http.request<Result<WorkspaceStoragePolicy>>(
+    "patch",
+    "/api/multisource/processing-storage/policy",
+    { params: { workspaceKey }, data }
   );
 
 export const getProcessingQualityReport = (taskId: ProcessingIdentifier) =>

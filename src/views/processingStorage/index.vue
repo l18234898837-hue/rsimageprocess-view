@@ -51,23 +51,39 @@ const summary = ref<ProcessingStorageSummaryResponse | null>(null);
 const policy = ref<WorkspaceStoragePolicy | null>(null);
 const isLoading = ref(false);
 const isSaving = ref(false);
-const isAdministrator = computed(() => Boolean(userStore.info?.admin));
+const isAdministrator = computed(
+  () => userStore.roles?.includes("admin") ?? false
+);
 
 function responseData<T>(response: { data?: T }): T {
   if (response.data === undefined) throw new Error("后端响应缺少数据");
   return response.data;
 }
 
+function isPolicyConflict(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const response = (
+    error as {
+      response?: { status?: number; data?: { code?: number } };
+    }
+  ).response;
+  return response?.status === 409 || response?.data?.code === 409;
+}
+
+async function loadPolicy() {
+  const response = await getProcessingStoragePolicy();
+  policy.value = responseData(response);
+}
+
 async function refresh() {
   if (!isAdministrator.value) return;
   isLoading.value = true;
   try {
-    const [summaryResponse, policyResponse] = await Promise.all([
+    const [summaryResponse] = await Promise.all([
       getProcessingStorageSummary(),
-      getProcessingStoragePolicy()
+      loadPolicy()
     ]);
     summary.value = responseData(summaryResponse);
-    policy.value = responseData(policyResponse);
   } catch (error) {
     message(error instanceof Error ? error.message : "加载存储管理信息失败", {
       type: "error"
@@ -88,6 +104,22 @@ async function savePolicy(request: WorkspaceStoragePolicyRequest) {
     policy.value = responseData(response);
     message("工作空间清理策略已保存", { type: "success" });
   } catch (error) {
+    if (isPolicyConflict(error)) {
+      try {
+        await loadPolicy();
+        message("策略已被其他管理员更新，已加载最新版本，请确认后重新保存。", {
+          type: "warning"
+        });
+      } catch (reloadError) {
+        message(
+          reloadError instanceof Error
+            ? reloadError.message
+            : "策略已发生冲突，重新加载最新版本失败",
+          { type: "error" }
+        );
+      }
+      return;
+    }
     message(error instanceof Error ? error.message : "保存清理策略失败", {
       type: "error"
     });

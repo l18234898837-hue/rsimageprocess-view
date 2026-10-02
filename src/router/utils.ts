@@ -37,4 +37,13 @@ export function hasRequiredPermissions(
   );
 }
 
+export function hasRequiredRoles(
+  roles: readonly string[],
+  required: string | readonly string[] | undefined
+): boolean {
+  const requiredRoles =
+    typeof required === "string" ? [required] : required ?? [];
+  return requiredRoles.every(role => roles.includes(role));
+}
+
 export { getHistoryMode };
