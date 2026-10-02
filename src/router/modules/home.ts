@@ -71,6 +71,16 @@ export default {
         title: "卫星轨道",
         showLink: false
       }
+    },
+    {
+      path: "/processing-storage",
+      name: "ProcessingStorage",
+      component: () => import("@/views/processingStorage/index.vue"),
+      meta: {
+        title: "处理存储管理",
+        showLink: false,
+        roles: ["admin"]
+      }
     }
   ]
 } as RouteConfigsTable;
