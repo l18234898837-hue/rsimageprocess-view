@@ -14,7 +14,10 @@ export interface TaskHistorySelection {
   isSelected(taskId: ProcessingIdentifier): boolean;
 }
 
-function normalizedTaskId(taskId: ProcessingIdentifier): string {
+function normalizedTaskId(taskId: ProcessingIdentifier): string | undefined {
+  if (typeof taskId === "number" && !Number.isSafeInteger(taskId)) {
+    return undefined;
+  }
   return String(taskId);
 }
 
@@ -35,6 +38,7 @@ export function createTaskHistorySelection(): TaskHistorySelection {
     toggle(row) {
       if (!isEligible(row)) return false;
       const taskId = normalizedTaskId(row.taskId);
+      if (taskId === undefined) return false;
       if (selected.has(taskId)) {
         selected.delete(taskId);
         return false;
@@ -43,12 +47,14 @@ export function createTaskHistorySelection(): TaskHistorySelection {
       return true;
     },
     togglePage(rows) {
-      const eligibleRows = rows.filter(isEligible);
+      const eligibleRows = rows.filter(
+        row => isEligible(row) && normalizedTaskId(row.taskId) !== undefined
+      );
       const shouldSelect = eligibleRows.some(
-        row => !selected.has(normalizedTaskId(row.taskId))
+        row => !selected.has(normalizedTaskId(row.taskId)!)
       );
       for (const row of eligibleRows) {
-        const taskId = normalizedTaskId(row.taskId);
+        const taskId = normalizedTaskId(row.taskId)!;
         if (shouldSelect) selected.add(taskId);
         else selected.delete(taskId);
       }
@@ -57,7 +63,8 @@ export function createTaskHistorySelection(): TaskHistorySelection {
       selected.clear();
     },
     isSelected(taskId) {
-      return selected.has(normalizedTaskId(taskId));
+      const normalized = normalizedTaskId(taskId);
+      return normalized !== undefined && selected.has(normalized);
     }
   };
 }

@@ -31,6 +31,22 @@ test("history selection persists normalized IDs across pages", () => {
   assert.equal(selection.isSelected(202), true);
 });
 
+test("history selection safely normalizes numeric IDs", () => {
+  const selection = createTaskHistorySelection();
+
+  assert.equal(selection.toggle({ taskId: 101 }), true);
+  assert.equal(selection.isSelected("101"), true);
+});
+
+test("history selection rejects unsafe numeric IDs", () => {
+  const selection = createTaskHistorySelection();
+  const unsafeId = Number.MAX_SAFE_INTEGER + 1;
+
+  assert.equal(selection.toggle({ taskId: unsafeId }), false);
+  assert.equal(selection.isSelected(unsafeId), false);
+  assert.deepEqual(selection.selectedIds, []);
+});
+
 test("history selection clears after a successful batch operation", () => {
   const selection = createTaskHistorySelection();
   selection.togglePage([{ taskId: 301 }, { taskId: 302 }]);
