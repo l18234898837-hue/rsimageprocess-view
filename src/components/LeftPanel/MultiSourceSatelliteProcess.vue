@@ -308,6 +308,8 @@
 
     <TaskHistoryDialog
       v-model="isTaskHistoryOpen"
+      :is-loading-quality-report="isLoadingQualityReport"
+      :is-downloading-quality-report="isDownloadingQualityReport"
       @preview-artifact="previewHistoryArtifact"
       @download-artifact="downloadHistoryArtifact"
       @download-result="downloadHistoryTask"
@@ -1200,6 +1202,7 @@ import {
 import {
   buildRuntimeStageViews,
   collapseRuntimeStageViews,
+  processingStageLabel,
   runtimeProgressPercent,
   runtimeSucceededCount,
   type RuntimeStageView
@@ -1215,6 +1218,7 @@ import {
 } from "@/features/multisource/productTemplates";
 import {
   downloadArtifactForTask,
+  downloadQualityReportForTask,
   getArtifactBlobForTask,
   useProcessingTask
 } from "@/features/multisource/useProcessingTask";
@@ -1225,7 +1229,6 @@ import type {
   ProcessingIdentifier
 } from "@/api/multiSourceSatellite";
 import {
-  downloadProcessingQualityReport,
   downloadProcessingResult,
   getArtifactTilePreview,
   getProcessingQualityReport
@@ -1279,58 +1282,6 @@ const RGB_CHANNELS = [
   { key: "green", label: "G", name: "绿色通道", guide: "植被与中间色调" },
   { key: "blue", label: "B", name: "蓝色通道", guide: "水体、薄雾与冷色调" }
 ] as const;
-const STAGE_LABELS: Record<string, string> = {
-  VALIDATE_BROWSE: "验证浏览产品",
-  GEOREFERENCE_BROWSE: "解析地理参考",
-  EXTRACT_VISUAL_FEATURES: "提取视觉特征",
-  WRITE_BROWSE_REPORT: "生成浏览报告",
-  VALIDATE_SOURCE: "校验 L2A 产品",
-  DECODE_SCALE_AND_NODATA: "解码波段与无效值",
-  APPLY_L2_FLAGS: "应用 L2 质量标志",
-  GEOLOCATE_AND_GRID: "地理定位与网格化",
-  CROP_OPTIONAL: "按范围裁剪",
-  WRITE_STANDARD_COG: "生成标准 COG",
-  EXTRACT_CZI_FEATURES: "提取特征",
-  FUSE_CZI_BANDS: "生成显示融合",
-  DETECT_CZI_SALIENCY: "生成显著性结果",
-  STANDARDIZE_MERSI_L1: "处理 FY-3H MERSI L1 产品",
-  VALIDATE_FY3H_PAIR: "校验 1000M / GEO1K 配对",
-  DECODE_MERSI_L1: "解码 MERSI L1 通道",
-  CALIBRATE_MERSI_L1: "定标 MERSI 观测",
-  APPLY_MERSI_QUALITY: "应用 MERSI 质量掩膜",
-  GRID_MERSI_SWATH: "扫描带网格化",
-  WRITE_MERSI_STANDARD_COG: "生成 MERSI 标准 COG",
-  EXTRACT_MERSI_FEATURES: "提取 MERSI 特征",
-  FUSE_MERSI_BANDS: "生成 MERSI RGB 融合",
-  DETECT_MERSI_SALIENCY: "检测 MERSI 显著性",
-  STANDARDIZE_ALTIMETER_TRACK: "处理 HY-2D 高度计沿轨产品",
-  DECODE_ALTIMETER_TRACK: "解码高度计沿轨数据",
-  APPLY_TRACK_QUALITY: "应用沿轨质量规则",
-  CALCULATE_BASELINE_SSH: "计算基线海表高度",
-  EXTRACT_TRACK_FEATURES: "提取沿轨特征",
-  DETECT_TRACK_ANOMALIES: "检测沿轨异常",
-  WRITE_STANDARD_TRACK_OUTPUT: "生成标准沿轨产品",
-  GRID_TRACK_OPTIONAL: "生成可选网格产品",
-  STANDARDIZE_FY4B_AGRI: "处理 FY-4B AGRI 全圆盘产品",
-  STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品",
-  VALIDATE_GF6_WFV_L1A: "校验 GF-6 WFV L1A 产品包",
-  MOSAIC_GF6_TILES: "三层拼接",
-  GEOLOCATE_GF6_RPC: "RPC/导航定位",
-  STANDARDIZE_GF6_PROJECTION: "投影与标准影像",
-  WRITE_GF6_STANDARD_COG: "生成 GF-6 标准 COG",
-  EXTRACT_GF6_FEATURES: "提取 GF-6 影像特征",
-  FUSE_GF6_RGB: "生成 GF-6 RGB 融合",
-  DETECT_GF6_SALIENCY: "检测 GF-6 显著性",
-  VALIDATE_FY4B_PACKAGE: "校验 FY-4B AGRI 产品包",
-  BUILD_FY4B_NOMINAL_GRID: "构建 FY-4B 名义定位网格",
-  CALIBRATE_AND_GEOREFERENCE_FY4B: "FY-4B 辐射定标与地理配准",
-  REPROJECT_AND_CROP_FY4B: "FY-4B 重投影与范围裁剪",
-  WRITE_FY4B_STANDARD_COG: "生成 FY-4B 标准 COG",
-  EXTRACT_FY4B_FEATURES: "提取 FY-4B 影像特征",
-  FUSE_FY4B_BANDS: "生成 FY-4B 波段融合",
-  DETECT_FY4B_SALIENCY: "检测 FY-4B 显著性"
-};
-
 const l2aForm = reactive(defaultL2aForm());
 const hy1cRoiSuggestion = ref<Hy1cCziL2aRoi | null>(null);
 const gf6RoiBounds = ref<[number, number, number, number] | null>(null);
@@ -2749,10 +2700,7 @@ async function handleArchiveChange(event: Event) {
 }
 
 function stageLabel(stageCode: string) {
-  if (stageCode === "VALIDATE_SOURCE" && isHy2d.value) {
-    return "校验 HY-2D 产品包";
-  }
-  return STAGE_LABELS[stageCode] || stageCode;
+  return processingStageLabel(stageCode, isHy2d.value);
 }
 
 function canRetryStage(status: string) {
@@ -3035,14 +2983,18 @@ async function downloadQualityReportFile() {
   }
 }
 
-function downloadHistoryQualityReport(taskId: ProcessingIdentifier) {
+async function downloadHistoryQualityReport(taskId: ProcessingIdentifier) {
+  if (isDownloadingQualityReport.value) return;
+  isDownloadingQualityReport.value = true;
   try {
-    downloadProcessingQualityReport(taskId);
+    await downloadQualityReportForTask(taskId);
     message("质量检测报告已加入浏览器下载列表", { type: "success" });
   } catch (error) {
     message(error instanceof Error ? error.message : "质量检测报告下载失败", {
       type: "error"
     });
+  } finally {
+    isDownloadingQualityReport.value = false;
   }
 }
 

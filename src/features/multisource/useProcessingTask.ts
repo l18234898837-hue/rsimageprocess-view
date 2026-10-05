@@ -175,6 +175,15 @@ export async function downloadArtifactForTask(
   saveBlob(blob, artifactDownloadFileName(artifact));
 }
 
+export async function downloadQualityReportForTask(
+  taskId: ProcessingIdentifier
+) {
+  const response = await downloadProcessingQualityReport(taskId);
+  const fileName = `task-${taskId}-quality-report.html`;
+  saveBlob(responseBlob(response), fileName);
+  return fileName;
+}
+
 export function useProcessingTask(
   initialTemplate: ProductTemplate = GF6_WFV_L1A_TEMPLATE
 ) {
@@ -545,7 +554,7 @@ export function useProcessingTask(
     }
     isDownloadingQualityReport.value = true;
     try {
-      downloadProcessingQualityReport(taskId.value);
+      await downloadQualityReportForTask(taskId.value);
       return true;
     } finally {
       isDownloadingQualityReport.value = false;

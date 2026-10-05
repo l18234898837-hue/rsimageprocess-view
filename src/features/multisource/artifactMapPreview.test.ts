@@ -222,6 +222,19 @@ test("accepts a projected EPSG tile descriptor after server-side reprojection", 
   );
 });
 
+test("accepts a date-line-crossing TIFF tile descriptor", () => {
+  assert.ok(
+    parseTilePreviewDescriptor({
+      tileUrl:
+        "/api/multisource/processing-tasks/8/artifacts/COG/tiles/{z}/{x}/{y}.png?ticket=opaque",
+      bounds: [170, -10, -170, 10],
+      crs: "EPSG:4326",
+      minZoom: 1,
+      maxZoom: 16
+    })
+  );
+});
+
 test("rejects unsafe tile URLs and invalid WGS84 bounds", () => {
   const invalidUrl = artifact({
     type: "COG",

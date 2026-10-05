@@ -203,7 +203,7 @@ function parseTileVisualization(
   ) {
     return undefined;
   }
-  const bounds = validBounds(visualization.bounds);
+  const bounds = validBounds(visualization.bounds, true);
   if (
     !bounds ||
     !validZoomRange(visualization.minZoom, visualization.maxZoom)
@@ -324,7 +324,8 @@ function extractBounds(
 }
 
 function validBounds(
-  value: unknown
+  value: unknown,
+  allowDateLineCrossing = false
 ): [number, number, number, number] | undefined {
   if (!Array.isArray(value) || value.length !== 4) return undefined;
   const bounds = value.map(Number);
@@ -335,7 +336,8 @@ function validBounds(
     east > 180 ||
     south < -90 ||
     north > 90 ||
-    west >= east ||
+    west === east ||
+    (!allowDateLineCrossing && west > east) ||
     south >= north
   ) {
     return undefined;

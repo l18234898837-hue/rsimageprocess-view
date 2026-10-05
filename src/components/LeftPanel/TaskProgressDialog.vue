@@ -31,9 +31,16 @@
             >{{ progressPercent }}%</strong
           >
           <span class="task-progress-dialog__header-actions">
-            <el-button size="small" text @click.stop="visible = false"
-              >关闭</el-button
+            <el-button
+              size="small"
+              text
+              circle
+              aria-label="关闭任务进度"
+              title="关闭"
+              @click.stop="visible = false"
             >
+              <el-icon><Close /></el-icon>
+            </el-button>
           </span>
         </div>
         <div
@@ -325,24 +332,37 @@
         @pointerdown="startInterpretationDrag"
       >
         <div>
-          <strong id="result-interpretation-title">结果说明</strong>
+          <strong id="result-interpretation-title">结果依据</strong>
           <small>{{ artifactName(selectedInterpretationArtifact) }}</small>
         </div>
-        <el-button size="small" text @click="isInterpretationOpen = false"
-          >关闭</el-button
+        <el-button
+          size="small"
+          text
+          circle
+          aria-label="关闭结果说明"
+          title="关闭"
+          @click.stop="isInterpretationOpen = false"
         >
+          <el-icon><Close /></el-icon>
+        </el-button>
       </header>
       <div class="result-interpretation-panel__body">
-        <p>
-          {{ artifactInterpretation(selectedInterpretationArtifact).summary }}
-        </p>
-        <h4>怎么看</h4>
-        <p>
-          {{ artifactInterpretation(selectedInterpretationArtifact).howToRead }}
-        </p>
-        <h4>使用提示</h4>
-        <p>{{ artifactInterpretation(selectedInterpretationArtifact).tip }}</p>
+        <ArtifactInterpretationPanel
+          :artifact="selectedInterpretationArtifact"
+          :stages="interpretationStages"
+          :fallback-description="
+            artifactDescription(selectedInterpretationArtifact)
+          "
+        />
       </div>
+      <span
+        v-for="handle in interpretationResizeHandles"
+        :key="handle"
+        class="result-interpretation-panel__resize-handle"
+        :class="`is-${handle}`"
+        aria-hidden="true"
+        @pointerdown.stop="beginInterpretationResize(handle, $event)"
+      />
     </section>
   </Teleport>
 </template>
@@ -351,6 +371,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import {
   Document,
+  Close,
   Download,
   Location,
   Reading,
@@ -369,6 +390,7 @@ import {
   type RuntimeStageView
 } from "@/features/multisource/processingRunState";
 import { resolveArtifactView } from "@/features/multisource/artifactCapabilities";
+import ArtifactInterpretationPanel from "@/features/multisource/ArtifactInterpretationPanel.vue";
 import { useFloatingPanelStack } from "@/features/multisource/floatingPanelStack";
 
 const props = defineProps<{
@@ -435,14 +457,37 @@ const selectedInterpretationArtifact = ref<ExecutionProgressArtifact | null>(
 const interpretationPosition = ref({
   left: 760,
   top: 120,
-  width: 360,
-  height: 300
+  width: 720,
+  height: 560
 });
 const interpretationPanel = ref<HTMLElement | null>(null);
+const interpretationResizeHandles = [
+  "n",
+  "ne",
+  "e",
+  "se",
+  "s",
+  "sw",
+  "w",
+  "nw"
+] as const;
+type InterpretationResizeHandle = (typeof interpretationResizeHandles)[number];
+let activeInterpretationResize: {
+  handle: InterpretationResizeHandle;
+  startX: number;
+  startY: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+} | null = null;
 const { panelZIndex, bringToFront } = useFloatingPanelStack();
 const taskProgressZIndex = computed(() => panelZIndex("task-progress"));
 const interpretationZIndex = computed(() =>
   panelZIndex("result-interpretation")
+);
+const interpretationStages = computed(() =>
+  props.runtimeStageViews.flatMap(view => (view.stage ? [view.stage] : []))
 );
 let hasPlacedTaskProgressPanel = false;
 let activeDrag: {
@@ -559,43 +604,75 @@ function stopDrag() {
   window.removeEventListener("pointerup", stopDrag);
   window.removeEventListener("pointercancel", stopDrag);
 }
+function beginInterpretationResize(
+  handle: InterpretationResizeHandle,
+  event: PointerEvent
+) {
+  event.preventDefault();
+  const rect = interpretationPanel.value?.getBoundingClientRect();
+  if (!rect) return;
+  activeInterpretationResize = {
+    handle,
+    startX: event.clientX,
+    startY: event.clientY,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height
+  };
+  window.addEventListener("pointermove", resizeInterpretation);
+  window.addEventListener("pointerup", stopInterpretationResize, {
+    once: true
+  });
+  window.addEventListener("pointercancel", stopInterpretationResize, {
+    once: true
+  });
+}
+function resizeInterpretation(event: PointerEvent) {
+  if (!activeInterpretationResize) return;
+  const resize = activeInterpretationResize;
+  const dx = event.clientX - resize.startX;
+  const dy = event.clientY - resize.startY;
+  let left = resize.left;
+  let top = resize.top;
+  let width = resize.width;
+  let height = resize.height;
+  if (resize.handle.includes("e")) width = resize.width + dx;
+  if (resize.handle.includes("s")) height = resize.height + dy;
+  if (resize.handle.includes("w")) {
+    width = resize.width - dx;
+    left = resize.left + dx;
+  }
+  if (resize.handle.includes("n")) {
+    height = resize.height - dy;
+    top = resize.top + dy;
+  }
+  if (width < 620) {
+    if (resize.handle.includes("w")) left = resize.left + resize.width - 620;
+    width = 620;
+  }
+  if (height < 400) {
+    if (resize.handle.includes("n")) top = resize.top + resize.height - 400;
+    height = 400;
+  }
+  interpretationPosition.value = { left, top, width, height };
+  clampPosition(interpretationPosition.value);
+}
+function stopInterpretationResize() {
+  activeInterpretationResize = null;
+  window.removeEventListener("pointermove", resizeInterpretation);
+  window.removeEventListener("pointerup", stopInterpretationResize);
+  window.removeEventListener("pointercancel", stopInterpretationResize);
+}
 function openArtifactInterpretation(artifact: ExecutionProgressArtifact) {
   selectedInterpretationArtifact.value = artifact;
   isInterpretationOpen.value = true;
   activateInterpretation();
 }
-function artifactInterpretation(artifact: ExecutionProgressArtifact) {
-  const label =
-    `${artifact.displayName || ""} ${artifact.type} ${artifact.uri}`.toLowerCase();
-  if (/saliency|显著|anomaly|异常/.test(label)) {
-    return {
-      summary: "这是一张用于定位局部异常或显著变化的结果图。",
-      howToRead: "颜色或数值越突出，表示该位置与周边差异越明显。",
-      tip: "显著区域仅表示局部变化线索，需结合原始影像和业务阈值判断。"
-    };
-  }
-  if (/fusion|rgb|合成/.test(label)) {
-    return {
-      summary: "这是按所选波段合成的彩色影像，用于快速观察地表目标。",
-      howToRead: "先看整体色彩和纹理，再对照图例或原始波段确认目标。",
-      tip: "显示颜色取决于波段组合，不等同于肉眼真实颜色。"
-    };
-  }
-  if (/grid|网格|track|沿轨/.test(label)) {
-    return {
-      summary: "这是将观测数据整理到空间网格或沿轨位置后的结果。",
-      howToRead: "空白区域通常表示没有有效观测，不代表数值为零。",
-      tip: "比较不同区域时应同时关注覆盖范围和数据质量。"
-    };
-  }
-  return {
-    summary: artifactDescription(artifact),
-    howToRead: "结合结果名称、格式和地图位置查看本阶段输出。",
-    tip: "需要精确分析时，请下载原始文件并结合处理参数使用。"
-  };
-}
-
-onBeforeUnmount(() => stopDrag());
+onBeforeUnmount(() => {
+  stopDrag();
+  stopInterpretationResize();
+});
 
 watch(
   visible,
@@ -869,6 +946,67 @@ function emptyArtifactHint(view: RuntimeStageView) {
 
 .result-interpretation-panel {
   z-index: 2210;
+  min-width: 620px;
+  min-height: 460px;
+}
+
+.result-interpretation-panel__resize-handle {
+  position: absolute;
+  z-index: 2;
+  display: block;
+}
+.result-interpretation-panel__resize-handle.is-n,
+.result-interpretation-panel__resize-handle.is-s {
+  right: 8px;
+  left: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+.result-interpretation-panel__resize-handle.is-n {
+  top: -4px;
+}
+.result-interpretation-panel__resize-handle.is-s {
+  bottom: -4px;
+}
+.result-interpretation-panel__resize-handle.is-e,
+.result-interpretation-panel__resize-handle.is-w {
+  top: 8px;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.result-interpretation-panel__resize-handle.is-e {
+  right: -4px;
+}
+.result-interpretation-panel__resize-handle.is-w {
+  left: -4px;
+}
+.result-interpretation-panel__resize-handle.is-ne,
+.result-interpretation-panel__resize-handle.is-nw,
+.result-interpretation-panel__resize-handle.is-se,
+.result-interpretation-panel__resize-handle.is-sw {
+  width: 12px;
+  height: 12px;
+}
+.result-interpretation-panel__resize-handle.is-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+.result-interpretation-panel__resize-handle.is-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+.result-interpretation-panel__resize-handle.is-se {
+  right: -5px;
+  bottom: -5px;
+  cursor: nwse-resize;
+}
+.result-interpretation-panel__resize-handle.is-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
 }
 
 .result-interpretation-panel__header {
@@ -1267,8 +1405,7 @@ function emptyArtifactHint(view: RuntimeStageView) {
 }
 
 .task-progress-dialog__artifact {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(150px, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
@@ -1283,14 +1420,18 @@ function emptyArtifactHint(view: RuntimeStageView) {
 .task-progress-dialog__artifact-main {
   display: flex;
   align-items: center;
+  flex: 0 1 42%;
   gap: 7px;
   min-width: 0;
 }
 
 .task-progress-dialog__artifact-main > span {
-  display: grid;
+  display: flex;
+  align-items: baseline;
+  flex: 1 1 auto;
   min-width: 0;
-  gap: 2px;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .task-progress-dialog__artifact-main > .el-icon {
@@ -1300,12 +1441,14 @@ function emptyArtifactHint(view: RuntimeStageView) {
 
 .task-progress-dialog__artifact-main strong,
 .task-progress-dialog__artifact-main small {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .task-progress-dialog__artifact-description {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   color: #607883;
@@ -1328,8 +1471,10 @@ function emptyArtifactHint(view: RuntimeStageView) {
 
 .task-progress-dialog__artifact-actions {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 2px;
+  white-space: nowrap;
 }
 
 .task-progress-dialog__artifact-actions > span {
@@ -1389,15 +1534,12 @@ function emptyArtifactHint(view: RuntimeStageView) {
   }
 
   .task-progress-dialog__artifact {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .task-progress-dialog__artifact-description {
-    white-space: normal;
+    gap: 6px;
   }
 
   .task-progress-dialog__artifact-actions {
-    justify-content: flex-start;
+    min-width: 0;
+    justify-content: flex-end;
   }
 
   .task-progress-dialog__footer {

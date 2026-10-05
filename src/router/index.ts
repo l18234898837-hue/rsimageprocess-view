@@ -1,7 +1,8 @@
 import { getConfig } from "@/config";
 import { type Router, createRouter } from "vue-router";
-import { getHistoryMode } from "./utils";
+import { getHistoryMode, hasRequiredRoles } from "./utils";
 import { isUrl } from "@pureadmin/utils";
+import { useUserStoreHook } from "@/store/modules/user";
 
 /** 自动导入全部静态路由，无需再手动引入！匹配 src/router/modules 目录（任何嵌套级别）中具有 .ts 扩展名的所有文件 */
 const modules: Record<string, any> = import.meta.glob(["./modules/**/*.ts"], {
@@ -44,7 +45,15 @@ export const router: Router = createRouter({
 });
 
 router.beforeEach((to: ToRouteType, _from, next) => {
-  // const userInfo = storageLocal().getItem<DataInfo<number>>(sessionKey);
+  const roles = useUserStoreHook().roles ?? [];
+  const hasRouteAccess = to.matched.every(route =>
+    hasRequiredRoles(roles, route.meta.roles)
+  );
+  if (!hasRouteAccess) {
+    next({ path: "/error/403", replace: true });
+    return;
+  }
+
   const externalLink = isUrl(to?.name as string);
   if (!externalLink) {
     to.matched.some(item => {
