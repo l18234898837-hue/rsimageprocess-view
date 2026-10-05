@@ -9,6 +9,7 @@ import {
   groupArtifactsByStage,
   mapStageStatus,
   processingStepStatusLabel,
+  processingStageLabel,
   runtimeProgressPercent,
   runtimeSucceededCount,
   uiStepKeysForRemoteStage,
@@ -26,6 +27,19 @@ const stage = (overrides: Partial<ExecutionProgressStage> = {}) => ({
   status: "CREATED",
   attempt: 1,
   ...overrides
+});
+
+test("uses the shared Chinese labels for remote stage keys", () => {
+  assert.equal(processingStageLabel("VALIDATE_SOURCE"), "校验 L2A 产品");
+  assert.equal(
+    processingStageLabel("VALIDATE_SOURCE", true),
+    "校验 HY-2D 产品包"
+  );
+  assert.equal(
+    processingStageLabel("DECODE_ALTIMETER_TRACK"),
+    "解码高度计沿轨数据"
+  );
+  assert.equal(processingStageLabel("UNKNOWN_STAGE"), "UNKNOWN_STAGE");
 });
 
 test("maps remote stage lifecycle to stable UI statuses", () => {

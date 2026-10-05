@@ -432,6 +432,10 @@ test("workspace selects FY-4B and GF-6 parameter drawers with integrated stages"
     "src/features/multisource/Gf6WfvL1aParameterDrawer.vue",
     "utf8"
   );
+  const processingRunState = readFileSync(
+    "src/features/multisource/processingRunState.ts",
+    "utf8"
+  );
 
   assert.match(workspace, /Fy4bAgriParameterDrawer/);
   assert.match(workspace, /Gf6WfvL1aParameterDrawer/);
@@ -447,11 +451,11 @@ test("workspace selects FY-4B and GF-6 parameter drawers with integrated stages"
   assert.match(gf6Drawer, /<legend>\s*输出波段\s*<ParameterHint/);
   assert.match(gf6Drawer, /WGS84 ROI/);
   assert.match(
-    workspace,
+    processingRunState,
     /STANDARDIZE_FY4B_AGRI: "处理 FY-4B AGRI 全圆盘产品"/
   );
   assert.match(
-    workspace,
+    processingRunState,
     /STANDARDIZE_GF6_WFV_L1A: "处理 GF-6 WFV L1A 工程产品"/
   );
 });

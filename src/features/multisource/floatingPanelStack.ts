@@ -2,16 +2,20 @@ import { reactive } from "vue";
 
 export type FloatingPanelId =
   | "task-progress"
+  | "task-history"
   | "artifact-preview"
-  | "result-interpretation";
+  | "result-interpretation"
+  | "message-box";
 
 const panelZIndices = reactive<Record<FloatingPanelId, number>>({
   "task-progress": 2200,
-  "artifact-preview": 2201,
-  "result-interpretation": 2202
+  "task-history": 2201,
+  "artifact-preview": 2202,
+  "result-interpretation": 2203,
+  "message-box": 2204
 });
 
-let highestZIndex = 2202;
+let highestZIndex = 2204;
 
 export function useFloatingPanelStack() {
   function panelZIndex(panelId: FloatingPanelId) {

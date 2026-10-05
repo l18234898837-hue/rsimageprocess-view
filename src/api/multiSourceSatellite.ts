@@ -86,6 +86,15 @@ export type TaskArtifactRetentionStatus =
   | "PURGED"
   | "MISSING";
 
+export type TaskInputRetentionStatus =
+  | "AVAILABLE"
+  | "SCHEDULED"
+  | "RECYCLE_BIN"
+  | "PURGING"
+  | "PURGE_FAILED"
+  | "PURGED"
+  | "MISSING";
+
 export type ArtifactRetentionOperation = "PIN" | "RECYCLE" | "RESTORE";
 
 export interface TaskArtifactRetention {
@@ -95,10 +104,34 @@ export interface TaskArtifactRetention {
   recycledAt?: string | null;
   purgeStartedAt?: string | null;
   purgedAt?: string | null;
+  recycleExpiresAt?: string | null;
   operatorId?: ProcessingIdentifier | null;
   failureReason?: string | null;
   version: number;
 }
+
+export interface TaskInputRetention {
+  taskId: ProcessingIdentifier;
+  workspaceKey: string;
+  status: TaskInputRetentionStatus;
+  expiresAt?: string | null;
+  scheduledAt?: string | null;
+  purgeStartedAt?: string | null;
+  purgedAt?: string | null;
+  recycledAt?: string | null;
+  recycleExpiresAt?: string | null;
+  updatedAt: string;
+  operatorId?: ProcessingIdentifier | null;
+  failureReason?: string | null;
+  version: number;
+}
+
+export type TaskInputRetentionOperation =
+  | "PIN"
+  | "SET_EXPIRY"
+  | "PURGE"
+  | "RECYCLE"
+  | "RESTORE";
 
 export interface TaskHistoryItem {
   taskId: ProcessingIdentifier;
@@ -110,14 +143,18 @@ export interface TaskHistoryItem {
   artifactCount: number;
   artifactSizeBytes: number;
   retentionStatus: TaskArtifactRetentionStatus;
+  artifactRetentionStatus?: TaskArtifactRetentionStatus;
+  sourceRetentionStatus: TaskInputRetentionStatus;
 }
 
 export interface TaskHistoryQueryParams {
   productCode?: string;
+  keyword?: string;
   lifecycle?: ProcessingLifecycleStatus;
   completedFrom?: string;
   completedTo?: string;
   retention?: TaskArtifactRetentionStatus;
+  inputRetention?: TaskInputRetentionStatus;
   page?: number;
   pageSize?: number;
 }
@@ -141,6 +178,9 @@ export interface TaskHistoryDetailResponse {
   detail: TaskHistoryDetailView;
   retention: TaskArtifactRetention;
   artifactSizeBytes: number;
+  sourceRetention?: TaskInputRetention | null;
+  sourceInputCount?: number;
+  sourceInputSizeBytes?: number;
 }
 
 export interface ProcessingStorageSummaryResponse {
@@ -153,6 +193,22 @@ export interface ProcessingStorageSummaryResponse {
   zipBytes: number;
   reclaimableBytes: number;
   cleanupFailures: number;
+}
+
+export interface BatchTaskCleanupRequest {
+  taskIds: ProcessingIdentifier[];
+  operation: string;
+  workspaceKey?: string;
+  expiresAt?: string;
+  confirmations?: Record<string, string>;
+}
+
+export interface BatchTaskRetentionResponse {
+  results: Array<{
+    taskId: ProcessingIdentifier;
+    outcome: "CHANGED" | "SKIPPED" | "FAILED" | string;
+    reason?: string | null;
+  }>;
 }
 
 export interface WorkspaceStoragePolicy {
@@ -186,6 +242,7 @@ export interface ExecutionProgressStage {
   durationMs?: number;
   description?: string;
   declaredOutputs?: string[];
+  parameterSnapshot?: string;
 }
 
 export interface ExecutionProgressArtifact {
@@ -377,6 +434,40 @@ export const changeProcessingTaskArtifactRetention = (
     { data: { operation } }
   );
 
+export const changeProcessingTaskInputRetention = (
+  taskId: ProcessingIdentifier,
+  data: {
+    operation: TaskInputRetentionOperation;
+    workspaceKey?: string;
+    expiresAt?: string;
+    taskNo?: string;
+    expectedVersion?: number;
+  }
+) =>
+  http.request<Result<TaskInputRetention>>(
+    "post",
+    `/api/multisource/processing-tasks/${taskId}/input-retention`,
+    { data }
+  );
+
+export const batchChangeProcessingTaskInputRetention = (
+  data: BatchTaskCleanupRequest
+) =>
+  http.request<Result<BatchTaskRetentionResponse>>(
+    "post",
+    "/api/multisource/processing-tasks/batch-input-retention",
+    { data }
+  );
+
+export const batchChangeProcessingTaskArtifactRetention = (
+  data: BatchTaskCleanupRequest
+) =>
+  http.request<Result<BatchTaskRetentionResponse>>(
+    "post",
+    "/api/multisource/processing-tasks/batch-artifact-retention",
+    { data }
+  );
+
 export const purgeProcessingTaskArtifacts = (
   taskId: ProcessingIdentifier,
   taskNo: string
@@ -416,15 +507,15 @@ export const getProcessingQualityReport = (taskId: ProcessingIdentifier) =>
     `/api/multisource/processing-tasks/${taskId}/quality-report`
   );
 
-export const downloadProcessingQualityReport = (
-  taskId: ProcessingIdentifier,
-  fileName = `task-${taskId}-quality-report.html`
-) => {
-  startBrowserDownload(
-    `/api/multisource/processing-tasks/${taskId}/quality-report.html`
+export const downloadProcessingQualityReport = (taskId: ProcessingIdentifier) =>
+  http.request<Blob>(
+    "get",
+    `/api/multisource/processing-tasks/${taskId}/quality-report.html`,
+    {
+      responseType: "blob",
+      rawBlobResponse: true
+    }
   );
-  return fileName;
-};
 
 export const cancelProcessingTask = (taskId: ProcessingIdentifier) =>
   http.request<Result<void>>(
