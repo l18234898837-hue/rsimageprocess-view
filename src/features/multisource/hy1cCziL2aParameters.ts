@@ -127,7 +127,7 @@ export function buildHy1cCziL2aPanelSummary(
   }
   if (form.algorithms.fusion.enabled) {
     const { red, green, blue } = form.algorithms.fusion;
-    algorithms.push(`RGB 融合 · ${red}/${green}/${blue}`);
+    algorithms.push(`多波段融合 · ${red}/${green}/${blue}`);
   }
   if (form.algorithms.saliency.enabled) {
     const { source, threshold } = form.algorithms.saliency;

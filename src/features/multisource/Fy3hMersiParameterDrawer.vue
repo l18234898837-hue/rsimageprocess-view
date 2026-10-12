@@ -168,7 +168,10 @@
         <OutputBandPicker
           v-model="form.bands"
           :bands="FY3H_OUTPUT_BANDS"
-          :columns="5"
+          :help-enabled="open"
+          :presets="FY3H_BAND_PRESETS"
+          :columns="2"
+          collapse-groups
           :disabled="locked"
           aria-label="MERSI 输出波段选择"
         />
@@ -400,26 +403,16 @@ import ParameterHint from "./ParameterHint.vue";
 import ParameterFieldStatus from "./ParameterFieldStatus.vue";
 import ParameterNumberInput from "./ParameterNumberInput.vue";
 import FeatureMetricPicker from "./FeatureMetricPicker.vue";
-import OutputBandPicker, {
-  type OutputBandOption
-} from "./OutputBandPicker.vue";
+import OutputBandPicker from "./OutputBandPicker.vue";
+import { FY3H_OUTPUT_BANDS, FY3H_BAND_PRESETS } from "./outputBandOptions";
 import { featureMetricOptions } from "./featureMetricLabels";
 import {
-  FY3H_MERSI_BANDS,
   fy3hVariableName,
   isFy3hWgs84Crs,
   type Fy3hMersiForm,
   type Fy3hMersiPanelSummary,
   type Fy3hMersiValidationIssue
 } from "./fy3hMersiParameters";
-
-const FY3H_OUTPUT_BANDS: OutputBandOption[] = FY3H_MERSI_BANDS.map(band => ({
-  value: band,
-  label: `CH${String(band).padStart(2, "0")}`,
-  category: band <= 19 ? "反射通道" : "热红外通道",
-  group: band <= 19 ? "反射通道" : "热红外通道",
-  tone: band <= 19 ? "blue" : "thermal"
-}));
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{

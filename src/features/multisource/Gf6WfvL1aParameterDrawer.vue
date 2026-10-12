@@ -169,7 +169,9 @@
         <OutputBandPicker
           v-model="form.bands"
           :bands="GF6_OUTPUT_BANDS"
-          :columns="4"
+          :help-enabled="open"
+          :presets="GF6_BAND_PRESETS"
+          :columns="2"
           :disabled="locked"
           aria-label="GF-6 WFV 输出波段选择"
         />
@@ -429,28 +431,19 @@ import ParameterFieldStatus from "./ParameterFieldStatus.vue";
 import ParameterNumberInput from "./ParameterNumberInput.vue";
 import RoiMapPicker, { type RoiBounds } from "./RoiMapPicker.vue";
 import FeatureMetricPicker from "./FeatureMetricPicker.vue";
-import OutputBandPicker, {
-  type OutputBandOption
-} from "./OutputBandPicker.vue";
+import OutputBandPicker from "./OutputBandPicker.vue";
+import { GF6_OUTPUT_BANDS, GF6_BAND_PRESETS } from "./outputBandOptions";
 import {
   featureMetricLabel,
   featureMetricOptions
 } from "./featureMetricLabels";
 import {
-  GF6_WFV_L1A_BANDS,
   GF6_WFV_L1A_MAX_WINDOW_SIZE,
   GF6_WFV_L1A_METRICS,
   gf6ResolutionConstraint,
   type Gf6WfvL1aForm
 } from "./gf6WfvL1aParameters";
 import { gf6RoiStateAfterMetadataChange } from "./gf6WfvL1aRoi";
-
-const GF6_OUTPUT_BANDS: OutputBandOption[] = GF6_WFV_L1A_BANDS.map(band => ({
-  value: band,
-  label: `B${band}`,
-  category: "WFV 通道",
-  tone: "standard"
-}));
 
 const open = defineModel<boolean>({ required: true });
 const props = defineProps<{

@@ -604,9 +604,10 @@
 .product-parameter-drawer .output-band-picker__option {
   position: relative;
   display: grid;
+  align-content: space-between;
   gap: 2px;
   min-width: 0;
-  padding: 7px;
+  padding: 0;
   overflow: hidden;
   color: var(--drawer-muted);
   cursor: pointer;
@@ -632,16 +633,16 @@
 }
 
 .product-parameter-drawer .output-band-picker__option input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
+  position: static;
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0;
   cursor: inherit;
-  opacity: 0;
+  accent-color: var(--drawer-accent);
 }
 
 .product-parameter-drawer .output-band-picker__accent {
+  grid-column: 1 / -1;
   width: 100%;
   height: 3px;
   margin-bottom: 1px;
@@ -682,20 +683,123 @@
 
 .product-parameter-drawer .output-band-picker__option strong,
 .product-parameter-drawer .output-band-picker__option small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .product-parameter-drawer .output-band-picker__option strong {
-  font-size: var(--drawer-font-caption);
+  font-size: 12px;
   font-weight: 700;
   color: currentcolor;
 }
 
 .product-parameter-drawer .output-band-picker__option small {
+  grid-column: 2;
   color: var(--drawer-muted);
-  font-size: var(--drawer-font-micro);
+  font-size: 11px;
+}
+
+.product-parameter-drawer .output-band-picker__selection {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 4px 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 8px 8px 0;
+  cursor: pointer;
+}
+
+.product-parameter-drawer .output-band-picker__selection:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.product-parameter-drawer .output-band-picker__info {
+  justify-self: end;
+  min-height: 26px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--drawer-accent-deep);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+}
+
+.product-parameter-drawer .output-band-picker__info[aria-expanded="true"] {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.product-parameter-drawer .output-band-picker__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.product-parameter-drawer .output-band-picker__presets > span {
+  flex-basis: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--drawer-ink);
+}
+
+.product-parameter-drawer .output-band-picker__presets button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--drawer-accent-deep);
+  cursor: pointer;
+  background: var(--drawer-control);
+  border: 1px solid var(--drawer-line-strong);
+  border-radius: 5px;
+}
+
+.product-parameter-drawer
+  .output-band-picker__presets
+  button[aria-pressed="true"] {
+  font-weight: 700;
+  background: var(--drawer-accent-soft);
+  border-color: var(--drawer-accent);
+}
+
+.product-parameter-drawer .output-band-picker button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.product-parameter-drawer .output-band-picker button:focus-visible,
+.product-parameter-drawer .output-band-picker summary:focus-visible {
+  outline: 2px solid var(--drawer-accent);
+  outline-offset: 2px;
+}
+
+.product-parameter-drawer details.output-band-picker__group {
+  padding: 9px;
+  border: 1px solid var(--drawer-line);
+  border-radius: 6px;
+}
+
+.product-parameter-drawer summary.output-band-picker__group-title {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.product-parameter-drawer details[open] > .output-band-picker__group-title {
+  margin-bottom: 8px;
+}
+
+.product-parameter-drawer .output-band-picker__group-title small {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .product-parameter-drawer .feature-metric-picker,
@@ -1794,4 +1898,14 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }
+}
+
+.product-parameter-drawer .output-band-picker__detail-hint,
+.product-parameter-drawer .band-source-description {
+  display: block;
+  margin: 8px 0 0;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--drawer-muted);
 }

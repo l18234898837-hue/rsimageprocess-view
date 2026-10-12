@@ -213,7 +213,7 @@ export function validateFy3hMersiForm(form: Fy3hMersiForm) {
     if (rgb.some(band => !selectedBands.has(band) || band > 19)) {
       issues.push({
         field: "fusion.bands",
-        message: "RGB 融合只能使用已选的 1-19 反射通道"
+        message: "多波段融合只能使用已选的 1-19 反射通道"
       });
     }
     if (
@@ -339,7 +339,7 @@ export function buildFy3hMersiPanelSummary(
   }
   if (form.fusion.enabled) {
     algorithms.push(
-      `RGB 融合 · CH${form.fusion.red}/CH${form.fusion.green}/CH${form.fusion.blue}`
+      `多波段融合 · CH${form.fusion.red}/CH${form.fusion.green}/CH${form.fusion.blue}`
     );
   }
   if (form.saliency.enabled) {

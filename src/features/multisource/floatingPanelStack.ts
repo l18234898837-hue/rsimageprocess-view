@@ -5,6 +5,7 @@ export type FloatingPanelId =
   | "task-history"
   | "artifact-preview"
   | "result-interpretation"
+  | "band-help"
   | "message-box";
 
 const panelZIndices = reactive<Record<FloatingPanelId, number>>({
@@ -12,10 +13,11 @@ const panelZIndices = reactive<Record<FloatingPanelId, number>>({
   "task-history": 2201,
   "artifact-preview": 2202,
   "result-interpretation": 2203,
-  "message-box": 2204
+  "message-box": 2204,
+  "band-help": 2205
 });
 
-let highestZIndex = 2204;
+let highestZIndex = 2205;
 
 export function useFloatingPanelStack() {
   function panelZIndex(panelId: FloatingPanelId) {

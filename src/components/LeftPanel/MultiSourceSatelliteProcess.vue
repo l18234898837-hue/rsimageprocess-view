@@ -601,7 +601,9 @@
             <OutputBandPicker
               v-model="l2aForm.bands"
               :bands="HY1C_OUTPUT_BANDS"
-              :columns="4"
+              :help-enabled="isParameterDrawerOpen"
+              :presets="HY1C_BAND_PRESETS"
+              :columns="2"
               :disabled="isConfigurationLocked"
               aria-label="CZI 输出波段选择"
             />
@@ -1134,9 +1136,11 @@ import {
 } from "@/features/multisource/artifactMapPreview";
 import map from "@/libs/tdtmap";
 import FeatureMetricPicker from "@/features/multisource/FeatureMetricPicker.vue";
-import OutputBandPicker, {
-  type OutputBandOption
-} from "@/features/multisource/OutputBandPicker.vue";
+import OutputBandPicker from "@/features/multisource/OutputBandPicker.vue";
+import {
+  HY1C_OUTPUT_BANDS,
+  HY1C_BAND_PRESETS
+} from "@/features/multisource/outputBandOptions";
 import {
   featureMetricLabel,
   featureMetricOptions
@@ -1169,17 +1173,6 @@ import {
   type Hy1cCziBand
 } from "@/features/multisource/hy1cCziL2aParameters";
 
-const HY1C_OUTPUT_BANDS: OutputBandOption[] = [
-  { value: "B460", label: "B460", category: "蓝光 460 nm", tone: "blue" },
-  { value: "B560", label: "B560", category: "绿光 560 nm", tone: "green" },
-  { value: "B650", label: "B650", category: "红光 650 nm", tone: "red" },
-  {
-    value: "B825",
-    label: "B825",
-    category: "近红外 825 nm",
-    tone: "infrared"
-  }
-];
 import {
   hy1cRoiStateAfterMetadataChange,
   type Hy1cCziL2aRoi

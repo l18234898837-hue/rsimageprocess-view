@@ -27,7 +27,7 @@ withDefaults(
   {
     items: () => [
       { key: "feature-extraction", label: "特征提取" },
-      { key: "rgb-fusion", label: "RGB 融合" },
+      { key: "rgb-fusion", label: "多波段融合" },
       { key: "anomaly-detection", label: "显著性检测" }
     ]
   }

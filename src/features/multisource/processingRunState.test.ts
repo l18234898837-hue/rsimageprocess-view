@@ -42,6 +42,24 @@ test("uses the shared Chinese labels for remote stage keys", () => {
   assert.equal(processingStageLabel("UNKNOWN_STAGE"), "UNKNOWN_STAGE");
 });
 
+test("translates current product stages and supported legacy stage aliases", () => {
+  const labels = {
+    FUSE_GF6_RGB: "生成 GF-6 多波段融合",
+    STANDARDIZE_L2A: "处理 HY-1C CZI L2A 产品",
+    CROP_CZI: "按范围裁剪 CZI 影像",
+    EXTRACT_FEATURES: "提取特征",
+    VALIDATE_FY4B_INPUTS: "校验 FY-4B AGRI 输入数据",
+    VALIDATE_GF6_TILES: "校验 GF-6 WFV 瓦片",
+    APPLY_FY4B_QUALITY: "应用 FY-4B 质量掩膜",
+    GRID_FY4B_RASTERS: "FY-4B 影像网格化",
+    WRITE_FY4B_STANDARD: "生成 FY-4B 标准产品",
+    WRITE_GF6_STANDARD: "生成 GF-6 标准产品"
+  };
+  for (const [stageCode, label] of Object.entries(labels)) {
+    assert.equal(processingStageLabel(stageCode), label, stageCode);
+  }
+});
+
 test("maps remote stage lifecycle to stable UI statuses", () => {
   assert.equal(mapStageStatus(stage()), "WAITING");
   assert.equal(mapStageStatus(stage({ status: "RUNNING" })), "PROCESSING");

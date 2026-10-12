@@ -87,7 +87,7 @@ function imagePipeline(
       },
       {
         key: "rgb-fusion",
-        title: "RGB 融合",
+        title: "多波段融合",
         productTitle: titles.rgb,
         kind: "target",
         dependsOn: ["standard-product"],
@@ -148,7 +148,7 @@ const PIPELINES: readonly PipelineDefinition[] = [
     "hy1c-czi-l2a-v1",
     {
       feature: "CZI 水色特征",
-      rgb: "CZI RGB 融合",
+      rgb: "CZI 多波段融合",
       anomaly: "CZI 显著性检测"
     },
     [
@@ -166,7 +166,7 @@ const PIPELINES: readonly PipelineDefinition[] = [
     "fy3h-mersi-l1-1000m-geo1k-v1",
     {
       feature: "MERSI 通道特征",
-      rgb: "MERSI RGB 融合",
+      rgb: "MERSI 多波段融合",
       anomaly: "MERSI 显著性检测"
     },
     [

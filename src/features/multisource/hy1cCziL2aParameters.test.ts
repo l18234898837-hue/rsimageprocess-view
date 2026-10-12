@@ -178,7 +178,7 @@ test("panel summary reflects the selected satellite processing configuration", (
     roi: "已启用 ROI 裁剪",
     algorithms: [
       "特征提取 · 1 项",
-      "RGB 融合 · B650/B560/B460",
+      "多波段融合 · B650/B560/B460",
       "显著性 · B825 / 0.65"
     ]
   };
@@ -193,7 +193,7 @@ test("default HY-1C form keeps the full product extent", () => {
     roi: "全幅产品",
     algorithms: [
       "特征提取 · 3 项",
-      "RGB 融合 · B650/B560/B460",
+      "多波段融合 · B650/B560/B460",
       "显著性 · B560 / 0.5"
     ]
   });

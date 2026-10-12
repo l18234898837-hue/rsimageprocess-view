@@ -172,7 +172,10 @@ export function validateGf6WfvL1aForm(
       band => !selectedBands.has(band)
     )
   ) {
-    issues.push({ field: "fusion.bands", message: "RGB 融合只能使用已选波段" });
+    issues.push({
+      field: "fusion.bands",
+      message: "多波段融合只能使用已选波段"
+    });
   }
   if (
     form.fusion.enabled &&

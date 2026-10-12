@@ -179,7 +179,7 @@
               <ParameterHint
                 label="融合模式"
                 text="近红外、红光、蓝光组合。为保持产品判读一致性，该方式固定不可修改。" /></span
-            ><input :value="form.fusion.mode" readonly /></label
+            ><input value="近红外—红光—蓝光假彩色" readonly /></label
           ><label
             ><span
               >低百分位
@@ -246,9 +246,13 @@
                 :key="source"
                 :value="source"
               >
-                {{ source }}
+                {{ FY4B_SOURCE_DESCRIPTIONS[source]?.label ?? source }}
               </option>
             </select>
+            <small class="band-source-description" aria-live="polite">{{
+              FY4B_SOURCE_DESCRIPTIONS[form.saliency.source]?.description ??
+              "当前来源暂无用途说明，请检查任务参数。"
+            }}</small>
             <ParameterFieldStatus
               :issues="issues"
               :fields="['saliency.source']"
@@ -319,6 +323,7 @@ import ParameterNumberInput from "./ParameterNumberInput.vue";
 import RoiMapPicker, { type RoiBounds } from "./RoiMapPicker.vue";
 import FeatureMetricPicker from "./FeatureMetricPicker.vue";
 import { featureMetricOptions } from "./featureMetricLabels";
+import { FY4B_SOURCE_DESCRIPTIONS } from "./outputBandOptions";
 import {
   FY4B_AGRI_DEFAULT_ROI,
   FY4B_AGRI_METRICS,
