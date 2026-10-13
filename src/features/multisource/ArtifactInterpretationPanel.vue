@@ -5,6 +5,79 @@
       <p>{{ interpretation.purpose }}</p>
     </section>
 
+    <section class="artifact-interpretation__reading">
+      <div class="artifact-interpretation__section-heading">
+        <div>
+          <span class="artifact-interpretation__eyebrow">{{
+            interpretation.presentation === "image"
+              ? "图中内容怎么看"
+              : "文件内容怎么看"
+          }}</span>
+          <strong>{{
+            interpretation.presentation === "image"
+              ? "颜色、边缘和数值的含义"
+              : "字段、指标和记录的含义"
+          }}</strong>
+        </div>
+      </div>
+      <div class="artifact-interpretation__detail-list">
+        <article v-for="detail in interpretation.reading" :key="detail.label">
+          <strong>{{ detail.label }}</strong>
+          <p>{{ detail.text }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section
+      v-if="interpretation.legend"
+      class="artifact-interpretation__legend"
+    >
+      <div class="artifact-interpretation__section-heading">
+        <div>
+          <span class="artifact-interpretation__eyebrow">图例</span>
+          <strong>{{ interpretation.legend.title }}</strong>
+        </div>
+      </div>
+      <div class="artifact-interpretation__legend-items">
+        <div
+          v-for="item in interpretation.legend.items"
+          :key="`${item.label}-${item.color}`"
+          class="artifact-interpretation__legend-item"
+        >
+          <span
+            class="artifact-interpretation__swatch"
+            :style="{ background: item.color }"
+            :data-transparent="item.color === 'transparent'"
+          />
+          <div>
+            <strong>{{ item.label }}</strong
+            ><span>{{ item.description }}</span>
+          </div>
+        </div>
+      </div>
+      <p class="artifact-interpretation__legend-note">
+        {{ interpretation.legend.note }}
+      </p>
+    </section>
+
+    <section class="artifact-interpretation__generation">
+      <span class="artifact-interpretation__eyebrow"
+        >为什么会生成这样的结果</span
+      >
+      <ol>
+        <li v-for="item in interpretation.generation" :key="item">
+          {{ item }}
+        </li>
+      </ol>
+    </section>
+
+    <section class="artifact-interpretation__uses">
+      <span class="artifact-interpretation__eyebrow">实际作用</span>
+      <ul>
+        <li v-for="item in interpretation.uses" :key="item">{{ item }}</li>
+      </ul>
+    </section>
+
     <section class="artifact-interpretation__parameters">
       <div class="artifact-interpretation__section-heading">
         <div>
@@ -115,6 +188,94 @@ const currentStageLabel = computed(() => {
 
 .artifact-interpretation__purpose p {
   margin: 3px 0 0;
+}
+
+.artifact-interpretation__reading,
+.artifact-interpretation__generation,
+.artifact-interpretation__uses,
+.artifact-interpretation__legend {
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #dce6ef;
+}
+
+.artifact-interpretation__detail-list {
+  display: grid;
+  gap: 8px;
+}
+
+.artifact-interpretation__detail-list article {
+  padding: 8px 10px;
+  background: #f8fbfd;
+  border-left: 3px solid #8ab6d1;
+}
+
+.artifact-interpretation__detail-list strong,
+.artifact-interpretation__legend-item strong {
+  display: block;
+  color: #294d67;
+}
+
+.artifact-interpretation__detail-list p,
+.artifact-interpretation__legend-note {
+  margin: 2px 0 0;
+  white-space: pre-line;
+}
+
+.artifact-interpretation__generation ol,
+.artifact-interpretation__uses ul {
+  padding-left: 20px;
+  margin: 5px 0 0;
+}
+
+.artifact-interpretation__generation li,
+.artifact-interpretation__uses li {
+  margin: 4px 0;
+}
+
+.artifact-interpretation__legend-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.artifact-interpretation__legend-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 8px;
+  background: #f9fbfc;
+  border: 1px solid #e3ebf1;
+}
+
+.artifact-interpretation__legend-item > div {
+  min-width: 0;
+}
+
+.artifact-interpretation__legend-item > div > span {
+  display: block;
+  color: #607387;
+}
+
+.artifact-interpretation__swatch {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 18px;
+  border: 1px solid #c6d6e0;
+  border-radius: 3px;
+}
+
+.artifact-interpretation__swatch[data-transparent="true"] {
+  background: repeating-linear-gradient(
+    45deg,
+    #fff 0 4px,
+    #d8e2e8 4px 8px
+  ) !important;
+}
+
+.artifact-interpretation__legend-note {
+  color: #607387;
 }
 
 .artifact-interpretation__parameters {
