@@ -384,7 +384,9 @@ export const preflightProcessingTask = (data: PreflightRequest) =>
     "post",
     "/api/multisource/processing-tasks/preflight",
     {
-      data
+      data,
+      // 预检会首次读取大体量遥感影像的校验值，不能沿用通用的短请求超时。
+      timeout: 0
     }
   );
 
