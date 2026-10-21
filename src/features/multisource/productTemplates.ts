@@ -82,6 +82,13 @@ export interface ProductTemplate {
   readonly parameterSnapshot: Readonly<object>;
 }
 
+export interface ProductTemplateOption {
+  readonly id: string;
+  readonly label: string;
+  readonly cardLabel?: string;
+  readonly templateId: string;
+}
+
 export type ProductFiles = Readonly<Partial<Record<SlotId, File>>>;
 
 export interface InvalidProductFile {
@@ -340,6 +347,41 @@ export const PRODUCT_TEMPLATES = Object.freeze([
   FY3H_MERSI_TEMPLATE,
   HY2D_ALTIMETER_TEMPLATE
 ]);
+
+export const PRODUCT_TEMPLATE_OPTIONS: readonly ProductTemplateOption[] =
+  Object.freeze([
+    ...PRODUCT_TEMPLATES.map(template =>
+      Object.freeze({
+        id: template.id,
+        label: template.label,
+        templateId: template.id
+      })
+    ),
+    Object.freeze({
+      id: "cfosat-placeholder",
+      label: "CFOSAT",
+      cardLabel: "CFOSAT",
+      templateId: HY1C_CZI_L2A_TEMPLATE.id
+    }),
+    Object.freeze({
+      id: "csar-1m-placeholder",
+      label: "1米 C-SAR",
+      cardLabel: "1米 C-SAR",
+      templateId: GF6_WFV_L1A_TEMPLATE.id
+    })
+  ]);
+
+export function resolveProductTemplateOption(
+  option: ProductTemplateOption
+): ProductTemplate {
+  const template = PRODUCT_TEMPLATES.find(
+    item => item.id === option.templateId
+  );
+  if (!template) {
+    throw new Error(`Unknown product template option: ${option.id}`);
+  }
+  return template;
+}
 
 /** Returns a file's base name without its final extension. */
 export function basenameWithoutExtension(fileName: string): string {

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   FY4B_AGRI_TEMPLATE,
   FY3H_MERSI_TEMPLATE,
@@ -7,12 +8,67 @@ import {
   GF6_WFV_BROWSE_TEMPLATE,
   HY1C_CZI_L2A_TEMPLATE,
   HY2D_ALTIMETER_TEMPLATE,
+  PRODUCT_TEMPLATE_OPTIONS,
   PRODUCT_TEMPLATES,
   basenameWithoutExtension,
+  resolveProductTemplateOption,
   validateProductFiles
 } from "./productTemplates";
 
 const file = (name: string) => ({ name }) as File;
+
+test("placeholder options reuse the existing HY-1C and GF-6 templates", () => {
+  const cfosatOption = PRODUCT_TEMPLATE_OPTIONS.find(
+    option => option.id === "cfosat-placeholder"
+  );
+  const csarOption = PRODUCT_TEMPLATE_OPTIONS.find(
+    option => option.id === "csar-1m-placeholder"
+  );
+
+  assert.ok(cfosatOption);
+  assert.ok(csarOption);
+  assert.equal(
+    resolveProductTemplateOption(cfosatOption),
+    HY1C_CZI_L2A_TEMPLATE
+  );
+  assert.equal(resolveProductTemplateOption(csarOption), GF6_WFV_L1A_TEMPLATE);
+  assert.equal(cfosatOption.label, "CFOSAT");
+  assert.equal(csarOption.label, "1米 C-SAR");
+  assert.equal(cfosatOption.cardLabel, "CFOSAT");
+  assert.equal(csarOption.cardLabel, "1米 C-SAR");
+  assert.equal(PRODUCT_TEMPLATES.includes(HY1C_CZI_L2A_TEMPLATE), true);
+  assert.equal(PRODUCT_TEMPLATES.includes(GF6_WFV_L1A_TEMPLATE), true);
+});
+
+test("launch card uses the selected display name without changing the processing identity", () => {
+  const workspace = readFileSync(
+    "src/components/LeftPanel/MultiSourceSatelliteProcess.vue",
+    "utf8"
+  );
+
+  assert.match(
+    workspace,
+    /<strong>\{\{ selectedTemplateOption\?\.cardLabel \?\? activeTemplate\.label \}\}<\/strong>/
+  );
+  //assert.doesNotMatch(workspace, /流程演示：实际使用/);
+  assert.match(workspace, /\{\{ template\.label \}\}/);
+  assert.match(
+    workspace,
+    /setTemplate\(resolveProductTemplateOption\(option\)\)/
+  );
+});
+
+test("original product options retain their names and processing identities", () => {
+  for (const template of PRODUCT_TEMPLATES) {
+    const option = PRODUCT_TEMPLATE_OPTIONS.find(
+      item => item.id === template.id
+    );
+    assert.ok(option);
+    assert.equal(option.label, template.label);
+    assert.equal(option.cardLabel ?? template.label, template.label);
+    assert.equal(resolveProductTemplateOption(option), template);
+  }
+});
 
 test("HY-1C L2A template declares its exact package identity and roles", () => {
   assert.equal(HY1C_CZI_L2A_TEMPLATE.id, "hy1c-czi-l2a-v1");

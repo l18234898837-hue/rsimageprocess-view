@@ -4,12 +4,12 @@
       <label for="product-template">卫星数据选择</label>
       <select
         id="product-template"
-        :value="activeTemplate.id"
+        :value="selectedTemplateOptionId"
         :disabled="isTaskActive || isBusy || isUploading || isArchiveImporting"
         @change="handleTemplateChange"
       >
         <option
-          v-for="template in PRODUCT_TEMPLATES"
+          v-for="template in PRODUCT_TEMPLATE_OPTIONS"
           :key="template.id"
           :value="template.id"
         >
@@ -427,7 +427,9 @@
 
     <section class="mission-section mission-launch" aria-label="任务启动">
       <div>
-        <strong>{{ activeTemplate.label }}</strong>
+        <strong>{{
+          selectedTemplateOption?.cardLabel ?? activeTemplate.label
+        }}</strong>
         <small>{{ launchHint }}</small>
       </div>
       <button
@@ -1206,7 +1208,8 @@ import {
   GF6_WFV_L1A_TEMPLATE,
   HY1C_CZI_L2A_TEMPLATE,
   HY2D_ALTIMETER_TEMPLATE,
-  PRODUCT_TEMPLATES,
+  PRODUCT_TEMPLATE_OPTIONS,
+  resolveProductTemplateOption,
   type SlotId
 } from "@/features/multisource/productTemplates";
 import {
@@ -1379,6 +1382,7 @@ const archiveProgressPercent = computed(() => {
 });
 const archiveStatusLabel = getArchiveStatusLabel;
 const selectedTargets = ref<string[]>([]);
+const selectedTemplateOptionId = ref(GF6_WFV_L1A_TEMPLATE.id);
 const {
   activeTemplate,
   slots,
@@ -1406,6 +1410,11 @@ const {
   getArtifactBlob,
   reset
 } = useProcessingTask(GF6_WFV_L1A_TEMPLATE);
+const selectedTemplateOption = computed(() =>
+  PRODUCT_TEMPLATE_OPTIONS.find(
+    option => option.id === selectedTemplateOptionId.value
+  )
+);
 const isLoadingQualityReport = ref(false);
 
 watch(
@@ -2702,10 +2711,13 @@ function canRetryStage(status: string) {
 
 function handleTemplateChange(event: Event) {
   const select = event.target as HTMLSelectElement;
-  const template = PRODUCT_TEMPLATES.find(item => item.id === select.value);
-  if (!template) return;
+  const option = PRODUCT_TEMPLATE_OPTIONS.find(
+    item => item.id === select.value
+  );
+  if (!option) return;
   try {
-    setTemplate(template);
+    setTemplate(resolveProductTemplateOption(option));
+    selectedTemplateOptionId.value = option.id;
     resetMultisourceProductForms(productForms);
     archiveMatchedSlots.value.clear();
     resetArchiveProgress();
@@ -2717,7 +2729,7 @@ function handleTemplateChange(event: Event) {
     clearArtifactPreview();
     clearArtifactMapPreview();
   } catch (error) {
-    select.value = activeTemplate.value.id;
+    select.value = selectedTemplateOptionId.value;
     message(error instanceof Error ? error.message : "无法切换产品模板", {
       type: "warning"
     });
