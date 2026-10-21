@@ -328,7 +328,10 @@
                   </td>
                   <td>{{ formatDate(item.completedAt) }}</td>
                   <td>
-                    <span class="task-history-dialog__tag is-lifecycle">
+                    <span
+                      class="task-history-dialog__tag is-lifecycle"
+                      :class="`is-${item.lifecycleStatus.toLowerCase()}`"
+                    >
                       {{ lifecycleLabel(item.lifecycleStatus) }}
                     </span>
                   </td>
@@ -3206,6 +3209,11 @@ function openArtifactInterpretation(artifact: ExecutionProgressArtifact) {
 .task-history-dialog__tag.is-available {
   color: #1e6b68;
   background: #dcf1ed;
+}
+
+.task-history-dialog__tag.is-lifecycle.is-failed {
+  color: #8a3d3d;
+  background: #fbe4e4;
 }
 
 .task-history-dialog__tag.is-pinned {
