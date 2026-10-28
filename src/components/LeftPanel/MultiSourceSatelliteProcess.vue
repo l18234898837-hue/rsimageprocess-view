@@ -1185,8 +1185,8 @@ import {
   translateProcessingErrorMessage
 } from "@/features/multisource/processingTaskRules";
 import {
-  getPipelineDefinition,
-  getTargetSteps
+  applyPipelineStepTitleOverrides,
+  getPipelineDefinition
 } from "@/features/multisource/pipelineDefinitions";
 import {
   getCheckedSelectableStepKeys,
@@ -1526,9 +1526,16 @@ const isGf6WfvL1a = computed(
   () => activeTemplate.value.id === GF6_WFV_L1A_TEMPLATE.id
 );
 const pipelineDefinition = computed(() =>
-  getPipelineDefinition(activeTemplate.value.id)
+  applyPipelineStepTitleOverrides(
+    getPipelineDefinition(activeTemplate.value.id),
+    selectedTemplateOption.value?.processingStepTitleOverrides
+  )
 );
-const targetSteps = computed(() => getTargetSteps(activeTemplate.value.id));
+const targetSteps = computed(() =>
+  pipelineDefinition.value.steps.filter(
+    step => step.kind === "target" || step.selectable === true
+  )
+);
 const processingPlan = computed<ProcessingPlan>(() =>
   resolveProcessingPlan(pipelineDefinition.value, selectedTargets.value)
 );
@@ -1723,6 +1730,9 @@ function runtimeStageKey(
 }
 
 function runtimeStageTitle(view: RuntimeStageView) {
+  const placeholderTitle =
+    selectedTemplateOption.value?.processingStepTitleOverrides?.[view.step.key];
+  if (placeholderTitle) return placeholderTitle;
   return view.stage
     ? stageLabel(view.stage.stageCode || view.stage.stageKey)
     : view.step.title;

@@ -82,11 +82,17 @@ export interface ProductTemplate {
   readonly parameterSnapshot: Readonly<object>;
 }
 
+export type ProcessingStepTitleOverrides = Readonly<
+  Partial<Record<string, string>>
+>;
+
 export interface ProductTemplateOption {
   readonly id: string;
   readonly label: string;
   readonly cardLabel?: string;
   readonly templateId: string;
+  /** Overrides visible step labels for a placeholder without changing its pipeline identity. */
+  readonly processingStepTitleOverrides?: ProcessingStepTitleOverrides;
 }
 
 export type ProductFiles = Readonly<Partial<Record<SlotId, File>>>;
@@ -361,13 +367,63 @@ export const PRODUCT_TEMPLATE_OPTIONS: readonly ProductTemplateOption[] =
       id: "cfosat-placeholder",
       label: "CFOSAT",
       cardLabel: "CFOSAT",
-      templateId: HY1C_CZI_L2A_TEMPLATE.id
+      templateId: HY1C_CZI_L2A_TEMPLATE.id,
+      processingStepTitleOverrides: Object.freeze({
+        "band-metadata-decode": "波段与元数据解码",
+        "scale-factor-processing": "比例因子处理",
+        "l2-quality-control": "L2 质量控制",
+        "projection-standardization": "定位、投影与 ROI",
+        "standard-product": "标准产品",
+        "feature-extraction": "水色特征",
+        "rgb-fusion": "多波段融合",
+        "anomaly-detection": "显著性检测"
+      })
     }),
     Object.freeze({
       id: "csar-1m-placeholder",
       label: "1米 C-SAR",
       cardLabel: "1米 C-SAR",
-      templateId: GF6_WFV_L1A_TEMPLATE.id
+      templateId: GF6_WFV_L1A_TEMPLATE.id,
+      processingStepTitleOverrides: Object.freeze({
+        "tile-mosaic": "影像拼接",
+        "rpc-geolocation": "定位处理",
+        "projection-standardization": "投影与标准影像",
+        "standard-product": "标准产品",
+        "feature-extraction": "影像空间特征",
+        "rgb-fusion": "多波段融合",
+        "anomaly-detection": "显著性检测"
+      })
+    }),
+    // Placeholder entries reuse the GF-6 pipeline until dedicated adapters exist.
+    Object.freeze({
+      id: "spot-commercial-placeholder",
+      label: "SPOT商业卫星数据",
+      cardLabel: "SPOT商业卫星数据",
+      templateId: GF6_WFV_L1A_TEMPLATE.id,
+      processingStepTitleOverrides: Object.freeze({
+        "tile-mosaic": "影像拼接",
+        "rpc-geolocation": "定位处理",
+        "projection-standardization": "投影与标准影像",
+        "standard-product": "标准产品",
+        "feature-extraction": "影像空间特征",
+        "rgb-fusion": "多波段融合",
+        "anomaly-detection": "显著性检测"
+      })
+    }),
+    Object.freeze({
+      id: "jilin-1-placeholder",
+      label: "吉林一号",
+      cardLabel: "吉林一号",
+      templateId: GF6_WFV_L1A_TEMPLATE.id,
+      processingStepTitleOverrides: Object.freeze({
+        "tile-mosaic": "影像拼接",
+        "rpc-geolocation": "定位处理",
+        "projection-standardization": "投影与标准影像",
+        "standard-product": "标准产品",
+        "feature-extraction": "影像空间特征",
+        "rgb-fusion": "多波段融合",
+        "anomaly-detection": "显著性检测"
+      })
     })
   ]);
 

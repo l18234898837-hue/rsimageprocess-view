@@ -266,6 +266,23 @@ export function getTargetSteps(productId: string): readonly StepDefinition[] {
   );
 }
 
+/**
+ * Applies UI-only step labels while preserving every processing key and dependency.
+ */
+export function applyPipelineStepTitleOverrides(
+  definition: PipelineDefinition,
+  titleOverrides: Readonly<Partial<Record<string, string>>> | undefined
+): PipelineDefinition {
+  if (!titleOverrides || !Object.keys(titleOverrides).length) return definition;
+  return {
+    ...definition,
+    steps: definition.steps.map(step => {
+      const title = titleOverrides[step.key];
+      return title ? { ...step, title, productTitle: title } : step;
+    })
+  };
+}
+
 export function assertValidPipelineDefinition(
   definition: PipelineDefinition
 ): void {

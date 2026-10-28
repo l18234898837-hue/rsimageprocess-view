@@ -24,18 +24,48 @@ test("placeholder options reuse the existing HY-1C and GF-6 templates", () => {
   const csarOption = PRODUCT_TEMPLATE_OPTIONS.find(
     option => option.id === "csar-1m-placeholder"
   );
+  const spotOption = PRODUCT_TEMPLATE_OPTIONS.find(
+    option => option.id === "spot-commercial-placeholder"
+  );
+  const jilinOption = PRODUCT_TEMPLATE_OPTIONS.find(
+    option => option.id === "jilin-1-placeholder"
+  );
 
   assert.ok(cfosatOption);
   assert.ok(csarOption);
+  assert.ok(spotOption);
+  assert.ok(jilinOption);
   assert.equal(
     resolveProductTemplateOption(cfosatOption),
     HY1C_CZI_L2A_TEMPLATE
   );
   assert.equal(resolveProductTemplateOption(csarOption), GF6_WFV_L1A_TEMPLATE);
+  assert.equal(resolveProductTemplateOption(spotOption), GF6_WFV_L1A_TEMPLATE);
+  assert.equal(resolveProductTemplateOption(jilinOption), GF6_WFV_L1A_TEMPLATE);
   assert.equal(cfosatOption.label, "CFOSAT");
   assert.equal(csarOption.label, "1米 C-SAR");
+  assert.equal(spotOption.label, "SPOT商业卫星数据");
+  assert.equal(jilinOption.label, "吉林一号");
   assert.equal(cfosatOption.cardLabel, "CFOSAT");
   assert.equal(csarOption.cardLabel, "1米 C-SAR");
+  assert.equal(spotOption.cardLabel, "SPOT商业卫星数据");
+  assert.equal(jilinOption.cardLabel, "吉林一号");
+  assert.equal(
+    cfosatOption.processingStepTitleOverrides?.["feature-extraction"],
+    "水色特征"
+  );
+  assert.equal(
+    csarOption.processingStepTitleOverrides?.["rgb-fusion"],
+    "多波段融合"
+  );
+  assert.equal(
+    spotOption.processingStepTitleOverrides?.["anomaly-detection"],
+    "显著性检测"
+  );
+  assert.equal(
+    jilinOption.processingStepTitleOverrides?.["feature-extraction"],
+    "影像空间特征"
+  );
   assert.equal(PRODUCT_TEMPLATES.includes(HY1C_CZI_L2A_TEMPLATE), true);
   assert.equal(PRODUCT_TEMPLATES.includes(GF6_WFV_L1A_TEMPLATE), true);
 });

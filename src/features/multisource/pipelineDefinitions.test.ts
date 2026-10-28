@@ -8,6 +8,7 @@ import {
   HY2D_ALTIMETER_TEMPLATE
 } from "./productTemplates";
 import {
+  applyPipelineStepTitleOverrides,
   assertValidPipelineDefinition,
   getPipelineDefinition,
   getTargetSteps,
@@ -82,6 +83,23 @@ test("HY-2D keeps an independent along-track pipeline", () => {
   assert.deepEqual(
     definition.steps.find(step => step.key === "anomaly-detection")?.dependsOn,
     ["along-track-feature-extraction"]
+  );
+});
+
+test("display title overrides preserve the underlying pipeline identity", () => {
+  const definition = getPipelineDefinition(GF6_WFV_L1A_TEMPLATE.id);
+  const overridden = applyPipelineStepTitleOverrides(definition, {
+    "feature-extraction": "影像空间特征"
+  });
+
+  assert.equal(overridden.productId, definition.productId);
+  assert.equal(
+    overridden.steps.find(step => step.key === "feature-extraction")?.title,
+    "影像空间特征"
+  );
+  assert.equal(
+    definition.steps.find(step => step.key === "feature-extraction")?.title,
+    "特征提取"
   );
 });
 
